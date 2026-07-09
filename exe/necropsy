@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'necropsy/cli'
+
+exit Necropsy::CLI.run(ARGV)

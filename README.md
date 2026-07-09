@@ -1,28 +1,114 @@
 # Necropsy
 
-TODO: Delete this and the text below, and describe your gem
+Necropsy is a Ruby dead-code detector built around a unified call graph. It
+collects method definitions with Prism, adds call-edge evidence from static and
+optional dynamic analyzers, then runs reachability from framework and configured
+entry points.
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/necropsy`. To experiment with that code, run `bin/console` for an interactive prompt.
+The first implementation includes:
+
+- Prism-based method collection for `def`, `define_method`, `attr_*`, and `delegate`
+- static name resolution, CHA, and RTA-style filtering over instantiated classes
+- Rails route/callback/view-helper/component, plain Ruby, and test-suite entry point providers
+- `unreachable`, `unused`, and `test_only_reachable` classifications
+- confidence levels, JSON/YAML/human/SARIF/GitHub reports, baseline/check guardrails, quarantine suggestions, TracePoint recording, and a bench evaluator
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+Add the gem to the development/test group:
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
-```
-
-If bundler is not being used to manage dependencies, install the gem by executing:
-
-```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem "necropsy", require: false
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+Create a baseline:
+
+```bash
+bundle exec necropsy baseline --root .
+```
+
+Run a report:
+
+```bash
+bundle exec necropsy analyze --root . --format human
+```
+
+Fail CI only for new high-confidence findings:
+
+```bash
+bundle exec necropsy check --root . --fail-on high
+```
+
+Record dynamic evidence from a Ruby script:
+
+```bash
+bundle exec necropsy record --root . --output tmp/necropsy_trace_point.yml -- script/runner.rb
+bundle exec necropsy coverage --root . --output tmp/necropsy_coverage.yml -- script/runner.rb
+```
+
+Record Ruby Coverage while running an external command:
+
+```bash
+bundle exec necropsy coverage --root . --output tmp/necropsy_coverage.yml -- bundle exec rspec
+```
+
+Child Ruby processes inherit the collector and are merged into the same output
+for that run.
+
+Evaluate against a gold standard:
+
+```bash
+bundle exec necropsy bench --root . --gold-standard gold.yml --ablation
+```
+
+Example configuration:
+
+```yaml
+analyzers:
+  static: [name_resolution, cha, rta]
+  dynamic:
+    coverage:
+      source: tmp/necropsy_coverage.yml
+      min_observation_days: 30
+    coverband:
+      source: redis://prod-redis:6379/2?key=coverband
+    trace_point:
+      source: tmp/necropsy_trace_point.yml
+  custom:
+    - "MyCompany::GraphqlEntryAnalyzer"
+cache:
+  enabled: true
+  path: .necropsy_cache/scan.yml
+entry_points:
+  extra:
+    - "PublicApi::*"
+ci:
+  fail_on: high
+  baseline: .necropsy_baseline.yml
+quarantine:
+  days: 30
+bench:
+  precision_threshold: 0.85
+```
+
+The scan cache is invalidated when scanned Ruby files or configuration values
+change.
+
+Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
+`edges` with `caller_id`/`callee_id`, and an `observation` hash. SARIF and
+GitHub Actions annotations are available via `--format sarif` and
+`--format github`.
+
+Coverband file, Redis string, and Redis hash exports are supported. Rails route
+entry point detection covers common `resources`, `resource`, `namespace`,
+`scope`, `controller`, `concerns`, `draw`, `mount`, `root`, and verb route
+forms.
+
+`necropsy quarantine --write` adds `# necropsy:quarantine since=YYYY-MM-DD`.
+When the configured quarantine window expires and no alive evidence appears,
+the finding is raised to `certain`.
 
 ## Development
 
@@ -32,7 +118,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/necropsy.
+Bug reports and pull requests are welcome on GitHub.
 
 ## License
 

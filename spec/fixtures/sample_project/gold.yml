@@ -1,0 +1,9 @@
+dead_methods:
+  - id: Sample::Widget#dead_model
+    classification: unreachable
+  - id: Sample::Widget#alias_live
+    classification: unreachable
+  - id: Sample::Widget#<=>
+    classification: unreachable
+  - id: Sample::Widget#test_only
+    classification: test_only_reachable

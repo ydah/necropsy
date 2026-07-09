@@ -1,0 +1,287 @@
+# frozen_string_literal: true
+
+require 'date'
+require 'English'
+require 'fileutils'
+require 'json'
+require 'optparse'
+require 'securerandom'
+require 'yaml'
+require 'necropsy'
+
+module Necropsy
+  class CLI
+    def self.run(argv)
+      new.run(argv)
+    end
+
+    def run(argv)
+      command = argv.first&.start_with?('-') ? 'analyze' : argv.shift || 'analyze'
+      options = default_options
+      parser = build_parser(options)
+      parser.parse!(argv)
+      apply_config_defaults(options)
+
+      case command
+      when 'analyze'
+        report = analyze(options)
+        puts Reporter.new(report).render(format: options[:format], min_confidence: options[:min_confidence])
+        0
+      when 'baseline'
+        report = analyze(options)
+        path = File.expand_path(options[:baseline], options[:root])
+        Guardrail::Baseline.write(report, path: path)
+        puts "Wrote #{path}"
+        0
+      when 'check'
+        check(options)
+      when 'quarantine'
+        quarantine(options)
+      when 'bench'
+        bench(options)
+      when 'record'
+        record(options, argv)
+      when 'coverage'
+        coverage(options, argv)
+      else
+        warn "Unknown command: #{command}"
+        warn parser
+        2
+      end
+    rescue OptionParser::ParseError, Error => e
+      warn e.message
+      2
+    end
+
+    private
+
+    def default_options
+      {
+        root: '.',
+        config: nil,
+        format: :human,
+        min_confidence: :low,
+        baseline: nil,
+        fail_on: nil,
+        diff_base: nil,
+        ratchet: false,
+        write: false,
+        gold_standard: nil,
+        output: 'tmp/necropsy_trace_point.yml',
+        sample_rate: 1.0,
+        ablation: false,
+        precision_threshold: nil,
+        recall_threshold: nil
+      }
+    end
+
+    def build_parser(options)
+      OptionParser.new do |parser|
+        parser.banner = 'Usage: necropsy COMMAND [options]'
+        parser.on('--root PATH', 'Project root') { |value| options[:root] = value }
+        parser.on('--config PATH', 'Configuration file') { |value| options[:config] = value }
+        parser.on('--format FORMAT', 'human, json, yaml, sarif, or github') { |value| options[:format] = value.to_sym }
+        parser.on('--min-confidence LEVEL', 'low, medium, high, or certain') do |value|
+          options[:min_confidence] = value.to_sym
+        end
+        parser.on('--baseline PATH', 'Baseline path') { |value| options[:baseline] = value }
+        parser.on('--fail-on LEVEL', 'CI failure threshold') { |value| options[:fail_on] = value.to_sym }
+        parser.on('--diff-base REV', 'Restrict reported findings to files changed since REV') do |value|
+          options[:diff_base] = value
+        end
+        parser.on('--ratchet', 'Fail if finding count grows beyond baseline count') { options[:ratchet] = true }
+        parser.on('--write', 'Write quarantine annotations') { options[:write] = true }
+        parser.on('--gold-standard PATH', 'Gold standard YAML for bench') { |value| options[:gold_standard] = value }
+        parser.on('--output PATH', 'Output path for record') { |value| options[:output] = value }
+        parser.on('--sample-rate RATE', Float, 'TracePoint sample rate for record') do |value|
+          options[:sample_rate] = value
+        end
+        parser.on('--ablation', 'Run bench across analyzer combinations') { options[:ablation] = true }
+        parser.on('--precision-threshold N', Float, 'Bench release precision threshold') do |value|
+          options[:precision_threshold] = value
+        end
+        parser.on('--recall-threshold N', Float, 'Bench release recall threshold') do |value|
+          options[:recall_threshold] = value
+        end
+        parser.on('-h', '--help', 'Show help') do
+          puts parser
+          exit 0
+        end
+      end
+    end
+
+    def analyze(options)
+      Necropsy.analyze(root: options[:root], config_path: options[:config])
+    end
+
+    def apply_config_defaults(options)
+      config = Configuration.load(root: File.expand_path(options[:root]), path: options[:config])
+      options[:baseline] ||= config.baseline_path
+      options[:fail_on] ||= config.fail_on
+    end
+
+    def check(options)
+      report = analyze(options)
+      findings = filtered_findings(report, options)
+      baseline_path = File.expand_path(options[:baseline], options[:root])
+      baseline = Guardrail::Baseline.load(baseline_path)
+      failures = findings.reject { |finding| baseline.include?(finding) }
+
+      if options[:ratchet] && findings.length > baseline.fingerprints.length
+        puts "Ratchet failed: #{findings.length} findings exceed baseline count #{baseline.fingerprints.length}"
+        return 1
+      end
+
+      if failures.any?
+        puts Reporter.new(Report.new(root: report.root, graph: report.graph, findings: failures)).render(
+          format: :human,
+          min_confidence: options[:fail_on]
+        )
+        return 1
+      end
+
+      puts 'Necropsy check passed'
+      0
+    end
+
+    def filtered_findings(report, options)
+      findings = report.dead_methods(min_confidence: options[:fail_on])
+      return findings unless options[:diff_base]
+
+      project = Project.new(root: File.expand_path(options[:root]), config: report_config(options))
+      changed = project.changed_files(options[:diff_base])
+      findings.select { |finding| changed.include?(finding.node.file) }
+    end
+
+    def report_config(options)
+      Configuration.load(root: File.expand_path(options[:root]), path: options[:config])
+    end
+
+    def quarantine(options)
+      report = analyze(options)
+      quarantine = Guardrail::Quarantine.new(report: report, root: File.expand_path(options[:root]))
+      if options[:write]
+        quarantine.write(min_confidence: options[:min_confidence])
+        puts 'Wrote quarantine annotations'
+      else
+        quarantine.suggestions(min_confidence: options[:min_confidence]).each do |suggestion|
+          finding = suggestion[:finding]
+          puts "#{suggestion[:path]}:#{suggestion[:line]} #{suggestion[:annotation]} #{finding.node.id}"
+        end
+      end
+      0
+    end
+
+    def bench(options)
+      raise Error, '--gold-standard is required for bench' unless options[:gold_standard]
+
+      report = analyze(options)
+      config = report_config(options)
+      result = Bench::Evaluator.new(
+        report: report,
+        gold_standard_path: options[:gold_standard],
+        min_confidence: options[:min_confidence],
+        root: options[:root],
+        config_path: options[:config],
+        ablation: options[:ablation],
+        precision_threshold: options[:precision_threshold] || config.bench_precision_threshold,
+        recall_threshold: options[:recall_threshold] || config.bench_recall_threshold
+      ).call
+      puts JSON.pretty_generate(result)
+      0
+    end
+
+    def record(options, argv)
+      script_argv = argv.dup
+      script_argv.shift if script_argv.first == 'ruby'
+      script = script_argv.shift
+      raise Error, 'record requires a Ruby script after --' unless script
+
+      output = File.expand_path(options[:output], options[:root])
+      FileUtils.mkdir_p(File.dirname(output))
+
+      previous_argv = ARGV.dup
+      ARGV.replace(script_argv)
+      Analyzers::Dynamic::TracePointCollector.record(
+        root: File.expand_path(options[:root]),
+        output: output,
+        sample_rate: options[:sample_rate]
+      ) do
+        load File.expand_path(script, options[:root])
+      end
+      puts "Wrote #{output}"
+      0
+    ensure
+      ARGV.replace(previous_argv) if previous_argv
+    end
+
+    def coverage(options, argv)
+      script_argv = argv.dup
+      raise Error, 'coverage requires a Ruby script or command after --' if script_argv.empty?
+
+      output = File.expand_path(options[:output].sub('trace_point', 'coverage'), options[:root])
+      FileUtils.mkdir_p(File.dirname(output))
+
+      return record_coverage_script(options, output, script_argv) if local_ruby_script?(options, script_argv)
+
+      run_coverage_command(options, output, script_argv)
+    end
+
+    def record_coverage_script(options, output, script_argv)
+      script, args = ruby_script_and_args(options, script_argv)
+      previous_argv = ARGV.dup
+      ARGV.replace(args)
+      Analyzers::Dynamic::CoverageCollector.record(root: File.expand_path(options[:root]), output: output) do
+        load File.expand_path(script, options[:root])
+      end
+      puts "Wrote #{output}"
+      0
+    ensure
+      ARGV.replace(previous_argv) if previous_argv
+    end
+
+    def run_coverage_command(options, output, script_argv)
+      run_id = SecureRandom.hex(16)
+      status = system(coverage_runtime_env(options, output, run_id), *script_argv)
+      puts "Wrote #{output}" if output_for_run?(output, run_id)
+      return 0 if status
+
+      $CHILD_STATUS&.exitstatus || 1
+    end
+
+    def local_ruby_script?(options, script_argv)
+      script, = ruby_script_and_args(options, script_argv)
+      script&.end_with?('.rb') && File.file?(File.expand_path(script, options[:root]))
+    end
+
+    def ruby_script_and_args(_options, script_argv)
+      return [script_argv[1], script_argv.drop(2)] if script_argv.first == 'ruby'
+
+      [script_argv.first, script_argv.drop(1)]
+    end
+
+    def coverage_runtime_env(options, output, run_id)
+      rubyopt = [ENV.fetch('RUBYOPT', nil), '-rnecropsy/coverage_runtime'].compact.reject(&:empty?).join(' ')
+      {
+        'NECROPSY_COVERAGE_ROOT' => File.expand_path(options[:root]),
+        'NECROPSY_COVERAGE_OUTPUT' => output,
+        'NECROPSY_COVERAGE_MERGE' => '1',
+        'NECROPSY_COVERAGE_RUN_ID' => run_id,
+        'RUBYOPT' => rubyopt,
+        'RUBYLIB' => rubylib
+      }
+    end
+
+    def rubylib
+      paths = [File.expand_path('..', __dir__), ENV.fetch('RUBYLIB', nil)].compact.reject(&:empty?)
+      paths.join(File::PATH_SEPARATOR)
+    end
+
+    def output_for_run?(output, run_id)
+      payload = YAML.load_file(output) || {}
+      payload.dig('observation', 'run_id') == run_id
+    rescue SystemCallError, Psych::Exception
+      false
+    end
+  end
+end
