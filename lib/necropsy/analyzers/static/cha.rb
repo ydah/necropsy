@@ -6,7 +6,7 @@ module Necropsy
       class CHA < Analyzer
         def analyze(graph, _project)
           edge_evidences = graph.call_sites.flat_map do |site|
-            resolve(graph, site).map do |candidate|
+            candidates(graph, site).map do |candidate|
               EdgeEvidence.new(
                 caller_id: site.caller_id,
                 callee_id: candidate.id,
@@ -36,9 +36,7 @@ module Necropsy
           )
         end
 
-        private
-
-        def resolve(graph, site)
+        def candidates(graph, site)
           case site.receiver_kind
           when :constant
             constant_targets(graph, site)
@@ -50,6 +48,8 @@ module Necropsy
             graph.resolve_call_site(site)
           end.uniq(&:id)
         end
+
+        private
 
         def constant_targets(graph, site)
           receiver_candidates(site).flat_map do |owner|

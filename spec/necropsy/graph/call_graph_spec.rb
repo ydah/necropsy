@@ -114,5 +114,39 @@ RSpec.describe Necropsy::CallGraph do
     )
 
     expect(graph.resolve_call_site(site).map(&:id)).to eq(['Parent#render'])
+    expect(graph.resolve_call_site(site, rta: true).map(&:id)).to eq(['Parent#render'])
+  end
+
+  it 'uses RTA results to remove broader standard static edges for the same call site' do
+    caller = node('Caller#run', owner: 'Caller', name: 'run')
+    base = node('Base#render', owner: 'Base', name: 'render')
+    live = node('Live#render', owner: 'Live', name: 'render')
+    dead = node('Dead#render', owner: 'Dead', name: 'render')
+    site = call_site(
+      caller_id: caller.id,
+      message: 'render',
+      receiver_kind: :instance,
+      receiver_name: 'Base',
+      metadata: { 'receiver_candidates' => ['Base'] }
+    )
+    graph = graph_with(
+      nodes: [caller, base, live, dead],
+      call_sites: [site],
+      instantiated_classes: Set['Live'],
+      class_infos: [
+        class_info('Base'),
+        class_info('Live', superclass: 'Base'),
+        class_info('Dead', superclass: 'Base')
+      ]
+    )
+    [Necropsy::Analyzers::Static::NameResolution.new, Necropsy::Analyzers::Static::CHA.new].each do |analyzer|
+      graph.apply_result(analyzer.analyze(graph, nil))
+    end
+    result = Necropsy::Analyzers::Static::RTA.new.analyze(graph, nil)
+    graph.apply_result(result)
+    graph.reconcile_rta_result(result)
+
+    expect(graph.edges.map(&:callee_id)).to eq(['Live#render'])
+    expect(graph.incoming_edges(live.id).flat_map(&:evidences).map(&:analyzer)).to contain_exactly(:cha, :rta)
   end
 end

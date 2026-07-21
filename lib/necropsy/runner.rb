@@ -13,12 +13,16 @@ module Necropsy
     def analyze
       project = Project.new(root: root, config: config)
       graph = CallGraph.new(project.scan_result)
+      rta_results = []
 
       apply_entry_points(graph, project)
       configured_analyzers.each do |analyzer|
         graph.add_profile(analyzer.profile)
-        graph.apply_result(analyzer.analyze(graph, project))
+        result = analyzer.analyze(graph, project)
+        graph.apply_result(result)
+        rta_results << result if analyzer.profile.name == :rta
       end
+      rta_results.each { |result| graph.reconcile_rta_result(result) }
 
       reachability = Reachability::Engine.new(graph).call
       findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings

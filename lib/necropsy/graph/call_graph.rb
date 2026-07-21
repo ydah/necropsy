@@ -136,6 +136,34 @@ module Necropsy
       candidates
     end
 
+    def retain_rta_candidates(candidates, site)
+      candidates.select { |node| rta_candidate?(node, site) }
+    end
+
+    def reconcile_rta_result(result)
+      analyzed_sites = result.observation.dig('rta', 'analyzed_sites')
+      return unless analyzed_sites
+
+      analyzed_keys = analyzed_sites.to_set { |site| call_site_key(site) }
+      allowed = result.edge_evidences.each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |edge, memo|
+        memo[call_site_key(edge.evidence.metadata)] << edge.callee_id
+      end
+
+      @edges.each_value do |callees|
+        callees.each do |callee_id, evidences|
+          evidences.reject! do |item|
+            next false unless %i[name_resolution cha].include?(item.analyzer)
+
+            key = call_site_key(item.metadata)
+            analyzed_keys.include?(key) && !allowed[key].include?(callee_id)
+          end
+        end
+        callees.delete_if { |_callee_id, evidences| evidences.empty? }
+      end
+      @edges.delete_if { |_caller_id, callees| callees.empty? }
+      rebuild_incoming_edges
+    end
+
     def fallback_resolution?(site)
       resolved = resolve_call_site(site)
       return false if resolved.empty?
@@ -234,10 +262,30 @@ module Necropsy
 
     def rta_candidate?(node, site)
       return true unless node.kind == :instance_method
-      return true if node.owner == nodes[site.caller_id]&.owner
+
+      caller_owner = nodes[site.caller_id]&.owner
+      return true if site.receiver_kind == :super
+      return dispatched_instance_owner(caller_owner, site.message) == node.owner if %i[self implicit].include?(site.receiver_kind)
+
+      return true if node.owner == caller_owner
       return true if class_info(node.owner)&.dynamic
 
-      instantiated_classes.include?(node.owner)
+      instantiated_classes.any? { |owner| dispatched_instance_owner(owner, site.message) == node.owner }
+    end
+
+    def dispatched_instance_owner(owner, message)
+      method_lookup_chain(owner).find { |candidate| nodes.key?("#{candidate}##{message}") }
+    end
+
+    def method_lookup_chain(owner, seen = Set.new)
+      return [] unless owner && seen.add?(owner)
+
+      info = class_info(owner)
+      return [owner] unless info
+
+      prepends = info.prepends.reverse.flat_map { |name| method_lookup_chain(name, seen) }
+      includes = info.includes.reverse.flat_map { |name| method_lookup_chain(name, seen) }
+      prepends + [owner] + includes + method_lookup_chain(info.superclass, seen)
     end
 
     def ancestor_chain(owner)
@@ -254,6 +302,30 @@ module Necropsy
       return right unless left.is_a?(Hash) && right.is_a?(Hash)
 
       left.merge(right)
+    end
+
+    def call_site_key(site)
+      metadata = site['metadata'] || site[:metadata] || {}
+      [
+        site['caller_id'] || site[:caller_id],
+        site['message'] || site[:message],
+        (site['receiver_kind'] || site[:receiver_kind])&.to_s,
+        site['receiver_name'] || site[:receiver_name],
+        site['file'] || site[:file],
+        site['line'] || site[:line],
+        Array(metadata['receiver_candidates'] || metadata[:receiver_candidates]).sort,
+        metadata['implicit_from'] || metadata[:implicit_from]
+      ]
+    end
+
+    def rebuild_incoming_edges
+      @incoming_edges = {}
+      @edges.each do |caller_id, callees|
+        callees.each do |callee_id, evidences|
+          @incoming_edges[callee_id] ||= {}
+          @incoming_edges[callee_id][caller_id] = evidences
+        end
+      end
     end
 
     def retain_known_instantiated_classes

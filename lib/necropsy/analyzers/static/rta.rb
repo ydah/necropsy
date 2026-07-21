@@ -13,8 +13,9 @@ module Necropsy
         COMPARISON_MESSAGES = %w[< <= > >= between? clamp sort sort_by max min].freeze
 
         def analyze(graph, _project)
-          edge_evidences = expanded_call_sites(graph).flat_map do |site|
-            graph.resolve_call_site(site, rta: true).map do |candidate|
+          sites = expanded_call_sites(graph)
+          edge_evidences = sites.flat_map do |site|
+            rta_candidates(graph, site).map do |candidate|
               EdgeEvidence.new(
                 caller_id: site.caller_id,
                 callee_id: candidate.id,
@@ -31,7 +32,7 @@ module Necropsy
             edge_evidences: edge_evidences,
             alive_evidences: [],
             uncertainties: {},
-            observation: {}
+            observation: { 'rta' => { 'analyzed_sites' => sites.map(&:to_h) } }
           )
         end
 
@@ -72,6 +73,14 @@ module Necropsy
           messages << '<=>' if COMPARISON_MESSAGES.include?(message)
           messages << 'to_s' if %w[puts print warn].include?(message)
           messages
+        end
+
+        private
+
+        def rta_candidates(graph, site)
+          candidates = Analyzers::Static::CHA.new.candidates(graph, site)
+          candidates = graph.candidate_nodes(site.message) if candidates.empty? && site.receiver_kind == :unknown
+          graph.retain_rta_candidates(candidates, site)
         end
       end
     end
