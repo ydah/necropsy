@@ -31,8 +31,11 @@ RSpec.describe Necropsy::EntryPoints::Rails do
               get "widgets/path_shorthand"
               mount MountedEngine, at: "/mounted"
               namespace :admin do
-                get "widgets", to: "widgets#index"
+                get "widgets",
+                    to: "widgets#index"
               end
+              scope module: :v2 do get "widgets", to: "widgets#index" end
+              scope({ module: :v3 }) { get "widgets", to: "widgets#index" }
               controller :widgets do
                 get :contextual
               end
@@ -106,6 +109,8 @@ RSpec.describe Necropsy::EntryPoints::Rails do
           'WidgetsController#audit' => :rails_route,
           'WidgetsController#drawn' => :rails_route,
           'Admin::WidgetsController#index' => :rails_route,
+          'V2::WidgetsController#index' => :rails_route,
+          'V3::WidgetsController#index' => :rails_route,
           'MountedEngine.call' => :rails_route,
           'WidgetJob#perform' => :job_perform,
           'WidgetMailer#notify' => :mailer_action,
@@ -149,6 +154,8 @@ RSpec.describe Necropsy::EntryPoints::Rails do
       node("WidgetsController##{action}", owner: 'WidgetsController', name: action)
     end + [
       node('Admin::WidgetsController#index', owner: 'Admin::WidgetsController', name: 'index'),
+      node('V2::WidgetsController#index', owner: 'V2::WidgetsController', name: 'index'),
+      node('V3::WidgetsController#index', owner: 'V3::WidgetsController', name: 'index'),
       node('DaysController#show', owner: 'DaysController', name: 'show'),
       node('PeopleController#show', owner: 'PeopleController', name: 'show'),
       node('MountedEngine.call', kind: :singleton_method, owner: 'MountedEngine', name: 'call')

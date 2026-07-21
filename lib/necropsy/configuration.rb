@@ -6,6 +6,20 @@ module Necropsy
   class Configuration
     DEFAULT_FAIL_ON = :high
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
+    TOP_LEVEL_KEYS = %w[analyzers frameworks entry_points ci quarantine bench cache rta paths logging].freeze
+    NESTED_KEYS = {
+      'analyzers' => %w[static dynamic custom],
+      'analyzers.dynamic' => %w[coverage coverband trace_point],
+      'entry_points' => %w[extra],
+      'ci' => %w[baseline fail_on],
+      'quarantine' => %w[days],
+      'bench' => %w[precision_threshold recall_threshold],
+      'cache' => %w[enabled path],
+      'rta' => %w[factory_methods],
+      'paths' => %w[include exclude],
+      'logging' => %w[verbose]
+    }.freeze
+    DYNAMIC_KEYS = %w[source min_observation_days keys key pattern connect_timeout read_timeout].freeze
 
     attr_reader :root, :path, :data
 
@@ -21,6 +35,7 @@ module Necropsy
       @root = File.expand_path(root)
       @path = path
       @data = stringify_keys(data)
+      validate!
     end
 
     def static_analyzers
@@ -86,7 +101,7 @@ module Necropsy
     end
 
     def cache_path
-      fetch('cache', 'path') || '.necropsy_cache/scan.yml'
+      fetch('cache', 'path') || '.necropsy_cache/scan.json'
     end
 
     def scan_cache_key
@@ -95,6 +110,18 @@ module Necropsy
 
     def factory_methods
       Array(fetch('rta', 'factory_methods') || %w[build create build_stubbed]).map(&:to_s)
+    end
+
+    def include_paths
+      Array(fetch('paths', 'include')).map(&:to_s)
+    end
+
+    def exclude_paths
+      Array(fetch('paths', 'exclude')).map(&:to_s)
+    end
+
+    def verbose?
+      fetch('logging', 'verbose') == true
     end
 
     private
@@ -115,6 +142,40 @@ module Necropsy
         value.map { |child| stringify_keys(child) }
       else
         value
+      end
+    end
+
+    def validate!
+      validate_hash_keys(data, TOP_LEVEL_KEYS, 'configuration')
+      NESTED_KEYS.each do |path, allowed|
+        value = fetch(*path.split('.'))
+        validate_hash_keys(value, allowed, path) if value
+      end
+      %w[coverage coverband trace_point].each do |name|
+        value = fetch('analyzers', 'dynamic', name)
+        validate_hash_keys(value, DYNAMIC_KEYS, "analyzers.dynamic.#{name}") if value
+      end
+      validate_custom_analyzers!
+    end
+
+    def validate_hash_keys(value, allowed, location)
+      raise Error, "#{location} must be a mapping" unless value.is_a?(Hash)
+
+      unknown = value.keys - allowed
+      return if unknown.empty?
+
+      raise Error, "Unknown #{location} option#{'s' if unknown.length > 1}: #{unknown.join(', ')}"
+    end
+
+    def validate_custom_analyzers!
+      custom_analyzers.each do |entry|
+        next if entry.is_a?(String)
+        unless entry.is_a?(Hash)
+          raise Error, 'Each custom analyzer must be a class name or a mapping with class and require'
+        end
+
+        validate_hash_keys(entry, %w[class require], 'custom analyzer')
+        raise Error, 'Custom analyzer mapping requires class' unless entry['class']
       end
     end
   end

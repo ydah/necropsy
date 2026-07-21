@@ -66,7 +66,7 @@ RSpec.describe Necropsy do
     first = Necropsy::Project.new(root: dir, config: config).scan_result
     second = Necropsy::Project.new(root: dir, config: config).scan_result
 
-    expect(File).to exist(File.join(dir, '.necropsy_cache/scan.yml'))
+    expect(File).to exist(File.join(dir, '.necropsy_cache/scan.json'))
     expect(second.nodes.map(&:id)).to eq(first.nodes.map(&:id))
   end
 

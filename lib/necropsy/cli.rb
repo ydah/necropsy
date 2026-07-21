@@ -5,6 +5,7 @@ require 'English'
 require 'fileutils'
 require 'json'
 require 'optparse'
+require 'rbconfig'
 require 'securerandom'
 require 'yaml'
 require 'necropsy'
@@ -108,6 +109,8 @@ module Necropsy
         parser.on('--gold-standard PATH', 'Gold standard YAML for bench') { |value| options[:gold_standard] = value }
         parser.on('--output PATH', 'Output path for record') { |value| options[:output] = value }
         parser.on('--sample-rate RATE', Float, 'TracePoint sample rate for record') do |value|
+          raise OptionParser::InvalidArgument, 'sample rate must be between 0.0 and 1.0' unless value.between?(0.0, 1.0)
+
           options[:sample_rate] = value
         end
         parser.on('--ablation', 'Run bench across analyzer combinations') { options[:ablation] = true }
@@ -207,27 +210,18 @@ module Necropsy
     end
 
     def record(options, argv)
-      script_argv = argv.dup
-      script_argv.shift if script_argv.first == 'ruby'
-      script = script_argv.shift
-      raise Error, 'record requires a Ruby script after --' unless script
+      command = argv.dup
+      raise Error, 'record requires a Ruby script or command after --' if command.empty?
 
       output = File.expand_path(options[:output] || 'tmp/necropsy_trace_point.yml', options[:root])
       FileUtils.mkdir_p(File.dirname(output))
+      command = trace_command(options, command)
+      run_id = SecureRandom.hex(16)
+      status = system(trace_runtime_env(options, output, run_id), *command)
+      puts "Wrote #{output}" if output_for_run?(output, run_id)
+      return 0 if status
 
-      previous_argv = ARGV.dup
-      ARGV.replace(script_argv)
-      Analyzers::Dynamic::TracePointCollector.record(
-        root: File.expand_path(options[:root]),
-        output: output,
-        sample_rate: options[:sample_rate]
-      ) do
-        load File.expand_path(script, options[:root])
-      end
-      puts "Wrote #{output}"
-      0
-    ensure
-      ARGV.replace(previous_argv) if previous_argv
+      $CHILD_STATUS&.exitstatus || 1
     end
 
     def coverage(options, argv)
@@ -285,6 +279,27 @@ module Necropsy
         'RUBYOPT' => rubyopt,
         'RUBYLIB' => rubylib
       }
+    end
+
+    def trace_runtime_env(options, output, run_id)
+      rubyopt = [ENV.fetch('RUBYOPT', nil), '-rnecropsy/trace_point_runtime'].compact.reject(&:empty?).join(' ')
+      {
+        'NECROPSY_TRACE_ROOT' => File.expand_path(options[:root]),
+        'NECROPSY_TRACE_OUTPUT' => output,
+        'NECROPSY_TRACE_SAMPLE_RATE' => options[:sample_rate].to_s,
+        'NECROPSY_TRACE_MERGE' => '1',
+        'NECROPSY_TRACE_RUN_ID' => run_id,
+        'RUBYOPT' => rubyopt,
+        'RUBYLIB' => rubylib
+      }
+    end
+
+    def trace_command(options, command)
+      script = command.first
+      path = File.expand_path(script, options[:root])
+      return [RbConfig.ruby, path, *command.drop(1)] if script.end_with?('.rb') && File.file?(path)
+
+      command
     end
 
     def rubylib

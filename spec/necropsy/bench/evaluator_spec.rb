@@ -32,6 +32,8 @@ RSpec.describe Necropsy::Bench::Evaluator do
       )
       expect(result.fetch('by_classification').keys).to contain_exactly('unreachable', 'unused')
       expect(result.fetch('by_confidence').keys).to contain_exactly('high', 'medium')
+      expect(result.dig('by_confidence', 'high', 'recall')).to be_nil
+      expect(result.dig('by_confidence', 'high', 'false_negative')).to eq([])
       expect(result.fetch('release_criteria')).to include('passed' => true)
     end
   end

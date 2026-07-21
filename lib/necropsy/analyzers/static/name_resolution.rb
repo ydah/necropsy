@@ -7,12 +7,14 @@ module Necropsy
         def analyze(graph, _project)
           edge_evidences = graph.call_sites.flat_map do |site|
             graph.resolve_call_site(site).map do |candidate|
+              fallback = graph.fallback_resolution?(site)
               EdgeEvidence.new(
                 caller_id: site.caller_id,
                 callee_id: candidate.id,
                 evidence: evidence(
                   kind: :call_edge,
-                  details: "Name resolution at #{site.file}:#{site.line}",
+                  details: "Name resolution#{' fallback' if fallback} at #{site.file}:#{site.line}",
+                  weight: fallback ? 0.35 : 1.0,
                   metadata: site.to_h
                 )
               )
@@ -41,10 +43,11 @@ module Necropsy
         def unresolved_uncertainties(graph)
           graph.call_sites.each_with_object({}) do |site, memo|
             next if site.dynamic
-            next unless graph.resolve_call_site(site).empty? && site.receiver_kind == :unknown
+            next unless graph.resolve_call_site(site).empty?
+            next if graph.candidate_nodes(site.message).empty? && site.receiver_kind != :unknown
 
             memo[site.caller_id] ||= []
-            memo[site.caller_id] << "Unknown receiver for #{site.message} at #{site.file}:#{site.line}"
+            memo[site.caller_id] << "Unknown receiver for #{site.message} at #{site.file}:#{site.line}; dispatch may be ambiguous"
           end
         end
       end

@@ -7,7 +7,6 @@ module Necropsy
     EXCLUDED_DIRECTORIES = %w[
       .bundle
       .git
-      .serena
       coverage
       doc
       node_modules
@@ -36,7 +35,11 @@ module Necropsy
         rake = Dir.glob(File.join(root, '**', '*.rake'))
         executables = Dir.glob(File.join(root, '{bin,exe}', '*')).select { |file| File.file?(file) }
         gemspecs = Dir.glob(File.join(root, '*.gemspec'))
-        (globbed + special + rake + executables + gemspecs).uniq.select { |file| analyzable_file?(file) }.sort
+        candidates = (globbed + special + rake + executables + gemspecs).uniq
+        candidates.select! { |file| analyzable_file?(file) }
+        candidates.select! { |file| included_path?(relative_path(file)) } if config.include_paths.any?
+        candidates.reject! { |file| excluded_path?(relative_path(file)) }
+        candidates.sort
       end
     end
 
@@ -57,9 +60,32 @@ module Necropsy
 
     def analyzable_file?(file)
       relative_parts = relative_path(file).split(File::SEPARATOR)
-      !relative_parts.intersect?(EXCLUDED_DIRECTORIES)
+      return false if EXCLUDED_DIRECTORIES.include?(relative_parts.first)
+
+      ruby_source?(file)
     rescue ArgumentError
       false
+    end
+
+    def ruby_source?(file)
+      return true if file.end_with?('.rb', '.rake', '.gemspec') || File.basename(file) == 'Rakefile'
+
+      File.open(file, &:readline).match?(/\A#!.*\bruby\b/)
+    rescue EOFError, SystemCallError, EncodingError
+      false
+    end
+
+    def included_path?(relative)
+      config.include_paths.any? { |pattern| path_matches?(pattern, relative) }
+    end
+
+    def excluded_path?(relative)
+      config.exclude_paths.any? { |pattern| path_matches?(pattern, relative) }
+    end
+
+    def path_matches?(pattern, relative)
+      File.fnmatch?(pattern, relative, File::FNM_PATHNAME | File::FNM_EXTGLOB) ||
+        File.fnmatch?(File.join(pattern, '**', '*'), relative, File::FNM_PATHNAME | File::FNM_EXTGLOB)
     end
   end
 end

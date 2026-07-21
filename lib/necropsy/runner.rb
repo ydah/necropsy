@@ -45,6 +45,8 @@ module Necropsy
           Analyzers::Static::CHA.new
         when 'rta'
           Analyzers::Static::RTA.new
+        else
+          raise Error, "Unknown static analyzer: #{name}"
         end
       end
 
@@ -60,11 +62,26 @@ module Necropsy
     end
 
     def custom_analyzers
-      config.custom_analyzers.map do |class_name|
+      config.custom_analyzers.map do |entry|
+        class_name, required_path = custom_analyzer_definition(entry)
+        require_custom_analyzer(required_path) if required_path
         constantize(class_name).new
       rescue NameError => e
         raise Error, "Could not load custom analyzer #{class_name}: #{e.message}"
+      rescue LoadError => e
+        raise Error, "Could not require custom analyzer #{class_name}: #{e.message}"
       end
+    end
+
+    def custom_analyzer_definition(entry)
+      return [entry, nil] unless entry.is_a?(Hash)
+
+      [entry.fetch('class'), entry['require']]
+    end
+
+    def require_custom_analyzer(path)
+      expanded = File.expand_path(path, root)
+      File.file?(expanded) ? require(expanded) : require(path)
     end
 
     def constantize(class_name)

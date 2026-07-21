@@ -39,4 +39,32 @@ RSpec.describe Necropsy::Runner do
       )
     end
   end
+
+  it 'requires custom analyzer implementations declared in configuration' do
+    source = <<~RUBY
+      class RequiredRunnerAnalyzer < Necropsy::Analyzer
+        def analyze(*) = Necropsy::AnalyzerResult.empty
+        def profile = Necropsy::AnalyzerProfile.new(name: :required, kind: :static, soundness: :partial, description: 'required')
+      end
+    RUBY
+    with_project(
+      files: { 'config/required_analyzer.rb' => source },
+      config: {
+        analyzers: {
+          static: [],
+          custom: [{ class: 'RequiredRunnerAnalyzer', require: 'config/required_analyzer.rb' }]
+        }
+      }
+    ) do |root|
+      report = described_class.new(root: root).analyze
+
+      expect(report.graph.profiles.map(&:name)).to eq([:required])
+    end
+  end
+
+  it 'rejects unknown static analyzer names' do
+    with_project(config: { analyzers: { static: ['typo'] } }) do |root|
+      expect { described_class.new(root: root).analyze }.to raise_error(Necropsy::Error, /Unknown static analyzer: typo/)
+    end
+  end
 end

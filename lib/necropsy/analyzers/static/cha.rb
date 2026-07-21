@@ -49,7 +49,7 @@ module Necropsy
           when :super
             graph.resolve_call_site(site)
           else
-            graph.candidate_nodes(site.message)
+            graph.resolve_call_site(site)
           end.uniq(&:id)
         end
 

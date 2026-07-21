@@ -131,9 +131,27 @@ module Necropsy
     end
 
     def resolve_call_site(site, rta: false)
-      candidates = candidates_for_receiver(site)
+      candidates = rta ? rta_candidates_for_receiver(site) : candidates_for_receiver(site)
       candidates = candidates.select { |node| rta_candidate?(node, site) } if rta
       candidates
+    end
+
+    def fallback_resolution?(site)
+      resolved = resolve_call_site(site)
+      return false if resolved.empty?
+
+      case site.receiver_kind
+      when :constant
+        receiver_candidates(site).none? { |name| nodes.key?("#{name}.#{site.message}") }
+      when :instance
+        receiver_candidates(site).none? { |name| nodes.key?("#{name}##{site.message}") }
+      when :implicit
+        same_owner_candidates(site).empty?
+      when :unknown
+        true
+      else
+        false
+      end
     end
 
     def to_h
@@ -154,19 +172,26 @@ module Necropsy
       case site.receiver_kind
       when :constant
         exact = receiver_candidates(site).filter_map { |name| nodes["#{name}.#{site.message}"] }.first
-        exact ? [exact] : candidate_nodes(site.message)
+        exact ? [exact] : unique_fallback_candidate(site.message)
       when :instance
         exact = receiver_candidates(site).filter_map { |name| nodes["#{name}##{site.message}"] }.first
-        exact ? [exact] : candidate_nodes(site.message)
+        exact ? [exact] : unique_fallback_candidate(site.message)
       when :self
         same_owner_candidates(site)
       when :super
         super_candidates(site)
       when :implicit
-        same_owner_candidates(site).then { |matches| matches.empty? ? candidate_nodes(site.message) : matches }
+        same_owner_candidates(site).then { |matches| matches.empty? ? unique_fallback_candidate(site.message) : matches }
       else
-        candidate_nodes(site.message)
+        unique_fallback_candidate(site.message)
       end
+    end
+
+    def rta_candidates_for_receiver(site)
+      exact = candidates_for_receiver(site)
+      return exact unless exact.empty?
+
+      candidate_nodes(site.message)
     end
 
     def same_owner_candidates(site)
@@ -198,6 +223,11 @@ module Necropsy
     def receiver_candidates(site)
       candidates = site.metadata['receiver_candidates'] || site.metadata[:receiver_candidates]
       Array(candidates).compact.empty? ? [site.receiver_name].compact : Array(candidates).compact
+    end
+
+    def unique_fallback_candidate(message)
+      candidates = candidate_nodes(message)
+      candidates.one? ? candidates : []
     end
 
     def rta_candidate?(node, site)

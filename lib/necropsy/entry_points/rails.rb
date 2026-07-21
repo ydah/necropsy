@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'prism'
+
 module Necropsy
   module EntryPoints
     class Rails
@@ -60,49 +62,76 @@ module Necropsy
         return [] if seen[expanded]
 
         seen[expanded] = true
-        parse_routes(File.readlines(expanded), root: root, seen: seen, concerns: concerns)
+        source = File.read(expanded)
+        result = Prism.parse(source)
+        return [] if result.failure?
+
+        parse_route_statements(
+          result.value.statements,
+          source: source,
+          root: root,
+          seen: seen,
+          concerns: concerns,
+          context: RouteContext.new(modules: [], resource: nil)
+        )
+      rescue SystemCallError, EncodingError
+        []
       end
 
-      def parse_routes(lines, root:, seen:, concerns:, initial_context: RouteContext.new(modules: [], resource: nil))
-        contexts = [initial_context]
-        capture = nil
-        targets = []
+      def parse_route_statements(statements, source:, root:, seen:, concerns:, context:)
+        Array(statements&.body).flat_map do |statement|
+          parse_route_statement(statement, source: source, root: root, seen: seen, concerns: concerns,
+                                            context: context)
+        end.compact.uniq
+      end
 
-        lines.each do |line|
-          stripped = strip_route_comment(line).strip
-          next if stripped.empty?
-
-          if capture
-            capture[:depth] += block_openings(stripped)
-            capture[:depth] -= 1 if stripped == 'end'
-
-            if capture[:depth].zero?
-              concerns[capture[:name]] = capture[:lines]
-              capture = nil
-            else
-              capture[:lines] << stripped
-            end
-            next
+      def parse_route_statement(statement, source:, root:, seen:, concerns:, context:)
+        unless statement.is_a?(Prism::CallNode)
+          return statement.child_nodes.compact.flat_map do |child|
+            parse_route_statement(child, source: source, root: root, seen: seen, concerns: concerns, context: context)
           end
-
-          if (match = stripped.match(/\bconcern\s+:([a-zA-Z_]\w*)\s+do\b/))
-            capture = { name: match[1], depth: 1, lines: [] }
-            next
-          end
-
-          if stripped == 'end'
-            contexts.pop if contexts.length > 1
-            next
-          end
-
-          context = contexts.last
-          targets.concat(route_targets(stripped, context))
-          targets.concat(route_file_targets(stripped, root, seen, concerns))
-          targets.concat(concern_targets(stripped, context, root, seen, concerns))
-          push_context(contexts, stripped, context)
         end
 
-        targets.compact.uniq
+        call_source = route_call_source(statement, source)
+        if statement.name == :concern && statement.block
+          name = literal_route_argument(statement.arguments&.arguments&.first)
+          concerns[name] = [statement.block.body, source] if name
+          return []
+        end
+
+        targets = route_targets(call_source, context)
+        targets.concat(route_file_targets(call_source, root, seen, concerns))
+        targets.concat(concern_targets(call_source, context, root, seen, concerns))
+        return targets unless statement.block
+
+        child_context = nested_route_context(call_source, context)
+        targets.concat(
+          parse_route_statements(
+            statement.block.body,
+            source: source,
+            root: root,
+            seen: seen,
+            concerns: concerns,
+            context: child_context
+          )
+        )
+      end
+
+      def route_call_source(node, source)
+        finish = node.block ? node.block.opening_loc.start_offset : node.location.end_offset
+        source.byteslice(node.location.start_offset...finish).gsub(/\s+/, ' ').strip
+      end
+
+      def literal_route_argument(node)
+        return unless node.is_a?(Prism::SymbolNode) || node.is_a?(Prism::StringNode)
+
+        node.unescaped.to_s
+      end
+
+      def nested_route_context(line, context)
+        contexts = [context]
+        push_context(contexts, line, context)
+        contexts.last
       end
 
       def route_targets(line, context)
@@ -162,21 +191,21 @@ module Necropsy
         elsif (match = line.match(/\bscope\b.*\bmodule:\s+:?["']?([a-zA-Z_]\w*)/))
           contexts << RouteContext.new(modules: context.modules + [match[1]], resource: context.resource,
                                        controller: scoped_controller_option(line, context.controller))
-        elsif (match = line.match(%r{\bcontroller\s+:?["']?([a-zA-Z_][\w/]*)["']?\s+do\b}))
+        elsif (match = line.match(%r{\bcontroller\s+:?["']?([a-zA-Z_][\w/]*)["']?}))
           contexts << RouteContext.new(modules: context.modules, resource: context.resource, controller: match[1])
-        elsif line.match?(/\bscope\b.*\bcontroller:\s*.*do\b/)
+        elsif line.match?(/\bscope\b.*\bcontroller:/)
           contexts << RouteContext.new(modules: context.modules, resource: context.resource,
                                        controller: scoped_controller_option(line, context.controller))
-        elsif (match = line.match(/\bresources\s+:([a-zA-Z_]\w*).*do\b/))
+        elsif (match = line.match(/\bresources\s+:([a-zA-Z_]\w*)/))
           contexts << RouteContext.new(modules: context.modules, resource: resource_controller(line, match[1]),
                                        controller: context.controller)
-        elsif (match = line.match(/\bresource\s+:([a-zA-Z_]\w*).*do\b/))
+        elsif (match = line.match(/\bresource\s+:([a-zA-Z_]\w*)/))
           contexts << RouteContext.new(modules: context.modules,
                                        resource: resource_controller(line, pluralize(match[1])), controller: context.controller)
-        elsif line.match?(/\b(?:member|collection)\s+do\b/)
+        elsif line.match?(/\b(?:member|collection)\b/)
           contexts << RouteContext.new(modules: context.modules, resource: context.resource,
                                        controller: context.controller)
-        elsif line.match?(/\b(?:constraints|defaults|scope)\b.*do\b/)
+        elsif line.match?(/\b(?:constraints|defaults|scope)\b/)
           contexts << RouteContext.new(modules: context.modules, resource: context.resource,
                                        controller: scoped_controller_option(line, context.controller))
         end
@@ -191,8 +220,17 @@ module Necropsy
       def concern_targets(line, context, root, seen, concerns)
         target_context = concern_context(line, context)
         concern_names(line).flat_map do |name|
-          parse_routes(concerns.fetch(name, []), root: root, seen: seen, concerns: concerns,
-                                                 initial_context: target_context)
+          statements, source = concerns[name]
+          next [] unless statements && source
+
+          parse_route_statements(
+            statements,
+            source: source,
+            root: root,
+            seen: seen,
+            concerns: concerns,
+            context: target_context
+          )
         end
       end
 
@@ -229,7 +267,7 @@ module Necropsy
       def action_option(line, name)
         array_value = line[/\b#{name}:\s*(?:\[([^\]]+)\]|%i\[([^\]]+)\])/, 1] ||
                       line[/\b#{name}:\s*(?:\[([^\]]+)\]|%i\[([^\]]+)\])/, 2]
-        return array_value.scan(/:?["']?([a-zA-Z_]\w*)["']?/) if array_value
+        return array_value.scan(/:?["']?([a-zA-Z_]\w*)["']?/).flatten if array_value
 
         Array(line[/\b#{name}:\s+:?["']?([a-zA-Z_]\w*)/, 1])
       end
@@ -279,7 +317,17 @@ module Necropsy
       end
 
       def matching_route_nodes(graph, node_id)
-        graph.nodes.key?(node_id) ? [node_id] : []
+        return [node_id] if graph.nodes.key?(node_id)
+        return [] unless node_id.include?('Controller#')
+
+        controller, action = node_id.split('#', 2)
+        expected_file = "app/controllers/#{underscore(controller.delete_suffix('Controller'))}_controller.rb"
+        graph.method_nodes.filter_map do |node|
+          next unless node.name == action && node.owner&.end_with?(controller)
+          next unless node.file == expected_file
+
+          node.id
+        end
       end
 
       def helper_referenced?(project, method_name)
@@ -316,35 +364,13 @@ module Necropsy
         path.split('/').map { |part| part.split('_').map(&:capitalize).join }.join('::')
       end
 
-      def block_openings(line)
-        line.scan(/\bdo\b/).length
+      def underscore(constant)
+        constant.gsub('::', '/')
+                .gsub(/([A-Z]+)([A-Z][a-z])/, '\\1_\\2')
+                .gsub(/([a-z\d])([A-Z])/, '\\1_\\2')
+                .downcase
       end
 
-      def strip_route_comment(line)
-        quote = nil
-        escaped = false
-        line.each_char.with_index do |char, index|
-          if escaped
-            escaped = false
-            next
-          end
-
-          if char == '\\'
-            escaped = true
-            next
-          end
-
-          if quote
-            quote = nil if char == quote
-            next
-          end
-
-          quote = char if ["'", '"'].include?(char)
-          return line[0...index] if char == '#'
-        end
-
-        line
-      end
     end
   end
 end

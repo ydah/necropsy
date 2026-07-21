@@ -19,6 +19,7 @@ RSpec.describe Necropsy::Cache::ScanCache do
       expect(calls).to eq(1)
       expect(second.nodes.map(&:id)).to eq(first.nodes.map(&:id))
       expect(second.call_sites.map(&:to_h)).to eq(first.call_sites.map(&:to_h))
+      expect(JSON.parse(File.read(File.join(root, '.necropsy_cache/scan.json')))).to include('version')
     end
   end
 

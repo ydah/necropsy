@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'fileutils'
-require 'yaml'
+require 'json'
 
 module Necropsy
   module Cache
@@ -22,7 +22,8 @@ module Necropsy
         result = yield
         write(metadata, result)
         result
-      rescue SystemCallError, Psych::Exception
+      rescue SystemCallError, JSON::ParserError => e
+        warn_cache("Cache unavailable: #{e.message}")
         yield
       end
 
@@ -37,24 +38,26 @@ module Necropsy
         return nil unless payload['metadata'] == metadata
 
         deserialize_scan_result(payload.fetch('scan_result'))
-      rescue StandardError
+      rescue StandardError => e
+        warn_cache("Ignoring invalid cache: #{e.message}")
         nil
       end
 
       def load_payload
         return nil unless File.exist?(path)
 
-        YAML.load_file(path)
+        JSON.parse(File.read(path))
       end
 
       def write(metadata, result)
         FileUtils.mkdir_p(File.dirname(path))
-        File.write(path, {
+        File.write(path, JSON.generate({
           'version' => VERSION,
           'metadata' => metadata,
           'scan_result' => serialize_scan_result(result)
-        }.to_yaml)
-      rescue StandardError
+        }))
+      rescue StandardError => e
+        warn_cache("Could not write cache: #{e.message}")
         nil
       end
 
@@ -153,6 +156,10 @@ module Necropsy
         Hash.new { |hash, key| hash[key] = [] }.tap do |uncertainties|
           (data || {}).each { |node_id, messages| uncertainties[node_id] = Array(messages) }
         end
+      end
+
+      def warn_cache(message)
+        warn "Necropsy: #{message}" if project.config.verbose?
       end
     end
   end

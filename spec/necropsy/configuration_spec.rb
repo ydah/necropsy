@@ -16,6 +16,9 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.baseline_path).to eq('.necropsy_baseline.yml')
         expect(configuration.cache_enabled?).to eq(true)
         expect(configuration.factory_methods).to include('build', 'create', 'build_stubbed')
+        expect(configuration.cache_path).to eq('.necropsy_cache/scan.json')
+        expect(configuration.include_paths).to eq([])
+        expect(configuration.exclude_paths).to eq([])
       end
     end
 
@@ -69,11 +72,11 @@ RSpec.describe Necropsy::Configuration do
       let(:files) do
         {
           '.necropsy.yml' => <<~YAML
-            defaults: &defaults
-              source: coverage.yml
-            analyzers:
-              dynamic:
-                coverage:
+          analyzers:
+            dynamic:
+              coverage: &defaults
+                source: coverage.yml
+              trace_point:
                   <<: *defaults
           YAML
         }
@@ -81,6 +84,7 @@ RSpec.describe Necropsy::Configuration do
 
       it 'loads the aliased configuration' do
         expect(configuration.dynamic_config(:coverage)).to include('source' => 'coverage.yml')
+        expect(configuration.dynamic_config(:trace_point)).to include('source' => 'coverage.yml')
       end
     end
 
@@ -89,6 +93,15 @@ RSpec.describe Necropsy::Configuration do
 
       it 'raises a domain error with the configuration path' do
         expect { configuration }.to raise_error(Necropsy::Error, /Could not parse configuration/)
+      end
+    end
+
+
+    context 'with an unknown option' do
+      let(:config_data) { { ci: { fail_onn: 'high' } } }
+
+      it 'rejects configuration typos' do
+        expect { configuration }.to raise_error(Necropsy::Error, /Unknown ci option: fail_onn/)
       end
     end
   end
