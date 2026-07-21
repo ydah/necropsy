@@ -5,13 +5,13 @@ collects method definitions with Prism, adds call-edge evidence from static and
 optional dynamic analyzers, then runs reachability from framework and configured
 entry points.
 
-The first implementation includes:
+Necropsy includes:
 
-- Prism-based method collection for `def`, `define_method`, `attr_*`, and `delegate`
+- Prism-based method collection for ordinary, singleton, delegated, aliased, forwarded, and dynamically defined methods
 - static name resolution, CHA, and RTA-style filtering over instantiated classes
-- Rails route/callback/view-helper/component, plain Ruby, and test-suite entry point providers
+- Prism-backed Rails route parsing plus callback, view, component, migration, plain Ruby, and test-suite entry points
 - `unreachable`, `unused`, and `test_only_reachable` classifications
-- confidence levels, JSON/YAML/human/SARIF/GitHub reports, baseline/check guardrails, quarantine suggestions, TracePoint recording, and a bench evaluator
+- confidence levels, compact JSON/YAML reports, SARIF/GitHub output, CI guardrails, dynamic collectors, and benchmarking
 
 ## Installation
 
@@ -33,6 +33,7 @@ Run a report:
 
 ```bash
 bundle exec necropsy analyze --root . --format human
+bundle exec necropsy --version
 ```
 
 Fail CI only for new high-confidence findings:
@@ -63,6 +64,9 @@ Evaluate against a gold standard:
 bundle exec necropsy bench --root . --gold-standard gold.yml --ablation
 ```
 
+JSON and YAML omit the full call graph by default. Add `--include-graph` when
+nodes, edges, evidence, and entry points are needed in machine-readable output.
+
 Example configuration:
 
 ```yaml
@@ -77,10 +81,14 @@ analyzers:
     trace_point:
       source: tmp/necropsy_trace_point.yml
   custom:
-    - "MyCompany::GraphqlEntryAnalyzer"
+    - class: "MyCompany::GraphqlEntryAnalyzer"
+      require: "config/necropsy/graphql_entry_analyzer"
 cache:
   enabled: true
-  path: .necropsy_cache/scan.yml
+  path: .necropsy_cache/scan.json
+paths:
+  include: ["app/**/*.rb", "lib/**/*.rb"]
+  exclude: ["app/legacy/**/*.rb"]
 entry_points:
   extra:
     - "PublicApi::*"
@@ -91,6 +99,8 @@ quarantine:
   days: 30
 bench:
   precision_threshold: 0.85
+logging:
+  verbose: false
 ```
 
 The scan cache is invalidated when scanned Ruby files or configuration values
@@ -101,7 +111,9 @@ Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 GitHub Actions annotations are available via `--format sarif` and
 `--format github`.
 
-Coverband file, Redis string, and Redis hash exports are supported. Rails route
+Coverband file, Redis string, and Redis hash exports are supported. Redis URLs
+may include an ACL username and password; `connect_timeout` and `read_timeout`
+can be set in the Coverband analyzer configuration. Rails route
 entry point detection covers common `resources`, `resource`, `namespace`,
 `scope`, `controller`, `concerns`, `draw`, `mount`, `root`, and verb route
 forms.
@@ -112,7 +124,9 @@ the finding is raised to `certain`.
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies. Then run
+`bundle exec rake` for the specs and RuboCop checks. Use `bin/console` for an
+interactive prompt.
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 

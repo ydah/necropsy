@@ -64,7 +64,9 @@ RSpec.describe Necropsy::Runner do
 
   it 'rejects unknown static analyzer names' do
     with_project(config: { analyzers: { static: ['typo'] } }) do |root|
-      expect { described_class.new(root: root).analyze }.to raise_error(Necropsy::Error, /Unknown static analyzer: typo/)
+      expect do
+        described_class.new(root: root).analyze
+      end.to raise_error(Necropsy::Error, /Unknown static analyzer: typo/)
     end
   end
 end

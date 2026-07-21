@@ -32,7 +32,6 @@ RSpec.describe Necropsy::Project do
     end
   end
 
-
   it 'applies configured include and exclude path patterns' do
     with_project(
       files: {
@@ -49,7 +48,8 @@ RSpec.describe Necropsy::Project do
   end
 
   it 'classifies spec and test files as test sources' do
-    with_project(files: { 'spec/example_spec.rb' => '', 'test/example_test.rb' => '', 'app/example.rb' => '' }) do |root|
+    with_project(files: { 'spec/example_spec.rb' => '', 'test/example_test.rb' => '',
+                          'app/example.rb' => '' }) do |root|
       project = project_for(root)
 
       expect(project.test_file?(File.join(root, 'spec/example_spec.rb'))).to eq(true)

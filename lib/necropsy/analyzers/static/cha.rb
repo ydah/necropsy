@@ -46,8 +46,6 @@ module Necropsy
             instance_targets(graph, site)
           when :self, :implicit
             self_targets(graph, site)
-          when :super
-            graph.resolve_call_site(site)
           else
             graph.resolve_call_site(site)
           end.uniq(&:id)

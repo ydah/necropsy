@@ -78,9 +78,10 @@ RSpec.describe Necropsy::EntryPoints::Rails do
           ),
           node('WidgetsHelper#admin?', file: 'app/helpers/widgets_helper.rb', owner: 'WidgetsHelper', name: 'admin?'),
           node('Widget#present!', file: 'app/models/widget.rb', owner: 'Widget', name: 'present!'),
-          node('Migration#change', file: 'db/migrate/20260721000000_create_widgets.rb', owner: 'Migration', name: 'change'),
+          node('Migration#change', file: 'db/migrate/20260721000000_create_widgets.rb', owner: 'Migration',
+                                   name: 'change'),
           node('PrivateMailer#secret', file: 'app/mailers/private_mailer.rb', owner: 'PrivateMailer', name: 'secret',
-                                      visibility: :private),
+                                       visibility: :private),
           node('TitleComponent#call', file: 'app/components/title_component.rb', owner: 'TitleComponent', name: 'call'),
           node(
             'TitleComponent#before_render',
@@ -88,7 +89,8 @@ RSpec.describe Necropsy::EntryPoints::Rails do
             owner: 'TitleComponent',
             name: 'before_render'
           ),
-          node('TitleComponent#helper', file: 'app/components/title_component.rb', owner: 'TitleComponent', name: 'helper'),
+          node('TitleComponent#helper', file: 'app/components/title_component.rb', owner: 'TitleComponent',
+                                        name: 'helper'),
           node(
             'file:config/initializers/hooks.rb',
             kind: :block_entry,
@@ -127,10 +129,10 @@ RSpec.describe Necropsy::EntryPoints::Rails do
       end
 
       it 'does not add helpers or component methods only mentioned in comments' do
-        expect(entrypoints).not_to include('WidgetsHelper#hidden_helper', 'TitleComponent#helper', 'PrivateMailer#secret')
+        expect(entrypoints).not_to include('WidgetsHelper#hidden_helper', 'TitleComponent#helper',
+                                           'PrivateMailer#secret')
       end
     end
-
 
     context 'when an unnamespaced route has a namespaced controller with the same suffix' do
       let(:project_root) do

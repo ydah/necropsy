@@ -7,13 +7,13 @@ RSpec.describe Necropsy::Bench::Evaluator do
     report = report_with_findings([true_positive, false_positive])
 
     with_project(files: {
-      'gold.yml' => {
-        'dead_methods' => [
-          { 'id' => 'Sample#dead', 'classification' => 'unreachable' },
-          { 'id' => 'Sample#missing', 'classification' => 'unreachable' }
-        ]
-      }.to_yaml
-    }) do |root|
+                   'gold.yml' => {
+                     'dead_methods' => [
+                       { 'id' => 'Sample#dead', 'classification' => 'unreachable' },
+                       { 'id' => 'Sample#missing', 'classification' => 'unreachable' }
+                     ]
+                   }.to_yaml
+                 }) do |root|
       result = described_class.new(
         report: report,
         gold_standard_path: File.join(root, 'gold.yml'),

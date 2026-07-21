@@ -20,7 +20,10 @@ module Necropsy
           when %r{\Aapp/jobs/}
             graph.add_entry_point(node.id, :job_perform) if node.name == 'perform'
           when %r{\Aapp/mailers/}
-            graph.add_entry_point(node.id, :mailer_action) if node.kind == :instance_method && node.visibility == :public
+            if node.kind == :instance_method && node.visibility == :public
+              graph.add_entry_point(node.id,
+                                    :mailer_action)
+            end
           when %r{\Aapp/helpers/}
             graph.add_entry_point(node.id, :rails_view_helper) if referenced_view_methods.include?(node.name)
           when %r{\Aapp/components/}
@@ -28,7 +31,6 @@ module Necropsy
           when %r{\Adb/migrate/}
             graph.add_entry_point(node.id, :rails_migration) if %w[change up down].include?(node.name)
           end
-
 
           if node.file.start_with?('app/') && !node.file.start_with?('app/helpers/', 'app/components/') &&
              referenced_view_methods.include?(node.name)
@@ -81,7 +83,7 @@ module Necropsy
       def parse_route_statements(statements, source:, root:, seen:, concerns:, context:)
         Array(statements&.body).flat_map do |statement|
           parse_route_statement(statement, source: source, root: root, seen: seen, concerns: concerns,
-                                            context: context)
+                                           context: context)
         end.compact.uniq
       end
 
@@ -193,19 +195,13 @@ module Necropsy
                                        controller: scoped_controller_option(line, context.controller))
         elsif (match = line.match(%r{\bcontroller\s+:?["']?([a-zA-Z_][\w/]*)["']?}))
           contexts << RouteContext.new(modules: context.modules, resource: context.resource, controller: match[1])
-        elsif line.match?(/\bscope\b.*\bcontroller:/)
-          contexts << RouteContext.new(modules: context.modules, resource: context.resource,
-                                       controller: scoped_controller_option(line, context.controller))
         elsif (match = line.match(/\bresources\s+:([a-zA-Z_]\w*)/))
           contexts << RouteContext.new(modules: context.modules, resource: resource_controller(line, match[1]),
                                        controller: context.controller)
         elsif (match = line.match(/\bresource\s+:([a-zA-Z_]\w*)/))
           contexts << RouteContext.new(modules: context.modules,
                                        resource: resource_controller(line, pluralize(match[1])), controller: context.controller)
-        elsif line.match?(/\b(?:member|collection)\b/)
-          contexts << RouteContext.new(modules: context.modules, resource: context.resource,
-                                       controller: context.controller)
-        elsif line.match?(/\b(?:constraints|defaults|scope)\b/)
+        elsif line.match?(/\b(?:member|collection|constraints|defaults|scope)\b/)
           contexts << RouteContext.new(modules: context.modules, resource: context.resource,
                                        controller: scoped_controller_option(line, context.controller))
         end
@@ -370,7 +366,6 @@ module Necropsy
                 .gsub(/([a-z\d])([A-Z])/, '\\1_\\2')
                 .downcase
       end
-
     end
   end
 end

@@ -89,7 +89,7 @@ module Necropsy
       end
 
       def gold_entries
-        payload = YAML.safe_load(File.read(gold_standard_path), aliases: true) || {}
+        payload = YAML.safe_load_file(gold_standard_path, aliases: true) || {}
         entries = payload['dead_methods'] || payload['findings'] || payload
         Array(entries).map do |entry|
           entry.is_a?(Hash) ? entry.transform_keys(&:to_s) : { 'id' => entry }

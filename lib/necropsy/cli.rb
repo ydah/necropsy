@@ -34,7 +34,11 @@ module Necropsy
       case command
       when 'analyze'
         report = analyze(options)
-        puts Reporter.new(report).render(format: options[:format], min_confidence: options[:min_confidence])
+        puts Reporter.new(report).render(
+          format: options[:format],
+          min_confidence: options[:min_confidence],
+          include_graph: options[:include_graph]
+        )
         0
       when 'baseline'
         report = analyze(options)
@@ -82,7 +86,8 @@ module Necropsy
         precision_threshold: nil,
         recall_threshold: nil,
         help: false,
-        version: false
+        version: false,
+        include_graph: false
       }
     end
 
@@ -94,6 +99,7 @@ module Necropsy
         parser.on('--format FORMAT', Reporter::FORMATS.map(&:to_s), 'Output format') do |value|
           options[:format] = value.to_sym
         end
+        parser.on('--include-graph', 'Include nodes and edges in JSON/YAML output') { options[:include_graph] = true }
         parser.on('--min-confidence LEVEL', 'low, medium, high, or certain') do |value|
           options[:min_confidence] = confidence_level(value)
         end
@@ -308,7 +314,7 @@ module Necropsy
     end
 
     def output_for_run?(output, run_id)
-      payload = YAML.load_file(output) || {}
+      payload = YAML.safe_load_file(output, aliases: false) || {}
       payload.dig('observation', 'run_id') == run_id
     rescue SystemCallError, Psych::Exception
       false

@@ -72,12 +72,12 @@ RSpec.describe Necropsy::Configuration do
       let(:files) do
         {
           '.necropsy.yml' => <<~YAML
-          analyzers:
-            dynamic:
-              coverage: &defaults
-                source: coverage.yml
-              trace_point:
-                  <<: *defaults
+            analyzers:
+              dynamic:
+                coverage: &defaults
+                  source: coverage.yml
+                trace_point:
+                    <<: *defaults
           YAML
         }
       end
@@ -95,7 +95,6 @@ RSpec.describe Necropsy::Configuration do
         expect { configuration }.to raise_error(Necropsy::Error, /Could not parse configuration/)
       end
     end
-
 
     context 'with an unknown option' do
       let(:config_data) { { ci: { fail_onn: 'high' } } }

@@ -5,11 +5,12 @@ RSpec.describe Necropsy::EntryPoints::Plain do
     nodes = [
       node('file:bin/tool', kind: :block_entry, file: 'bin/tool', owner: nil, name: 'bin/tool'),
       node('Company::Public#call', owner: 'Company::Public', name: 'call'),
-      node('ExampleGem.analyze', kind: :singleton_method, file: 'lib/example_gem.rb', owner: 'ExampleGem', name: 'analyze'),
+      node('ExampleGem.analyze', kind: :singleton_method, file: 'lib/example_gem.rb', owner: 'ExampleGem',
+                                 name: 'analyze'),
       node('ExampleGem.internal', kind: :singleton_method, file: 'lib/example_gem.rb', owner: 'ExampleGem',
                                   name: 'internal', visibility: :private),
       node('file:spec/tool_spec.rb', kind: :block_entry, file: 'spec/tool_spec.rb', owner: nil, name: 'spec/tool_spec.rb',
-                                test: true)
+                                     test: true)
     ]
     graph = graph_with(nodes: nodes)
 

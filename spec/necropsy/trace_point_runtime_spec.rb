@@ -5,16 +5,16 @@ require 'rbconfig'
 RSpec.describe 'necropsy/trace_point_runtime' do
   it 'installs the TracePoint collector in an external Ruby process' do
     with_project(files: {
-      'runner.rb' => <<~RUBY
-        class TracePointRuntimeSample
-          def run
-            :ok
-          end
-        end
+                   'runner.rb' => <<~RUBY
+                     class TracePointRuntimeSample
+                       def run
+                         :ok
+                       end
+                     end
 
-        TracePointRuntimeSample.new.run
-      RUBY
-    }) do |root|
+                     TracePointRuntimeSample.new.run
+                   RUBY
+                 }) do |root|
       output = File.join(root, 'trace.yml')
       env = {
         'NECROPSY_TRACE_ROOT' => root,

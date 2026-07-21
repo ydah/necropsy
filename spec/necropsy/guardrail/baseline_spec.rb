@@ -23,7 +23,6 @@ RSpec.describe Necropsy::Guardrail::Baseline do
     )
   end
 
-
   it 'counts only findings at or above the ratchet confidence threshold' do
     low = finding(id: 'Sample#low', confidence: :low)
     high = finding(id: 'Sample#high', confidence: :high)

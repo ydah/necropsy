@@ -3,18 +3,18 @@
 RSpec.describe Necropsy::Analyzers::Dynamic::TracePointCollector do
   it 'records runtime nodes and caller-callee edges' do
     with_project(files: {
-      'runner.rb' => <<~RUBY
-        class TracePointCollectorSample
-          def run
-            helper
-          end
+                   'runner.rb' => <<~RUBY
+                     class TracePointCollectorSample
+                       def run
+                         helper
+                       end
 
-          def helper
-            :ok
-          end
-        end
-      RUBY
-    }) do |root|
+                       def helper
+                         :ok
+                       end
+                     end
+                   RUBY
+                 }) do |root|
       output = File.join(root, 'trace.yml')
 
       described_class.record(root: root, output: output) do
@@ -30,7 +30,6 @@ RSpec.describe Necropsy::Analyzers::Dynamic::TracePointCollector do
       )
     end
   end
-
 
   it 'keeps call stacks isolated between threads' do
     stub_const('TraceThreadA', Class.new)

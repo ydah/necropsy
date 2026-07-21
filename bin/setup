@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler'
+
+root = File.expand_path('..', __dir__)
+Dir.chdir(root) do
+  abort 'bundle install failed' unless system('bundle', 'install')
+end

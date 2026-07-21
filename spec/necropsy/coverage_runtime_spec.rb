@@ -5,16 +5,16 @@ require 'rbconfig'
 RSpec.describe 'necropsy/coverage_runtime' do
   it 'installs the Coverage collector from environment variables in child Ruby processes' do
     with_project(files: {
-      'runner.rb' => <<~RUBY
-        class CoverageRuntimeSample
-          def run
-            :ok
-          end
-        end
+                   'runner.rb' => <<~RUBY
+                     class CoverageRuntimeSample
+                       def run
+                         :ok
+                       end
+                     end
 
-        CoverageRuntimeSample.new.run
-      RUBY
-    }) do |root|
+                     CoverageRuntimeSample.new.run
+                   RUBY
+                 }) do |root|
       output = File.join(root, 'coverage.yml')
       env = {
         'NECROPSY_COVERAGE_ROOT' => root,

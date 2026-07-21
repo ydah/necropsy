@@ -11,9 +11,9 @@ RSpec.describe Necropsy::Reporter do
       let(:min_confidence) { :high }
       let(:report) do
         report_with_findings([
-          finding(id: 'Sample#dead', confidence: :high, file: 'app/sample.rb', line: 3),
-          finding(id: 'Sample#maybe', confidence: :low, file: 'app/sample.rb', line: 8)
-        ])
+                               finding(id: 'Sample#dead', confidence: :high, file: 'app/sample.rb', line: 3),
+                               finding(id: 'Sample#maybe', confidence: :low, file: 'app/sample.rb', line: 8)
+                             ])
       end
 
       it 'renders only findings at or above the requested confidence' do
@@ -26,8 +26,9 @@ RSpec.describe Necropsy::Reporter do
       let(:format) { :github }
       let(:report) do
         report_with_findings([
-          finding(id: 'Sample#dead', confidence: :high, classification: :unreachable, file: 'app/sample.rb', line: 3)
-        ])
+                               finding(id: 'Sample#dead', confidence: :high, classification: :unreachable,
+                                       file: 'app/sample.rb', line: 3)
+                             ])
       end
 
       it 'renders workflow warning commands' do
@@ -41,9 +42,11 @@ RSpec.describe Necropsy::Reporter do
       let(:format) { :sarif }
       let(:report) do
         report_with_findings([
-          finding(id: 'Sample#dead', confidence: :certain, classification: :unreachable, file: 'app/sample.rb', line: 3),
-          finding(id: 'Sample#maybe', confidence: :low, classification: :unused, file: 'app/sample.rb', line: 8)
-        ])
+                               finding(id: 'Sample#dead', confidence: :certain, classification: :unreachable, file: 'app/sample.rb',
+                                       line: 3),
+                               finding(id: 'Sample#maybe', confidence: :low, classification: :unused,
+                                       file: 'app/sample.rb', line: 8)
+                             ])
       end
       let(:payload) { JSON.parse(rendered) }
       let(:results) { payload.fetch('runs').first.fetch('results') }
@@ -61,6 +64,17 @@ RSpec.describe Necropsy::Reporter do
 
       it 'raises a helpful error' do
         expect { rendered }.to raise_error(Necropsy::Error, /Unknown report format: xml/)
+      end
+    end
+
+    context 'with JSON output' do
+      let(:format) { :json }
+      let(:report) { report_with_findings([finding]) }
+
+      it 'omits the graph by default' do
+        expect(JSON.parse(rendered)).not_to have_key('graph')
+        with_graph = described_class.new(report).render(format: :json, include_graph: true)
+        expect(JSON.parse(with_graph)).to include('graph' => include('nodes'))
       end
     end
   end

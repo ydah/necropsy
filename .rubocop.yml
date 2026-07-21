@@ -1,0 +1,33 @@
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.2
+  SuggestExtensions: false
+  CacheRootDirectory: tmp/rubocop_cache
+  Exclude:
+    - "pkg/**/*"
+    - "tmp/**/*"
+    - "vendor/**/*"
+
+Layout/LineLength:
+  Max: 150
+
+Lint/MissingSuper:
+  Enabled: false
+
+Naming/PredicateMethod:
+  Enabled: false
+
+Metrics:
+  Enabled: false
+
+Style/Documentation:
+  Enabled: false
+
+Style/FetchEnvVar:
+  Enabled: false
+
+Style/HashSyntax:
+  EnforcedShorthandSyntax: never
+
+Style/MultilineBlockChain:
+  Enabled: false

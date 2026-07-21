@@ -94,7 +94,7 @@ module Necropsy
           end
         end
 
-        score = [[score, 0.0].max, 1.0].min
+        score = score.clamp(0.0, 1.0)
         [score, level_for(score), reasons]
       end
 

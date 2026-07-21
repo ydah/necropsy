@@ -52,10 +52,10 @@ module Necropsy
       def write(metadata, result)
         FileUtils.mkdir_p(File.dirname(path))
         File.write(path, JSON.generate({
-          'version' => VERSION,
-          'metadata' => metadata,
-          'scan_result' => serialize_scan_result(result)
-        }))
+                                         'version' => VERSION,
+                                         'metadata' => metadata,
+                                         'scan_result' => serialize_scan_result(result)
+                                       }))
       rescue StandardError => e
         warn_cache("Could not write cache: #{e.message}")
         nil

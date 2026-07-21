@@ -63,6 +63,7 @@ module Necropsy
 
         def coverage_result(started:)
           return Coverage.result(stop: true, clear: true) if started && Coverage.running?
+
           if Coverage.respond_to?(:peek_result) && Coverage.running?
             result = Coverage.peek_result
             return result if method_coverage?(result)
@@ -108,7 +109,7 @@ module Necropsy
           content = file.read
           return {} if content.empty?
 
-          YAML.load(content) || {}
+          YAML.safe_load(content, aliases: false) || {}
         rescue Psych::Exception
           {}
         end

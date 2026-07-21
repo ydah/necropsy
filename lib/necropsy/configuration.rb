@@ -25,7 +25,7 @@ module Necropsy
 
     def self.load(root:, path: nil)
       config_path = path ? File.expand_path(path, root) : File.join(root, '.necropsy.yml')
-      data = File.exist?(config_path) ? YAML.load_file(config_path, aliases: true) : {}
+      data = File.exist?(config_path) ? YAML.safe_load_file(config_path, permitted_classes: [Symbol], aliases: true) : {}
       new(root: root, path: config_path, data: data || {})
     rescue Psych::Exception => e
       raise Error, "Could not parse configuration #{config_path}: #{e.message}"
@@ -127,11 +127,13 @@ module Necropsy
     private
 
     def fetch(*keys)
-      keys.reduce(data) do |current, key|
-        break nil unless current.is_a?(Hash)
+      current = data
+      keys.each do |key|
+        return nil unless current.is_a?(Hash)
 
-        current[key.to_s]
+        current = current[key.to_s]
       end
+      current
     end
 
     def stringify_keys(value)
@@ -170,9 +172,7 @@ module Necropsy
     def validate_custom_analyzers!
       custom_analyzers.each do |entry|
         next if entry.is_a?(String)
-        unless entry.is_a?(Hash)
-          raise Error, 'Each custom analyzer must be a class name or a mapping with class and require'
-        end
+        raise Error, 'Each custom analyzer must be a class name or a mapping with class and require' unless entry.is_a?(Hash)
 
         validate_hash_keys(entry, %w[class require], 'custom analyzer')
         raise Error, 'Custom analyzer mapping requires class' unless entry['class']

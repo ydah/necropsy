@@ -48,16 +48,16 @@ RSpec.describe Necropsy::CLI do
     context 'with record for a local Ruby script' do
       let(:project_root) do
         create_project(files: {
-          'runner.rb' => <<~RUBY
-            class CliRecordSample
-              def run
-                :ok
-              end
-            end
+                         'runner.rb' => <<~RUBY
+                           class CliRecordSample
+                             def run
+                               :ok
+                             end
+                           end
 
-            CliRecordSample.new.run
-          RUBY
-        })
+                           CliRecordSample.new.run
+                         RUBY
+                       })
       end
       let(:output_path) { File.join(project_root, 'trace.yml') }
       let(:argv) { ['record', '--root', project_root, '--output', output_path, '--', 'runner.rb'] }

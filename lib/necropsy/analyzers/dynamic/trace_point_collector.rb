@@ -25,7 +25,7 @@ module Necropsy
 
           @nodes = {}
           @edges = {}
-          @stacks = {}
+          @stacks = {}.compare_by_identity
           @lock = Mutex.new
           @merge = merge
           @run_id = run_id
@@ -68,10 +68,10 @@ module Necropsy
           return unless node_id
 
           lock.synchronize do
-            stack = stacks[Thread.current.object_id] ||= []
+            stack = stacks[Thread.current] ||= []
             if event.event == :return
               unwind_stack(stack, node_id)
-              stacks.delete(Thread.current.object_id) if stack.empty?
+              stacks.delete(Thread.current) if stack.empty?
               return
             end
 

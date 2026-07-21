@@ -67,7 +67,8 @@ RSpec.describe Necropsy::CallGraph do
 
   it 'exports graph state for reports' do
     graph = graph_with(nodes: [node('Sample#run')])
-    graph.add_profile(Necropsy::AnalyzerProfile.new(name: :spec, kind: :static, soundness: :partial, description: 'spec'))
+    graph.add_profile(Necropsy::AnalyzerProfile.new(name: :spec, kind: :static, soundness: :partial,
+                                                    description: 'spec'))
 
     expect(graph.to_h).to include(
       'nodes' => [include('id' => 'Sample#run')],

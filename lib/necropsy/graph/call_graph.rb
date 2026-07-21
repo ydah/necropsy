@@ -181,7 +181,9 @@ module Necropsy
       when :super
         super_candidates(site)
       when :implicit
-        same_owner_candidates(site).then { |matches| matches.empty? ? unique_fallback_candidate(site.message) : matches }
+        same_owner_candidates(site).then do |matches|
+          matches.empty? ? unique_fallback_candidate(site.message) : matches
+        end
       else
         unique_fallback_candidate(site.message)
       end

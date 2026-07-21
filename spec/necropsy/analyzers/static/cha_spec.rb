@@ -25,7 +25,8 @@ RSpec.describe Necropsy::Analyzers::Static::CHA do
 
     result = described_class.new.analyze(graph, nil)
 
-    expect(result.edge_evidences.map(&:callee_id)).to contain_exactly('Base#render', 'Child#render', 'Renderable#render')
+    expect(result.edge_evidences.map(&:callee_id)).to contain_exactly('Base#render', 'Child#render',
+                                                                      'Renderable#render')
   end
 
   it 'resolves singleton dispatch through class-level receivers' do

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
-require 'set'
+# Set is built in on supported Rubies, but requiring it keeps direct file loading portable.
+require 'set' # rubocop:disable Lint/RedundantRequireStatement
 
 require_relative 'necropsy/version'
 require_relative 'necropsy/models'

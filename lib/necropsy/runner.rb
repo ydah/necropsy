@@ -81,6 +81,7 @@ module Necropsy
 
     def require_custom_analyzer(path)
       expanded = File.expand_path(path, root)
+      expanded = "#{expanded}.rb" if !File.file?(expanded) && File.file?("#{expanded}.rb")
       File.file?(expanded) ? require(expanded) : require(path)
     end
 

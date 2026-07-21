@@ -12,12 +12,18 @@ module Necropsy
     RAILS_CALLBACK_MACROS = %i[
       before_action after_action around_action
       before_validation after_validation before_save after_save around_save
+      around_validation before_touch after_touch
       before_create after_create around_create before_update after_update around_update
       before_destroy after_destroy around_destroy after_commit after_rollback after_initialize after_find
+      after_create_commit after_update_commit after_destroy_commit after_save_commit
       validate rescue_from helper_method
     ].freeze
-    VISIBILITY_MACROS = %i[public protected private].freeze
+    VISIBILITY_MACROS = %i[public protected private public_class_method private_class_method].freeze
     SYMBOL_REFERENCE_CALLS = %i[method respond_to? try try!].freeze
+    RAILS_BUILTIN_VALIDATORS = %w[
+      absence acceptance allow_blank allow_nil comparison confirmation exclusion format if inclusion length message numericality
+      on presence strict uniqueness unless
+    ].freeze
 
     Context = Struct.new(
       :namespace,
@@ -43,11 +49,12 @@ module Necropsy
       @uncertainties = Hash.new { |hash, key| hash[key] = [] }
       @class_data = {}
       @entrypoint_hints = []
-      @factory_methods = project.config.factory_methods.map(&:to_s).to_set
+      @factory_methods = project.config.factory_methods.to_set(&:to_s)
     end
 
     def scan
       files.each { |file| scan_file(file) }
+      copy_module_function_call_sites
       ScanResult.new(
         nodes: nodes.reverse.uniq(&:id).reverse,
         call_sites: call_sites,
@@ -62,6 +69,17 @@ module Necropsy
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints
+
+    def copy_module_function_call_sites
+      module_functions = nodes.select { |node| node.defined_via == :module_function }
+      copies = module_functions.flat_map do |node|
+        instance_id = "#{node.owner}##{node.name}"
+        call_sites.select { |site| site.caller_id == instance_id }.map do |site|
+          site.with(caller_id: node.id, metadata: site.metadata.merge('module_function' => true))
+        end
+      end
+      call_sites.concat(copies)
+    end
 
     def scan_file(file)
       relative = project.relative_path(file)
@@ -142,7 +160,7 @@ module Necropsy
       owner = definition_owner(node, context)
       return visit_children(node, context) unless owner
 
-      kind = (node.receiver || context.singleton_scope) ? :singleton_method : :instance_method
+      kind = node.receiver || context.singleton_scope ? :singleton_method : :instance_method
       separator = kind == :singleton_method ? '.' : '#'
       id = "#{owner}#{separator}#{node.name}"
       nodes << Node.new(
@@ -155,7 +173,7 @@ module Necropsy
         owner: owner,
         name: node.name.to_s,
         test: context.test,
-        visibility: kind == :singleton_method ? :public : context.visibility
+        visibility: node.receiver ? :public : context.visibility
       )
       record_module_function_copy(node, context, owner) if kind == :instance_method && context.module_function
       if node.name == :method_missing
@@ -309,7 +327,7 @@ module Necropsy
         owner: context.owner,
         name: method_name,
         test: context.test,
-        visibility: kind == :singleton_method ? :public : context.visibility
+        visibility: context.visibility
       )
       record_module_function_copy(node, context, context.owner, method_name) if context.module_function
 
@@ -380,11 +398,15 @@ module Necropsy
       return false unless context.owner
 
       names = symbol_arguments(node)
+      class_method = node.name.to_s.end_with?('_class_method')
+      visibility = node.name.to_s.delete_suffix('_class_method').to_sym
       if names.empty?
-        context.visibility = node.name
-        context.module_function = false
+        unless class_method
+          context.visibility = visibility
+          context.module_function = false
+        end
       else
-        names.each { |name| update_method_visibility(context, name, node.name) }
+        names.each { |name| update_method_visibility(context, name, visibility, singleton: class_method) }
       end
       true
     end
@@ -403,7 +425,7 @@ module Necropsy
       true
     end
 
-    def record_module_function_copy(node, context, owner, method_name = node.name.to_s)
+    def record_module_function_copy(node, context, _owner, method_name = node.name.to_s)
       promote_module_function(context, method_name, node.location)
     end
 
@@ -440,7 +462,7 @@ module Necropsy
         owner: context.owner,
         name: new_name,
         test: context.test,
-        visibility: kind == :singleton_method ? :public : context.visibility
+        visibility: context.visibility
       )
       call_sites << CallSite.new(
         caller_id: id,
@@ -459,9 +481,7 @@ module Necropsy
       return unless MODULE_RELATION_MACROS.include?(node.name)
       return unless context.owner
 
-      if node.name == :extend && arguments(node).any? { |argument| argument.is_a?(Prism::SelfNode) }
-        class_record(context.owner)[:extends] << [context.owner]
-      end
+      class_record(context.owner)[:extends] << [context.owner] if node.name == :extend && arguments(node).any?(Prism::SelfNode)
 
       constants = arguments(node).filter_map { |argument| constant_name(argument) }
       return if constants.empty?
@@ -472,12 +492,25 @@ module Necropsy
     end
 
     def handle_rails_callback(node, context)
-      return unless RAILS_CALLBACK_MACROS.include?(node.name)
       return unless context.owner
       return if context.test
 
-      callback_names(node).each do |method_name|
-        entrypoint_hints << EntryPoint.new(node_id: "#{context.owner}##{method_name}", reason: :callback_registered)
+      if RAILS_CALLBACK_MACROS.include?(node.name)
+        callback_names(node).each do |method_name|
+          entrypoint_hints << EntryPoint.new(node_id: "#{context.owner}##{method_name}", reason: :callback_registered)
+        end
+      elsif node.name == :validates
+        custom_validator_names(node).each do |validator|
+          constant_candidates("#{validator}Validator", context.namespace).each do |owner|
+            entrypoint_hints << EntryPoint.new(node_id: "#{owner}#validate_each", reason: :callback_registered)
+          end
+        end
+      elsif node.name == :validates_with
+        arguments(node).filter_map { |argument| constant_name(argument) }.each do |validator|
+          constant_candidates(validator, context.namespace).each do |owner|
+            entrypoint_hints << EntryPoint.new(node_id: "#{owner}#validate", reason: :callback_registered)
+          end
+        end
       end
     end
 
@@ -497,7 +530,7 @@ module Necropsy
           owner: context.owner,
           name: name,
           test: context.test,
-          visibility: kind == :singleton_method ? :public : context.visibility
+          visibility: context.visibility
         )
         next unless %i[attr_writer attr_accessor].include?(node.name)
 
@@ -511,7 +544,7 @@ module Necropsy
           owner: context.owner,
           name: "#{name}=",
           test: context.test,
-          visibility: kind == :singleton_method ? :public : context.visibility
+          visibility: context.visibility
         )
       end
       true
@@ -537,7 +570,7 @@ module Necropsy
           owner: context.owner,
           name: generated_name,
           test: context.test,
-          visibility: kind == :singleton_method ? :public : context.visibility
+          visibility: context.visibility
         )
         record_delegate_target(id, target, node, context) if target
         record_delegated_message(id, name, node, context)
@@ -571,7 +604,7 @@ module Necropsy
           owner: context.owner,
           name: generated_name,
           test: context.test,
-          visibility: kind == :singleton_method ? :public : context.visibility
+          visibility: context.visibility
         )
         record_delegate_target(id, target, node, context)
         record_delegated_message(id, delegated_name, node, context)
@@ -688,8 +721,8 @@ module Necropsy
       context.singleton_scope ? [:singleton_method, '.'] : [:instance_method, '#']
     end
 
-    def update_method_visibility(context, name, visibility)
-      _kind, separator = method_kind_and_separator(context)
+    def update_method_visibility(context, name, visibility, singleton: false)
+      separator = singleton ? '.' : method_kind_and_separator(context).last
       id = "#{context.owner}#{separator}#{name}"
       index = nodes.rindex { |candidate| candidate.id == id }
       nodes[index] = nodes[index].with(visibility: visibility) if index
@@ -721,6 +754,12 @@ module Necropsy
       with = keyword_value(node, 'with')
       names << with if with.is_a?(String)
       names.uniq
+    end
+
+    def custom_validator_names(node)
+      keyword_keys(node).reject { |name| RAILS_BUILTIN_VALIDATORS.include?(name) }.map do |name|
+        name.split('_').map(&:capitalize).join
+      end
     end
 
     def delegated_method_name(name, target, prefix)
@@ -831,6 +870,13 @@ module Necropsy
         element.is_a?(Prism::AssocNode) && literal_value(element.key).to_s == key
       end
       literal_value(pair&.value)
+    end
+
+    def keyword_keys(node)
+      hash = arguments(node).find { |argument| argument.is_a?(Prism::KeywordHashNode) }
+      Array(hash&.elements).filter_map do |element|
+        literal_value(element.key).to_s if element.is_a?(Prism::AssocNode)
+      end
     end
 
     def literal_value(node)

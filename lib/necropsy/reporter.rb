@@ -8,19 +8,19 @@ module Necropsy
       @report = report
     end
 
-    def render(format: :human, min_confidence: :low)
+    def render(format: :human, min_confidence: :low, include_graph: false)
       normalized_format = format.to_sym
       raise Error, "Unknown report format: #{format}" unless FORMATS.include?(normalized_format)
 
       case normalized_format
       when :json
-        report.to_json
+        report.to_json(include_graph: include_graph)
       when :sarif
         render_sarif(min_confidence)
       when :github, :annotations
         render_github_annotations(min_confidence)
       when :yaml, :yml
-        report.to_yaml
+        report.to_yaml(include_graph: include_graph)
       when :human
         render_human(min_confidence)
       end

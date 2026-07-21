@@ -1,7 +1,5 @@
 # frozen_string_literal: true
 
-require 'set'
-
 module GraphHelpers
   def node(id, kind: :instance_method, file: 'app/models/sample.rb', line: 1, end_line: line, owner: 'Sample',
            name: id.split(/[.#]/).last, test: false, defined_via: :def, visibility: :public)

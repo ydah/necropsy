@@ -2,7 +2,6 @@
 
 require 'yaml'
 require 'time'
-require 'set'
 
 module Necropsy
   module Guardrail
@@ -12,7 +11,7 @@ module Necropsy
       def self.load(path)
         return new(path: path, findings: []) unless File.exist?(path)
 
-        payload = YAML.load_file(path) || {}
+        payload = YAML.safe_load_file(path, aliases: false) || {}
         new(path: path, findings: Array(payload['findings']))
       end
 

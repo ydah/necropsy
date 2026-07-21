@@ -85,9 +85,21 @@ RSpec.describe Necropsy::AstScanner do
             class ScannerBase
             end
 
+            class TokenValidator
+              def validate_each
+              end
+            end
+
+            class ContractValidator
+              def validate
+              end
+            end
+
             class ScannerChild < ScannerBase
               include ScannerConcern
               before_action :authenticate
+              validates :token, token: true, presence: true
+              validates_with ContractValidator
 
               def dispatch(name)
                 send(name)
@@ -112,7 +124,9 @@ RSpec.describe Necropsy::AstScanner do
         expect(child_info.includes).to eq(['ScannerConcern'])
         expect(child_info.dynamic).to eq(true)
         expect(scan.entrypoint_hints).to include(
-          Necropsy::EntryPoint.new(node_id: 'ScannerChild#authenticate', reason: :callback_registered)
+          Necropsy::EntryPoint.new(node_id: 'ScannerChild#authenticate', reason: :callback_registered),
+          Necropsy::EntryPoint.new(node_id: 'TokenValidator#validate_each', reason: :callback_registered),
+          Necropsy::EntryPoint.new(node_id: 'ContractValidator#validate', reason: :callback_registered)
         )
       end
 
@@ -158,7 +172,6 @@ RSpec.describe Necropsy::AstScanner do
       end
     end
 
-
     context 'with singleton-scope macros, delegation, and absolute constants' do
       let(:files) do
         {
@@ -172,10 +185,14 @@ RSpec.describe Necropsy::AstScanner do
 
               class Service
                 class << self
+                  private
+                  attr_reader :secret
+                  public
                   attr_reader :status
                   define_method(:build) { status }
                   delegate :name, to: :profile, prefix: true
                 end
+                private_class_method :build
               end
 
               ::GlobalTarget.new
@@ -196,6 +213,8 @@ RSpec.describe Necropsy::AstScanner do
         )
         expect(scan.instantiated_classes).to include('GlobalTarget')
         expect(scan.instantiated_classes).not_to include('Namespace::GlobalTarget')
+        expect(nodes_by_id.fetch('Namespace::Service.secret').visibility).to eq(:private)
+        expect(nodes_by_id.fetch('Namespace::Service.build').visibility).to eq(:private)
       end
     end
 
@@ -248,6 +267,7 @@ RSpec.describe Necropsy::AstScanner do
 
               module_function
               def utility
+                hidden
               end
 
               public
@@ -285,8 +305,9 @@ RSpec.describe Necropsy::AstScanner do
         expect(nodes_by_id).to include(
           'Tools.visible', 'Registry#count', 'Registry#keys', 'Registry#values', 'Registry.lookup', 'Registry#evaluated'
         )
-        expect(nodes_by_id.fetch('Registry#revised').line).to eq(29)
+        expect(nodes_by_id.fetch('Registry#revised').line).to eq(30)
         expect(scan.class_infos.find { |info| info.id == 'Tools' }.extends).to eq(['Tools'])
+        expect(call_pairs).to include(['Tools.utility', 'hidden'])
       end
     end
 

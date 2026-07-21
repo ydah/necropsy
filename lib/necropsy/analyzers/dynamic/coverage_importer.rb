@@ -62,7 +62,7 @@ module Necropsy
           when '.json'
             JSON.parse(File.read(path))
           else
-            YAML.load_file(path) || {}
+            YAML.safe_load_file(path, aliases: false) || {}
           end
         rescue JSON::ParserError, Psych::Exception => e
           raise Error, "Could not parse coverage source #{path}: #{e.message}"

@@ -58,7 +58,7 @@ module Necropsy
           when '.json'
             JSON.parse(File.read(path))
           else
-            YAML.safe_load(File.read(path), aliases: true) || {}
+            YAML.safe_load_file(path, aliases: true) || {}
           end
         rescue JSON::ParserError, Psych::Exception => e
           raise Error, "Could not parse Coverband source #{path}: #{e.message}"
@@ -227,7 +227,7 @@ module Necropsy
         def command(*parts)
           socket.write(redis_command(parts))
           read_response
-        rescue EOFError, IOError, SystemCallError, OpenSSL::SSL::SSLError => e
+        rescue IOError, SystemCallError, OpenSSL::SSL::SSLError => e
           raise Error, "Redis connection failed: #{e.message}"
         end
 
@@ -240,7 +240,7 @@ module Necropsy
         end
 
         def redis_command(parts)
-          ["*#{parts.length}", *parts.flat_map { |part| ["$#{part.to_s.bytesize}", part.to_s] }].join("\r\n") + "\r\n"
+          "#{["*#{parts.length}", *parts.flat_map { |part| ["$#{part.to_s.bytesize}", part.to_s] }].join("\r\n")}\r\n"
         end
 
         def read_response

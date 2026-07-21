@@ -3,7 +3,7 @@
 require 'necropsy'
 require 'tmpdir'
 
-Dir[File.expand_path('support/**/*.rb', __dir__)].sort.each { |path| require path }
+Dir[File.expand_path('support/**/*.rb', __dir__)].each { |path| require path }
 
 def fixture_path(path)
   File.expand_path(File.join('fixtures', path), __dir__)
