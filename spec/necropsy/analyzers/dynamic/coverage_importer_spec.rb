@@ -34,4 +34,12 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageImporter do
       expect(result.alive_evidences.map(&:node_id)).to eq(['Sample#json'])
     end
   end
+
+  it 'raises a domain error when the configured source is missing' do
+    with_project do |root|
+      expect do
+        described_class.new('source' => 'missing.yml').analyze(nil, project_for(root))
+      end.to raise_error(Necropsy::Error, /Coverage source does not exist/)
+    end
+  end
 end

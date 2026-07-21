@@ -76,4 +76,29 @@ RSpec.describe Necropsy::CallGraph do
       'profiles' => [include('name' => 'spec')]
     )
   end
+
+  it 'does not enable absence-based classification when all dynamic node IDs are unknown' do
+    graph = graph_with(nodes: [node('Sample#run')])
+    result = analyzer_result(
+      alive_evidences: [
+        Necropsy::AliveEvidence.new(node_id: 'Other#run', evidence: evidence(analyzer: :coverage, kind: :alive))
+      ],
+      observation: { 'coverage' => { 'days' => 30 } }
+    )
+
+    expect { graph.apply_result(result) }.to output(/none matched the scanned project/).to_stderr
+    expect(graph).not_to be_dynamic_enabled
+  end
+
+  it 'indexes incoming edges without mutating empty graph buckets during reads' do
+    caller = node('Sample#caller', name: 'caller')
+    callee = node('Sample#callee', name: 'callee')
+    graph = graph_with(nodes: [caller, callee])
+    graph.add_edge(caller.id, callee.id, evidence)
+
+    expect(graph.incoming_edges(callee.id).map(&:caller_id)).to eq([caller.id])
+    expect(graph.edges_from('Missing#node')).to eq({})
+    expect(graph.uncertainties('Missing#node')).to eq([])
+    expect(graph.edges.length).to eq(1)
+  end
 end

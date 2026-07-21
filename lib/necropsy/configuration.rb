@@ -11,8 +11,10 @@ module Necropsy
 
     def self.load(root:, path: nil)
       config_path = path ? File.expand_path(path, root) : File.join(root, '.necropsy.yml')
-      data = File.exist?(config_path) ? YAML.load_file(config_path) : {}
+      data = File.exist?(config_path) ? YAML.load_file(config_path, aliases: true) : {}
       new(root: root, path: config_path, data: data || {})
+    rescue Psych::Exception => e
+      raise Error, "Could not parse configuration #{config_path}: #{e.message}"
     end
 
     def initialize(root:, path:, data:)
@@ -53,7 +55,10 @@ module Necropsy
     end
 
     def fail_on
-      (fetch('ci', 'fail_on') || DEFAULT_FAIL_ON).to_sym
+      level = (fetch('ci', 'fail_on') || DEFAULT_FAIL_ON).to_sym
+      return level if CONFIDENCE_LEVELS.key?(level)
+
+      raise Error, "Invalid ci.fail_on confidence level: #{level}"
     end
 
     def min_observation_days

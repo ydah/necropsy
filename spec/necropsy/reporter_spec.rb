@@ -54,5 +54,14 @@ RSpec.describe Necropsy::Reporter do
         expect(results.first.fetch('partialFingerprints')).to include('necropsy')
       end
     end
+
+    context 'with an unknown format' do
+      let(:format) { :xml }
+      let(:report) { report_with_findings([]) }
+
+      it 'raises a helpful error' do
+        expect { rendered }.to raise_error(Necropsy::Error, /Unknown report format: xml/)
+      end
+    end
   end
 end

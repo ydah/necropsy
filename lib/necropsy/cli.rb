@@ -20,6 +20,14 @@ module Necropsy
       options = default_options
       parser = build_parser(options)
       parser.parse!(argv)
+      if options[:help]
+        puts parser
+        return 0
+      end
+      if options[:version]
+        puts Necropsy::VERSION
+        return 0
+      end
       apply_config_defaults(options)
 
       case command
@@ -48,7 +56,7 @@ module Necropsy
         warn parser
         2
       end
-    rescue OptionParser::ParseError, Error => e
+    rescue OptionParser::ParseError, Psych::Exception, Error => e
       warn e.message
       2
     end
@@ -67,11 +75,13 @@ module Necropsy
         ratchet: false,
         write: false,
         gold_standard: nil,
-        output: 'tmp/necropsy_trace_point.yml',
+        output: nil,
         sample_rate: 1.0,
         ablation: false,
         precision_threshold: nil,
-        recall_threshold: nil
+        recall_threshold: nil,
+        help: false,
+        version: false
       }
     end
 
@@ -80,12 +90,16 @@ module Necropsy
         parser.banner = 'Usage: necropsy COMMAND [options]'
         parser.on('--root PATH', 'Project root') { |value| options[:root] = value }
         parser.on('--config PATH', 'Configuration file') { |value| options[:config] = value }
-        parser.on('--format FORMAT', 'human, json, yaml, sarif, or github') { |value| options[:format] = value.to_sym }
+        parser.on('--format FORMAT', Reporter::FORMATS.map(&:to_s), 'Output format') do |value|
+          options[:format] = value.to_sym
+        end
         parser.on('--min-confidence LEVEL', 'low, medium, high, or certain') do |value|
-          options[:min_confidence] = value.to_sym
+          options[:min_confidence] = confidence_level(value)
         end
         parser.on('--baseline PATH', 'Baseline path') { |value| options[:baseline] = value }
-        parser.on('--fail-on LEVEL', 'CI failure threshold') { |value| options[:fail_on] = value.to_sym }
+        parser.on('--fail-on LEVEL', 'CI failure threshold') do |value|
+          options[:fail_on] = confidence_level(value)
+        end
         parser.on('--diff-base REV', 'Restrict reported findings to files changed since REV') do |value|
           options[:diff_base] = value
         end
@@ -104,9 +118,9 @@ module Necropsy
           options[:recall_threshold] = value
         end
         parser.on('-h', '--help', 'Show help') do
-          puts parser
-          exit 0
+          options[:help] = true
         end
+        parser.on('-v', '--version', 'Show version') { options[:version] = true }
       end
     end
 
@@ -127,8 +141,9 @@ module Necropsy
       baseline = Guardrail::Baseline.load(baseline_path)
       failures = findings.reject { |finding| baseline.include?(finding) }
 
-      if options[:ratchet] && findings.length > baseline.fingerprints.length
-        puts "Ratchet failed: #{findings.length} findings exceed baseline count #{baseline.fingerprints.length}"
+      baseline_count = baseline.count_at_least(options[:fail_on])
+      if options[:ratchet] && findings.length > baseline_count
+        puts "Ratchet failed: #{findings.length} findings exceed baseline count #{baseline_count}"
         return 1
       end
 
@@ -197,7 +212,7 @@ module Necropsy
       script = script_argv.shift
       raise Error, 'record requires a Ruby script after --' unless script
 
-      output = File.expand_path(options[:output], options[:root])
+      output = File.expand_path(options[:output] || 'tmp/necropsy_trace_point.yml', options[:root])
       FileUtils.mkdir_p(File.dirname(output))
 
       previous_argv = ARGV.dup
@@ -219,7 +234,7 @@ module Necropsy
       script_argv = argv.dup
       raise Error, 'coverage requires a Ruby script or command after --' if script_argv.empty?
 
-      output = File.expand_path(options[:output].sub('trace_point', 'coverage'), options[:root])
+      output = File.expand_path(options[:output] || 'tmp/necropsy_coverage.yml', options[:root])
       FileUtils.mkdir_p(File.dirname(output))
 
       return record_coverage_script(options, output, script_argv) if local_ruby_script?(options, script_argv)
@@ -282,6 +297,13 @@ module Necropsy
       payload.dig('observation', 'run_id') == run_id
     rescue SystemCallError, Psych::Exception
       false
+    end
+
+    def confidence_level(value)
+      level = value.to_sym
+      return level if CONFIDENCE_LEVELS.key?(level)
+
+      raise OptionParser::InvalidArgument, "unknown confidence level: #{value}"
     end
   end
 end

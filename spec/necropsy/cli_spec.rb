@@ -69,5 +69,25 @@ RSpec.describe Necropsy::CLI do
         expect(payload.fetch('nodes')).to include('CliRecordSample#run')
       end
     end
+
+    context 'with invalid output options' do
+      let(:project_root) { create_project }
+
+      it 'rejects unknown confidence levels and formats without a stack trace' do
+        expect do
+          described_class.run(['analyze', '--root', project_root, '--min-confidence', 'maximum'])
+        end.to output(/unknown confidence level: maximum/).to_stderr
+        expect do
+          described_class.run(['analyze', '--root', project_root, '--format', 'xml'])
+        end.to output(/invalid argument.*--format/).to_stderr
+      end
+    end
+
+    context 'with informational flags' do
+      it 'returns normally for help and version' do
+        expect { described_class.run(['--help']) }.to output(/Usage: necropsy/).to_stdout
+        expect { described_class.run(['--version']) }.to output("#{Necropsy::VERSION}\n").to_stdout
+      end
+    end
   end
 end

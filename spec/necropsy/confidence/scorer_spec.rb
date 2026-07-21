@@ -81,5 +81,36 @@ RSpec.describe Necropsy::Confidence::Scorer do
         expect(findings.first.reasons).to include(match(/quarantine annotation has expired/))
       end
     end
+
+    context 'when a statically unreachable node was observed dynamically' do
+      let(:executed) { node('Sample#executed', name: 'executed') }
+      let(:graph) do
+        graph_with(nodes: [executed]).tap do |result|
+          result.add_alive(executed.id, evidence(analyzer: :coverage, kind: :alive))
+        end
+      end
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_alive: Set[], test_alive: Set[]) }
+
+      it 'does not report the executed node as dead' do
+        expect(findings).to be_empty
+      end
+    end
+
+    context 'when a generated accessor is statically reachable but absent from dynamic data' do
+      let(:accessor) { node('Sample#name', name: 'name', defined_via: :attr_reader) }
+      let(:observed) { node('Sample#run', name: 'run') }
+      let(:graph) do
+        graph_with(nodes: [accessor, observed]).tap do |result|
+          result.add_alive(observed.id, evidence(analyzer: :coverage, kind: :alive))
+        end
+      end
+      let(:reachability) do
+        Necropsy::Reachability::Result.new(runtime_alive: Set[accessor.id, observed.id], test_alive: Set[])
+      end
+
+      it 'does not infer unused from evidence that cannot observe accessors' do
+        expect(findings).to be_empty
+      end
+    end
   end
 end

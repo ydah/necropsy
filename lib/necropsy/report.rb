@@ -17,17 +17,21 @@ module Necropsy
       findings.select { |finding| finding.at_least?(min_confidence) }
     end
 
-    def to_h
-      {
+    def to_h(include_graph: true)
+      payload = {
         'root' => root,
         'summary' => summary,
-        'findings' => findings.map(&:to_h),
-        'graph' => graph.to_h
+        'findings' => findings.map(&:to_h)
       }
+      payload['graph'] = graph.to_h if include_graph
+      payload
     end
 
-    def to_json(*)
-      JSON.pretty_generate(to_h, *)
+    def to_json(state = nil, include_graph: true)
+      payload = to_h(include_graph: include_graph)
+      return JSON.pretty_generate(payload) unless state
+
+      payload.to_json(state)
     end
 
     def to_yaml

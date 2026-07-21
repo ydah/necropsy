@@ -2,12 +2,17 @@
 
 module Necropsy
   class Reporter
+    FORMATS = %i[human json yaml yml sarif github annotations].freeze
+
     def initialize(report)
       @report = report
     end
 
     def render(format: :human, min_confidence: :low)
-      case format.to_sym
+      normalized_format = format.to_sym
+      raise Error, "Unknown report format: #{format}" unless FORMATS.include?(normalized_format)
+
+      case normalized_format
       when :json
         report.to_json
       when :sarif
@@ -16,7 +21,7 @@ module Necropsy
         render_github_annotations(min_confidence)
       when :yaml, :yml
         report.to_yaml
-      else
+      when :human
         render_human(min_confidence)
       end
     end

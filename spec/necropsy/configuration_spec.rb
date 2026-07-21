@@ -64,5 +64,32 @@ RSpec.describe Necropsy::Configuration do
 
       it { is_expected.to be_rails_enabled }
     end
+
+    context 'with YAML aliases' do
+      let(:files) do
+        {
+          '.necropsy.yml' => <<~YAML
+            defaults: &defaults
+              source: coverage.yml
+            analyzers:
+              dynamic:
+                coverage:
+                  <<: *defaults
+          YAML
+        }
+      end
+
+      it 'loads the aliased configuration' do
+        expect(configuration.dynamic_config(:coverage)).to include('source' => 'coverage.yml')
+      end
+    end
+
+    context 'with malformed YAML' do
+      let(:files) { { '.necropsy.yml' => "analyzers: [\n" } }
+
+      it 'raises a domain error with the configuration path' do
+        expect { configuration }.to raise_error(Necropsy::Error, /Could not parse configuration/)
+      end
+    end
   end
 end

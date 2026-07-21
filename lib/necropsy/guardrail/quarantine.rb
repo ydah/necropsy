@@ -29,7 +29,7 @@ module Necropsy
           lines = File.readlines(path, chomp: true)
           entries.sort_by { |entry| -entry[:line] }.each do |entry|
             index = [entry[:line] - 1, 0].max
-            next if lines[index - 1]&.include?(ANNOTATION_PREFIX)
+            next if index.positive? && lines[index - 1]&.include?(ANNOTATION_PREFIX)
 
             indent = lines[index][/^\s*/] || ''
             lines.insert(index, "#{indent}#{entry[:annotation]}")

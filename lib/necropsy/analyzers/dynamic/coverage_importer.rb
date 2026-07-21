@@ -56,12 +56,16 @@ module Necropsy
         attr_reader :config
 
         def load_payload(path)
+          raise Error, "Coverage source does not exist: #{path}" unless File.file?(path)
+
           case File.extname(path)
           when '.json'
             JSON.parse(File.read(path))
           else
             YAML.load_file(path) || {}
           end
+        rescue JSON::ParserError, Psych::Exception => e
+          raise Error, "Could not parse coverage source #{path}: #{e.message}"
         end
       end
     end

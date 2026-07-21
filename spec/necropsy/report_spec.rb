@@ -19,5 +19,7 @@ RSpec.describe Necropsy::Report do
       'test_only_reachable' => 1
     )
     expect(report.to_h).to include('root' => '/repo', 'findings' => include(include('classification' => 'unreachable')))
+    expect(report.to_h(include_graph: false)).not_to have_key('graph')
+    expect(JSON.parse(JSON.generate('report' => report))).to include('report' => include('root' => '/repo'))
   end
 end

@@ -7,16 +7,20 @@ module Necropsy
 
     def initialize(scan_result)
       @nodes = {}
-      @edges = Hash.new { |hash, key| hash[key] = {} }
+      @edges = {}
+      @incoming_edges = {}
       @call_sites = scan_result.call_sites
       @instantiated_classes = scan_result.instantiated_classes.dup
       @class_infos = scan_result.class_infos.to_h { |info| [info.id, info] }
       @entrypoint_hints = scan_result.entrypoint_hints
       @entry_points = []
       @profiles = []
-      @uncertainties = scan_result.uncertainties
+      @uncertainties = scan_result.uncertainties.to_h do |node_id, messages|
+        [node_id, Array(messages).dup]
+      end
       @dynamic_alive = {}
       @observation = {}
+      @descendants = {}
       scan_result.nodes.each { |node| add_node(node) }
       retain_known_instantiated_classes
     end
@@ -34,8 +38,12 @@ module Necropsy
 
     def apply_result(result)
       result.edge_evidences.each { |edge| add_edge(edge.caller_id, edge.callee_id, edge.evidence) }
-      result.alive_evidences.each { |alive| add_alive(alive.node_id, alive.evidence) }
-      result.uncertainties.each { |node_id, messages| uncertainties[node_id].concat(Array(messages)) }
+      matched_alive = result.alive_evidences.count { |alive| add_alive(alive.node_id, alive.evidence) }
+      warn_unmatched_dynamic_evidence(result.alive_evidences.length) if matched_alive.zero?
+      result.uncertainties.each do |node_id, messages|
+        @uncertainties[node_id] ||= []
+        @uncertainties[node_id].concat(Array(messages))
+      end
       observation.merge!(result.observation) { |_key, left, right| merge_observation(left, right) }
     end
 
@@ -46,15 +54,19 @@ module Necropsy
     def add_edge(caller_id, callee_id, evidence)
       return unless nodes.key?(caller_id) && nodes.key?(callee_id)
 
+      @edges[caller_id] ||= {}
       @edges[caller_id][callee_id] ||= []
       @edges[caller_id][callee_id] << evidence
+      @incoming_edges[callee_id] ||= {}
+      @incoming_edges[callee_id][caller_id] = @edges[caller_id][callee_id]
     end
 
     def add_alive(node_id, evidence)
-      return unless nodes.key?(node_id)
+      return false unless nodes.key?(node_id)
 
       @dynamic_alive[node_id] ||= []
       @dynamic_alive[node_id] << evidence
+      true
     end
 
     def dynamic_alive?(node_id)
@@ -66,11 +78,11 @@ module Necropsy
     end
 
     def dynamic_enabled?
-      @dynamic_alive.any? || observation.any?
+      @dynamic_alive.any?
     end
 
     def edges_from(node_id)
-      @edges[node_id] || {}
+      @edges.fetch(node_id, {})
     end
 
     def edges
@@ -82,13 +94,15 @@ module Necropsy
     end
 
     def incoming_edges(node_id)
-      edges.select { |edge| edge.callee_id == node_id }
+      @incoming_edges.fetch(node_id, {}).map do |caller_id, evidences|
+        Edge.new(caller_id: caller_id, callee_id: node_id, evidences: evidences)
+      end
     end
 
     def uncertainties(node_id = nil)
       return @uncertainties unless node_id
 
-      @uncertainties[node_id] || []
+      @uncertainties.fetch(node_id, [])
     end
 
     def method_nodes
@@ -100,7 +114,9 @@ module Necropsy
     end
 
     def descendants_of(owner)
-      class_infos.keys.select { |candidate| candidate == owner || ancestor_chain(candidate).include?(owner) }
+      @descendants[owner] ||= class_infos.keys.select do |candidate|
+        candidate == owner || ancestor_chain(candidate).include?(owner)
+      end
     end
 
     def modules_for(owner)
@@ -194,6 +210,13 @@ module Necropsy
     def retain_known_instantiated_classes
       known_owners = method_nodes.map(&:owner).compact.to_set
       instantiated_classes.select! { |name| known_owners.include?(name) }
+    end
+
+    def warn_unmatched_dynamic_evidence(attempted)
+      return if attempted.zero?
+
+      warn "Necropsy ignored #{attempted} dynamic node IDs because none matched the scanned project; " \
+           'dynamic absence will not be used for unused classification.'
     end
   end
 end

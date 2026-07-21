@@ -3,6 +3,13 @@
 require 'digest'
 
 module Necropsy
+  CONFIDENCE_LEVELS = {
+    low: 0,
+    medium: 1,
+    high: 2,
+    certain: 3
+  }.freeze
+
   Node = Data.define(:id, :kind, :file, :line, :end_line, :defined_via, :owner, :name, :test) do
     def method?
       kind != :block_entry
@@ -134,15 +141,8 @@ module Necropsy
   end
 
   Finding = Data.define(:node, :classification, :confidence, :score, :reasons, :evidences) do
-    LEVELS = {
-      low: 0,
-      medium: 1,
-      high: 2,
-      certain: 3
-    }.freeze
-
     def at_least?(level)
-      LEVELS.fetch(confidence) >= LEVELS.fetch(level)
+      CONFIDENCE_LEVELS.fetch(confidence) >= CONFIDENCE_LEVELS.fetch(level)
     end
 
     def fingerprint

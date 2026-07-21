@@ -37,4 +37,17 @@ RSpec.describe Necropsy::Guardrail::Quarantine do
       expect(lines.grep(/necropsy:quarantine/).length).to eq(2)
     end
   end
+
+  it 'does not inspect the final line as the previous line for a method on line one' do
+    source = "def first\nend\n# necropsy:quarantine since=2000-01-01\n"
+
+    with_project(files: { 'first.rb' => source }) do |root|
+      target = finding(id: 'Object#first', confidence: :high, file: 'first.rb', line: 1)
+      report = report_with_findings([target], root: root)
+
+      described_class.new(report: report, root: root).write(min_confidence: :high)
+
+      expect(File.readlines(File.join(root, 'first.rb')).first).to match(/necropsy:quarantine/)
+    end
+  end
 end
