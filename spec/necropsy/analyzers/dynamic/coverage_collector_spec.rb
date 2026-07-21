@@ -23,4 +23,14 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageCollector do
       expect(payload.fetch('observation')).to include('collector' => 'coverage')
     end
   end
+
+  it 'warns when another collector started Coverage without method data' do
+    collector = described_class.new(root: '/repo', output: '/tmp/coverage.yml')
+    allow(Coverage).to receive(:running?).and_return(true)
+    allow(Coverage).to receive(:peek_result).and_return('/repo/sample.rb' => [nil, 1])
+
+    expect do
+      expect(collector.send(:coverage_result, started: false)).to eq({})
+    end.to output(/already running without methods: true/).to_stderr
+  end
 end

@@ -63,9 +63,18 @@ module Necropsy
 
         def coverage_result(started:)
           return Coverage.result(stop: true, clear: true) if started && Coverage.running?
-          return Coverage.peek_result if Coverage.respond_to?(:peek_result) && Coverage.running?
+          if Coverage.respond_to?(:peek_result) && Coverage.running?
+            result = Coverage.peek_result
+            return result if method_coverage?(result)
+
+            warn 'Necropsy coverage collector found Coverage already running without methods: true; no methods were recorded.'
+          end
 
           {}
+        end
+
+        def method_coverage?(result)
+          result.values.any? { |coverage| coverage.is_a?(Hash) && coverage.key?(:methods) }
         end
 
         def write_payload(result:, started_at:, finished_at:)

@@ -52,12 +52,16 @@ module Necropsy
           return load_redis_payload(source) if source.start_with?('redis://', 'rediss://')
 
           path = File.expand_path(source, root)
+          raise Error, "Coverband source does not exist: #{path}" unless File.file?(path)
+
           case File.extname(path)
           when '.json'
             JSON.parse(File.read(path))
           else
-            YAML.load_file(path) || {}
+            YAML.safe_load(File.read(path), aliases: true) || {}
           end
+        rescue JSON::ParserError, Psych::Exception => e
+          raise Error, "Could not parse Coverband source #{path}: #{e.message}"
         end
 
         def load_redis_payload(source)
@@ -145,6 +149,8 @@ module Necropsy
 
       class RedisPayloadLoader
         DEFAULT_PATTERN = 'coverband*'
+        DEFAULT_CONNECT_TIMEOUT = 5.0
+        DEFAULT_READ_TIMEOUT = 5.0
 
         def initialize(source:, config:)
           @uri = URI(source)
@@ -166,8 +172,12 @@ module Necropsy
         attr_reader :uri, :config, :socket
 
         def connect
-          tcp_socket = TCPSocket.new(uri.host, uri.port || 6379)
+          tcp_socket = Socket.tcp(uri.host, uri.port || 6379, connect_timeout: connect_timeout)
+          apply_read_timeout(tcp_socket)
           @socket = uri.scheme == 'rediss' ? tls_socket(tcp_socket) : tcp_socket
+        rescue SystemCallError, SocketError, IO::TimeoutError => e
+          tcp_socket&.close
+          raise Error, "Could not connect to Redis at #{uri.host}:#{uri.port || 6379}: #{e.message}"
         end
 
         def tls_socket(tcp_socket)
@@ -181,7 +191,10 @@ module Necropsy
         def authenticate
           return unless uri.password
 
-          command('AUTH', uri.password)
+          password = URI.decode_www_form_component(uri.password)
+          return command('AUTH', password) unless uri.user
+
+          command('AUTH', URI.decode_www_form_component(uri.user), password)
         end
 
         def select_database
@@ -214,6 +227,8 @@ module Necropsy
         def command(*parts)
           socket.write(redis_command(parts))
           read_response
+        rescue EOFError, IOError, SystemCallError, OpenSSL::SSL::SSLError => e
+          raise Error, "Redis connection failed: #{e.message}"
         end
 
         def payload_for_key(key)
@@ -229,30 +244,65 @@ module Necropsy
         end
 
         def read_response
-          prefix = socket.read(1)
+          prefix = read_exact(1)
           case prefix
           when '+'
-            socket.gets("\r\n").delete_suffix("\r\n")
+            read_line
           when '-'
-            raise Error, socket.gets("\r\n").delete_suffix("\r\n")
+            raise Error, read_line
           when ':'
-            socket.gets("\r\n").to_i
+            read_line.to_i
           when '$'
             read_bulk_string
           when '*'
-            Array.new(socket.gets("\r\n").to_i) { read_response }
+            length = read_line.to_i
+            return nil if length.negative?
+
+            Array.new(length) { read_response }
           else
             raise Error, "Unsupported Redis response prefix #{prefix.inspect}"
           end
         end
 
         def read_bulk_string
-          length = socket.gets("\r\n").to_i
+          length = read_line.to_i
           return nil if length.negative?
 
-          value = socket.read(length)
-          socket.read(2)
+          value = read_exact(length)
+          read_exact(2)
           value
+        end
+
+        def read_line
+          line = socket.gets("\r\n")
+          raise Error, 'Redis closed the connection while reading a response' unless line
+
+          line.delete_suffix("\r\n")
+        end
+
+        def read_exact(length)
+          value = socket.read(length)
+          raise Error, 'Redis closed the connection while reading a response' unless value&.bytesize == length
+
+          value
+        end
+
+        def connect_timeout
+          Float(config.fetch('connect_timeout', DEFAULT_CONNECT_TIMEOUT))
+        rescue ArgumentError, TypeError
+          DEFAULT_CONNECT_TIMEOUT
+        end
+
+        def read_timeout
+          Float(config.fetch('read_timeout', DEFAULT_READ_TIMEOUT))
+        rescue ArgumentError, TypeError
+          DEFAULT_READ_TIMEOUT
+        end
+
+        def apply_read_timeout(tcp_socket)
+          seconds = read_timeout
+          timeout = [seconds.to_i, ((seconds % 1) * 1_000_000).to_i].pack('l_2')
+          tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, timeout)
         end
 
         def parse_payload(value)
@@ -260,9 +310,13 @@ module Necropsy
 
           JSON.parse(value)
         rescue JSON::ParserError
-          YAML.load(value)
-        rescue Psych::SyntaxError
-          Marshal.load(value)
+          parse_yaml_payload(value)
+        end
+
+        def parse_yaml_payload(value)
+          YAML.safe_load(value, aliases: false)
+        rescue Psych::Exception, ArgumentError, EncodingError => e
+          raise Error, "Invalid Redis coverage payload: #{e.message}"
         end
 
         def parse_hash_payload(entries)

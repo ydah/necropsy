@@ -16,9 +16,12 @@ module Necropsy
           @root = File.expand_path(root)
           @output = output
           @sample_rate = sample_rate.to_f
+          raise Error, 'sample_rate must be between 0.0 and 1.0' unless @sample_rate.between?(0.0, 1.0)
+
           @nodes = {}
           @edges = {}
-          @stack = []
+          @stacks = {}
+          @lock = Mutex.new
         end
 
         def record
@@ -33,25 +36,37 @@ module Necropsy
 
         private
 
-        attr_reader :root, :output, :sample_rate, :nodes, :edges, :stack
+        attr_reader :root, :output, :sample_rate, :nodes, :edges, :stacks, :lock
 
         def capture(event)
           return unless project_path?(event.path)
-          return if sample_rate < 1.0 && SecureRandom.random_number > sample_rate
 
           node_id = node_id_for(event)
           return unless node_id
 
-          if event.event == :return
-            stack.pop if stack.last == node_id
-            return
+          lock.synchronize do
+            stack = stacks[Thread.current.object_id] ||= []
+            if event.event == :return
+              unwind_stack(stack, node_id)
+              stacks.delete(Thread.current.object_id) if stack.empty?
+              return
+            end
+
+            sampled = sample_rate >= 1.0 || (sample_rate.positive? && SecureRandom.random_number < sample_rate)
+            caller_id = stack.last&.first if stack.last&.last
+            if sampled
+              nodes[node_id] = true
+              edges[[caller_id, node_id]] = true if caller_id
+            end
+            stack << [node_id, sampled]
           end
+        end
 
-          caller_id = stack.last
-          nodes[node_id] = true
-          edges[[caller_id, node_id]] = true if caller_id
+        def unwind_stack(stack, node_id)
+          index = stack.rindex { |frame| frame.first == node_id }
+          return unless index
 
-          stack << node_id
+          stack.slice!(index..)
         end
 
         def project_path?(path)
