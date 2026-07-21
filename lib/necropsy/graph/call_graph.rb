@@ -160,6 +160,8 @@ module Necropsy
         exact ? [exact] : candidate_nodes(site.message)
       when :self
         same_owner_candidates(site)
+      when :super
+        super_candidates(site)
       when :implicit
         same_owner_candidates(site).then { |matches| matches.empty? ? candidate_nodes(site.message) : matches }
       else
@@ -176,6 +178,21 @@ module Necropsy
         "#{caller.owner}.#{site.message}"
       ]
       ids.filter_map { |id| nodes[id] }
+    end
+
+    def super_candidates(site)
+      caller = nodes[site.caller_id]
+      return [] unless caller&.owner
+
+      separator = caller.kind == :singleton_method ? '.' : '#'
+      owner = class_info(caller.owner)&.superclass
+      while owner
+        candidate = nodes["#{owner}#{separator}#{site.message}"]
+        return [candidate] if candidate
+
+        owner = class_info(owner)&.superclass
+      end
+      []
     end
 
     def receiver_candidates(site)

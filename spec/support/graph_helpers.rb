@@ -4,7 +4,7 @@ require 'set'
 
 module GraphHelpers
   def node(id, kind: :instance_method, file: 'app/models/sample.rb', line: 1, end_line: line, owner: 'Sample',
-           name: id.split(/[.#]/).last, test: false, defined_via: :def)
+           name: id.split(/[.#]/).last, test: false, defined_via: :def, visibility: :public)
     Necropsy::Node.new(
       id: id,
       kind: kind,
@@ -14,7 +14,8 @@ module GraphHelpers
       defined_via: defined_via,
       owner: owner,
       name: name,
-      test: test
+      test: test,
+      visibility: visibility
     )
   end
 

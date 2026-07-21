@@ -46,6 +46,8 @@ module Necropsy
             instance_targets(graph, site)
           when :self, :implicit
             self_targets(graph, site)
+          when :super
+            graph.resolve_call_site(site)
           else
             graph.candidate_nodes(site.message)
           end.uniq(&:id)
@@ -53,9 +55,13 @@ module Necropsy
 
         def constant_targets(graph, site)
           receiver_candidates(site).flat_map do |owner|
-            owners_for_lookup(graph, owner, include_descendants: false).filter_map do |candidate_owner|
+            targets = owners_for_lookup(graph, owner, include_descendants: false).filter_map do |candidate_owner|
               graph.nodes["#{candidate_owner}.#{site.message}"]
             end
+            extended = Array(graph.class_info(owner)&.extends).filter_map do |mod|
+              graph.nodes["#{mod}##{site.message}"]
+            end
+            targets + extended
           end
         end
 

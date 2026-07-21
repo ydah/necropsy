@@ -101,4 +101,17 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.uncertainties('Missing#node')).to eq([])
     expect(graph.edges.length).to eq(1)
   end
+
+  it 'resolves super calls to the nearest ancestor implementation' do
+    parent = node('Parent#render', owner: 'Parent', name: 'render')
+    child = node('Child#render', owner: 'Child', name: 'render')
+    site = call_site(caller_id: child.id, message: 'render', receiver_kind: :super, receiver_name: 'Child')
+    graph = graph_with(
+      nodes: [parent, child],
+      call_sites: [site],
+      class_infos: [class_info('Parent'), class_info('Child', superclass: 'Parent')]
+    )
+
+    expect(graph.resolve_call_site(site).map(&:id)).to eq(['Parent#render'])
+  end
 end

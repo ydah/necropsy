@@ -157,5 +157,172 @@ RSpec.describe Necropsy::AstScanner do
         expect(scan.instantiated_classes).to include('FactoryBuilt')
       end
     end
+
+
+    context 'with singleton-scope macros, delegation, and absolute constants' do
+      let(:files) do
+        {
+          'app/models/advanced_macros.rb' => <<~RUBY
+            class GlobalTarget
+            end
+
+            module Namespace
+              class LocalTarget
+              end
+
+              class Service
+                class << self
+                  attr_reader :status
+                  define_method(:build) { status }
+                  delegate :name, to: :profile, prefix: true
+                end
+              end
+
+              ::GlobalTarget.new
+            end
+          RUBY
+        }
+      end
+
+      it 'creates singleton methods and records delegate receiver calls' do
+        expect(nodes_by_id).to include(
+          'Namespace::Service.status',
+          'Namespace::Service.build',
+          'Namespace::Service.profile_name'
+        )
+        expect(call_pairs).to include(
+          ['Namespace::Service.profile_name', 'profile'],
+          ['Namespace::Service.profile_name', 'name']
+        )
+        expect(scan.instantiated_classes).to include('GlobalTarget')
+        expect(scan.instantiated_classes).not_to include('Namespace::GlobalTarget')
+      end
+    end
+
+    context 'with indirect method references and super calls' do
+      let(:files) do
+        {
+          'app/models/indirect_calls.rb' => <<~RUBY
+            class Parent
+              def render
+              end
+            end
+
+            class Child < Parent
+              def render(...)
+                super
+              end
+
+              def dispatch(items)
+                items.map(&:decorate)
+                method(:fallback)
+                respond_to?(:available?)
+                try(:optional!)
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'records super, symbol-to-proc, and symbol-based references' do
+        expect(call_pairs).to include(
+          ['Child#render', 'render'],
+          ['Child#dispatch', 'decorate'],
+          ['Child#dispatch', 'fallback'],
+          ['Child#dispatch', 'available?'],
+          ['Child#dispatch', 'optional!']
+        )
+        super_site = scan.call_sites.find { |site| site.caller_id == 'Child#render' && site.receiver_kind == :super }
+        expect(super_site).not_to be_nil
+      end
+    end
+
+    context 'with visibility, module functions, eval, and Forwardable declarations' do
+      let(:files) do
+        {
+          'app/models/metaprogrammed.rb' => <<~RUBY
+            module Tools
+              private
+              def hidden
+              end
+
+              module_function
+              def utility
+              end
+
+              public
+              def visible
+              end
+
+              module_function :visible
+              extend self
+            end
+
+            class Registry
+              def_delegator :store, :size, :count
+              def_delegators :store, :keys, :values
+              define_singleton_method(:lookup) { count }
+              class_eval do
+                def evaluated
+                end
+              end
+
+              def revised
+              end
+              def revised
+                :latest
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'tracks visibility and all generated definition forms' do
+        expect(nodes_by_id.fetch('Tools#hidden').visibility).to eq(:private)
+        expect(nodes_by_id.fetch('Tools#utility').visibility).to eq(:private)
+        expect(nodes_by_id.fetch('Tools.utility').defined_via).to eq(:module_function)
+        expect(nodes_by_id.fetch('Tools#visible').visibility).to eq(:private)
+        expect(nodes_by_id).to include(
+          'Tools.visible', 'Registry#count', 'Registry#keys', 'Registry#values', 'Registry.lookup', 'Registry#evaluated'
+        )
+        expect(nodes_by_id.fetch('Registry#revised').line).to eq(29)
+        expect(scan.class_infos.find { |info| info.id == 'Tools' }.extends).to eq(['Tools'])
+      end
+    end
+
+    context 'with adjacent include candidate groups and test-only callbacks' do
+      let(:files) do
+        {
+          'app/models/includes.rb' => <<~RUBY,
+            module Foo
+              module Bar
+              end
+            end
+            module A
+              module Bar
+              end
+              class Host
+                include Foo::Bar
+                include Bar
+              end
+            end
+          RUBY
+          'spec/callback_spec.rb' => <<~RUBY
+            class SpecOnlyController
+              before_action :prepare
+              def prepare
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'preserves each include and ignores callback roots declared in tests' do
+        host = scan.class_infos.find { |info| info.id == 'A::Host' }
+
+        expect(host.includes).to contain_exactly('Foo::Bar', 'A::Bar')
+        expect(scan.entrypoint_hints.map(&:node_id)).not_to include('SpecOnlyController#prepare')
+      end
+    end
   end
 end

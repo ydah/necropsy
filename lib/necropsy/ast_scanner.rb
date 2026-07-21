@@ -11,9 +11,13 @@ module Necropsy
     MODULE_RELATION_MACROS = %i[include prepend extend].freeze
     RAILS_CALLBACK_MACROS = %i[
       before_action after_action around_action
-      before_save after_save before_create after_create before_update after_update
-      before_destroy after_destroy around_save validate
+      before_validation after_validation before_save after_save around_save
+      before_create after_create around_create before_update after_update around_update
+      before_destroy after_destroy around_destroy after_commit after_rollback after_initialize after_find
+      validate rescue_from helper_method
     ].freeze
+    VISIBILITY_MACROS = %i[public protected private].freeze
+    SYMBOL_REFERENCE_CALLS = %i[method respond_to? try try!].freeze
 
     Context = Struct.new(
       :namespace,
@@ -25,6 +29,8 @@ module Necropsy
       :relative_file,
       :test,
       :singleton_scope,
+      :visibility,
+      :module_function,
       keyword_init: true
     )
 
@@ -37,12 +43,13 @@ module Necropsy
       @uncertainties = Hash.new { |hash, key| hash[key] = [] }
       @class_data = {}
       @entrypoint_hints = []
+      @factory_methods = project.config.factory_methods.map(&:to_s).to_set
     end
 
     def scan
       files.each { |file| scan_file(file) }
       ScanResult.new(
-        nodes: nodes.uniq(&:id),
+        nodes: nodes.reverse.uniq(&:id).reverse,
         call_sites: call_sites,
         instantiated_classes: instantiated_classes,
         uncertainties: uncertainties,
@@ -69,7 +76,8 @@ module Necropsy
         defined_via: :file,
         owner: nil,
         name: relative,
-        test: test
+        test: test,
+        visibility: :public
       )
 
       result = Prism.parse(File.read(file))
@@ -86,7 +94,9 @@ module Necropsy
           file: file,
           relative_file: relative,
           test: test,
-          singleton_scope: false
+          singleton_scope: false,
+          visibility: :public,
+          module_function: false
         )
       )
     rescue SystemCallError, EncodingError => e
@@ -105,6 +115,8 @@ module Necropsy
         visit_call(node, context)
       when Prism::AliasMethodNode
         visit_alias_method_node(node, context)
+      when Prism::SuperNode, Prism::ForwardingSuperNode
+        visit_super(node, context)
       when Prism::SingletonClassNode
         visit_singleton_class(node, context)
       when Prism::ConstantWriteNode
@@ -121,6 +133,8 @@ module Necropsy
       child_context.namespace = namespace
       child_context.owner = namespace
       child_context.singleton_scope = false
+      child_context.visibility = :public
+      child_context.module_function = false
       visit(node.body, child_context)
     end
 
@@ -128,7 +142,7 @@ module Necropsy
       owner = definition_owner(node, context)
       return visit_children(node, context) unless owner
 
-      kind = node.receiver || context.singleton_scope ? :singleton_method : :instance_method
+      kind = (node.receiver || context.singleton_scope) ? :singleton_method : :instance_method
       separator = kind == :singleton_method ? '.' : '#'
       id = "#{owner}#{separator}#{node.name}"
       nodes << Node.new(
@@ -140,8 +154,10 @@ module Necropsy
         defined_via: :def,
         owner: owner,
         name: node.name.to_s,
-        test: context.test
+        test: context.test,
+        visibility: kind == :singleton_method ? :public : context.visibility
       )
+      record_module_function_copy(node, context, owner) if kind == :instance_method && context.module_function
       if node.name == :method_missing
         uncertainties[id] << "#{owner} defines method_missing"
         class_record(owner)[:dynamic] = true
@@ -152,19 +168,28 @@ module Necropsy
       method_context.current_caller_id = id
       method_context.current_kind = kind
       method_context.singleton_scope = false
+      method_context.visibility = :public
+      method_context.module_function = false
       visit(node.body, method_context)
     end
 
     def visit_call(node, context)
+      return if handle_visibility(node, context)
+      return if handle_module_function(node, context)
+      return if handle_eval(node, context)
+      return if handle_define_singleton_method(node, context)
       return if handle_define_method(node, context)
       return if handle_attr_macro(node, context)
       return if handle_delegate(node, context)
+      return if handle_forwardable(node, context)
       return if handle_alias_method(node, context)
 
       handle_module_relation(node, context)
       handle_rails_callback(node, context)
 
       record_instantiation(node, context)
+      record_symbol_reference(node, context)
+      record_symbol_to_proc(node, context)
       site = build_call_site(node, context)
       call_sites << site if site
       if site&.dynamic
@@ -176,11 +201,31 @@ module Necropsy
       visit_children(node, context)
     end
 
+    def visit_super(node, context)
+      method_name = context.current_caller_id&.split(/[.#]/)&.last
+      if method_name
+        call_sites << CallSite.new(
+          caller_id: context.current_caller_id,
+          message: method_name,
+          receiver_kind: :super,
+          receiver_name: context.owner,
+          file: context.relative_file,
+          line: node.location.start_line,
+          test: context.test,
+          dynamic: false,
+          metadata: { 'super' => true }
+        )
+      end
+      visit_children(node, context)
+    end
+
     def visit_singleton_class(node, context)
       return visit_children(node, context) unless node.expression.is_a?(Prism::SelfNode) && context.owner
 
       singleton_context = context.dup
       singleton_context.singleton_scope = true
+      singleton_context.visibility = :public
+      singleton_context.module_function = false
       visit(node.body, singleton_context)
     end
 
@@ -204,7 +249,8 @@ module Necropsy
           defined_via: node.value.name == :define ? :data_define : :struct_new,
           owner: owner,
           name: name,
-          test: context.test
+          test: context.test,
+          visibility: :public
         )
         next if node.value.name == :define
 
@@ -217,7 +263,8 @@ module Necropsy
           defined_via: :struct_new,
           owner: owner,
           name: "#{name}=",
-          test: context.test
+          test: context.test,
+          visibility: :public
         )
       end
 
@@ -227,6 +274,8 @@ module Necropsy
       block_context.namespace = owner
       block_context.owner = owner
       block_context.singleton_scope = false
+      block_context.visibility = :public
+      block_context.module_function = false
       visit(node.value.block.body, block_context)
     end
 
@@ -248,26 +297,114 @@ module Necropsy
       method_name = first_symbol_argument(node)
       return false unless method_name
 
-      id = "#{context.owner}##{method_name}"
+      kind, separator = method_kind_and_separator(context)
+      id = "#{context.owner}#{separator}#{method_name}"
       nodes << Node.new(
         id: id,
-        kind: :instance_method,
+        kind: kind,
         file: context.relative_file,
         line: node.location.start_line,
         end_line: node.location.end_line,
         defined_via: :define_method,
         owner: context.owner,
         name: method_name,
-        test: context.test
+        test: context.test,
+        visibility: kind == :singleton_method ? :public : context.visibility
       )
+      record_module_function_copy(node, context, context.owner, method_name) if context.module_function
 
       if node.block
         block_context = context.dup
         block_context.current_caller_id = id
-        block_context.current_kind = :instance_method
+        block_context.current_kind = kind
+        block_context.singleton_scope = false
+        block_context.visibility = :public
+        block_context.module_function = false
         visit(node.block.body, block_context)
       end
       true
+    end
+
+    def handle_define_singleton_method(node, context)
+      return false unless node.name == :define_singleton_method
+
+      owner = definition_owner_for_call(node, context)
+      method_name = first_symbol_argument(node) || first_string_argument(node)
+      return false unless owner && method_name
+
+      id = "#{owner}.#{method_name}"
+      nodes << Node.new(
+        id: id,
+        kind: :singleton_method,
+        file: context.relative_file,
+        line: node.location.start_line,
+        end_line: node.location.end_line,
+        defined_via: :define_singleton_method,
+        owner: owner,
+        name: method_name,
+        test: context.test,
+        visibility: :public
+      )
+      if node.block
+        block_context = context.dup
+        block_context.owner = owner
+        block_context.current_caller_id = id
+        block_context.current_kind = :singleton_method
+        block_context.singleton_scope = false
+        block_context.visibility = :public
+        block_context.module_function = false
+        visit(node.block.body, block_context)
+      end
+      true
+    end
+
+    def handle_eval(node, context)
+      return false unless %i[class_eval module_eval].include?(node.name)
+      return false unless node.block
+
+      owner = eval_owner(node, context)
+      return false unless owner
+
+      block_context = context.dup
+      block_context.namespace = owner
+      block_context.owner = owner
+      block_context.singleton_scope = false
+      block_context.visibility = :public
+      block_context.module_function = false
+      visit(node.block.body, block_context)
+      true
+    end
+
+    def handle_visibility(node, context)
+      return false unless VISIBILITY_MACROS.include?(node.name)
+      return false unless context.owner
+
+      names = symbol_arguments(node)
+      if names.empty?
+        context.visibility = node.name
+        context.module_function = false
+      else
+        names.each { |name| update_method_visibility(context, name, node.name) }
+      end
+      true
+    end
+
+    def handle_module_function(node, context)
+      return false unless node.name == :module_function
+      return false unless context.owner
+
+      names = symbol_arguments(node)
+      if names.empty?
+        context.module_function = true
+        context.visibility = :private
+      else
+        names.each { |name| promote_module_function(context, name, node.location) }
+      end
+      true
+    end
+
+    def record_module_function_copy(node, context, owner, method_name = node.name.to_s)
+      promote_module_function(context, method_name, node.location)
     end
 
     def handle_alias_method(node, context)
@@ -302,7 +439,8 @@ module Necropsy
         defined_via: :alias_method,
         owner: context.owner,
         name: new_name,
-        test: context.test
+        test: context.test,
+        visibility: kind == :singleton_method ? :public : context.visibility
       )
       call_sites << CallSite.new(
         caller_id: id,
@@ -321,19 +459,24 @@ module Necropsy
       return unless MODULE_RELATION_MACROS.include?(node.name)
       return unless context.owner
 
+      if node.name == :extend && arguments(node).any? { |argument| argument.is_a?(Prism::SelfNode) }
+        class_record(context.owner)[:extends] << [context.owner]
+      end
+
       constants = arguments(node).filter_map { |argument| constant_name(argument) }
       return if constants.empty?
 
       data = class_record(context.owner)
       key = :"#{node.name}s"
-      constants.each { |constant| data[key].concat(constant_candidates(constant, context.namespace)) }
+      constants.each { |constant| data[key] << constant_candidates(constant, context.namespace) }
     end
 
     def handle_rails_callback(node, context)
       return unless RAILS_CALLBACK_MACROS.include?(node.name)
       return unless context.owner
+      return if context.test
 
-      symbol_arguments(node).each do |method_name|
+      callback_names(node).each do |method_name|
         entrypoint_hints << EntryPoint.new(node_id: "#{context.owner}##{method_name}", reason: :callback_registered)
       end
     end
@@ -343,29 +486,32 @@ module Necropsy
       return false unless context.owner
 
       symbol_arguments(node).each do |name|
+        kind, separator = method_kind_and_separator(context)
         nodes << Node.new(
-          id: "#{context.owner}##{name}",
-          kind: :instance_method,
+          id: "#{context.owner}#{separator}#{name}",
+          kind: kind,
           file: context.relative_file,
           line: node.location.start_line,
           end_line: node.location.end_line,
           defined_via: node.name,
           owner: context.owner,
           name: name,
-          test: context.test
+          test: context.test,
+          visibility: kind == :singleton_method ? :public : context.visibility
         )
         next unless %i[attr_writer attr_accessor].include?(node.name)
 
         nodes << Node.new(
-          id: "#{context.owner}##{name}=",
-          kind: :instance_method,
+          id: "#{context.owner}#{separator}#{name}=",
+          kind: kind,
           file: context.relative_file,
           line: node.location.start_line,
           end_line: node.location.end_line,
           defined_via: node.name,
           owner: context.owner,
           name: "#{name}=",
-          test: context.test
+          test: context.test,
+          visibility: kind == :singleton_method ? :public : context.visibility
         )
       end
       true
@@ -375,18 +521,60 @@ module Necropsy
       return false unless node.name == :delegate
       return false unless context.owner
 
+      target = keyword_value(node, 'to')
+      prefix = keyword_value(node, 'prefix')
       symbol_arguments(node).each do |name|
+        generated_name = delegated_method_name(name, target, prefix)
+        kind, separator = method_kind_and_separator(context)
+        id = "#{context.owner}#{separator}#{generated_name}"
         nodes << Node.new(
-          id: "#{context.owner}##{name}",
-          kind: :instance_method,
+          id: id,
+          kind: kind,
           file: context.relative_file,
           line: node.location.start_line,
           end_line: node.location.end_line,
           defined_via: :delegate,
           owner: context.owner,
-          name: name,
-          test: context.test
+          name: generated_name,
+          test: context.test,
+          visibility: kind == :singleton_method ? :public : context.visibility
         )
+        record_delegate_target(id, target, node, context) if target
+        record_delegated_message(id, name, node, context)
+      end
+      true
+    end
+
+    def handle_forwardable(node, context)
+      return false unless %i[def_delegator def_delegators].include?(node.name)
+      return false unless context.owner
+
+      symbols = symbol_arguments(node)
+      return false if symbols.length < 2
+
+      target = symbols.shift
+      definitions = if node.name == :def_delegator
+                      [[symbols[1] || symbols[0], symbols[0]]]
+                    else
+                      symbols.map { |name| [name, name] }
+                    end
+      definitions.each do |generated_name, delegated_name|
+        kind, separator = method_kind_and_separator(context)
+        id = "#{context.owner}#{separator}#{generated_name}"
+        nodes << Node.new(
+          id: id,
+          kind: kind,
+          file: context.relative_file,
+          line: node.location.start_line,
+          end_line: node.location.end_line,
+          defined_via: node.name,
+          owner: context.owner,
+          name: generated_name,
+          test: context.test,
+          visibility: kind == :singleton_method ? :public : context.visibility
+        )
+        record_delegate_target(id, target, node, context)
+        record_delegated_message(id, delegated_name, node, context)
       end
       true
     end
@@ -447,8 +635,7 @@ module Necropsy
     end
 
     def record_factory_instantiation(node, context)
-      factory_methods = Array(project.config.factory_methods).map(&:to_s)
-      return unless factory_methods.include?(node.name.to_s)
+      return unless @factory_methods.include?(node.name.to_s)
 
       receiver = classify_receiver(node.receiver, context)
       return unless receiver[:kind] == :constant
@@ -484,6 +671,119 @@ module Necropsy
       receiver[:name]
     end
 
+    def definition_owner_for_call(node, context)
+      return context.owner unless node.receiver
+      return context.owner if node.receiver.is_a?(Prism::SelfNode)
+
+      classify_receiver(node.receiver, context)[:name]
+    end
+
+    def eval_owner(node, context)
+      return context.owner unless node.receiver
+
+      definition_owner_for_call(node, context)
+    end
+
+    def method_kind_and_separator(context)
+      context.singleton_scope ? [:singleton_method, '.'] : [:instance_method, '#']
+    end
+
+    def update_method_visibility(context, name, visibility)
+      _kind, separator = method_kind_and_separator(context)
+      id = "#{context.owner}#{separator}#{name}"
+      index = nodes.rindex { |candidate| candidate.id == id }
+      nodes[index] = nodes[index].with(visibility: visibility) if index
+    end
+
+    def promote_module_function(context, name, location)
+      instance_id = "#{context.owner}##{name}"
+      index = nodes.rindex { |candidate| candidate.id == instance_id }
+      return unless index
+
+      instance_node = nodes[index]
+      nodes[index] = instance_node.with(visibility: :private)
+      nodes << Node.new(
+        id: "#{context.owner}.#{name}",
+        kind: :singleton_method,
+        file: context.relative_file,
+        line: location.start_line,
+        end_line: location.end_line,
+        defined_via: :module_function,
+        owner: context.owner,
+        name: name,
+        test: context.test,
+        visibility: :public
+      )
+    end
+
+    def callback_names(node)
+      names = symbol_arguments(node)
+      with = keyword_value(node, 'with')
+      names << with if with.is_a?(String)
+      names.uniq
+    end
+
+    def delegated_method_name(name, target, prefix)
+      return name unless prefix
+
+      prefix_name = prefix == true ? target.to_s.delete_prefix('@') : prefix.to_s
+      "#{prefix_name}_#{name}"
+    end
+
+    def record_delegate_target(caller_id, target, node, context)
+      record_reference_call(caller_id, target.to_s.delete_prefix('@'), node, context, receiver_kind: :self)
+    end
+
+    def record_delegated_message(caller_id, message, node, context)
+      record_reference_call(caller_id, message, node, context, receiver_kind: :unknown)
+    end
+
+    def record_symbol_reference(node, context)
+      return unless SYMBOL_REFERENCE_CALLS.include?(node.name)
+
+      message = first_symbol_argument(node) || first_string_argument(node)
+      return unless message
+
+      receiver = classify_receiver(node.receiver, context)
+      record_reference_call(
+        context.current_caller_id,
+        message,
+        node,
+        context,
+        receiver_kind: receiver[:kind],
+        receiver_name: receiver[:name],
+        candidates: receiver[:candidates]
+      )
+    end
+
+    def record_symbol_to_proc(node, context)
+      block = node.block
+      return unless block.is_a?(Prism::BlockArgumentNode)
+      return unless block.expression.is_a?(Prism::SymbolNode)
+
+      record_reference_call(
+        context.current_caller_id,
+        block.expression.unescaped.to_s,
+        node,
+        context,
+        receiver_kind: :unknown
+      )
+    end
+
+    def record_reference_call(caller_id, message, node, context, receiver_kind:, receiver_name: nil, candidates: [])
+      call_sites << CallSite.new(
+        caller_id: caller_id,
+        message: message.to_s,
+        receiver_kind: receiver_kind,
+        receiver_name: receiver_name,
+        file: context.relative_file,
+        line: node.location.start_line,
+        test: context.test,
+        dynamic: false,
+        metadata: { 'symbol_reference' => true, 'receiver_candidates' => Array(candidates) }
+      )
+    end
+
     def classify_receiver(receiver, context)
       return { kind: :implicit, name: nil } unless receiver
       return { kind: :self, name: context.owner } if receiver.is_a?(Prism::SelfNode)
@@ -510,12 +810,12 @@ module Necropsy
     end
 
     def first_string_argument(node)
-      arguments(node).find { |arg| arg.respond_to?(:unescaped) && arg.class.name.end_with?('StringNode') }&.unescaped
+      arguments(node).find { |argument| argument.is_a?(Prism::StringNode) }&.unescaped
     end
 
     def symbol_arguments(node)
       arguments(node).filter_map do |arg|
-        next unless arg.respond_to?(:unescaped) && arg.class.name.end_with?('SymbolNode')
+        next unless arg.is_a?(Prism::SymbolNode)
 
         arg.unescaped.to_s
       end
@@ -525,6 +825,25 @@ module Necropsy
       node.arguments&.arguments || []
     end
 
+    def keyword_value(node, key)
+      hash = arguments(node).find { |argument| argument.is_a?(Prism::KeywordHashNode) }
+      pair = hash&.elements&.find do |element|
+        element.is_a?(Prism::AssocNode) && literal_value(element.key).to_s == key
+      end
+      literal_value(pair&.value)
+    end
+
+    def literal_value(node)
+      case node
+      when Prism::SymbolNode, Prism::StringNode
+        node.unescaped.to_s
+      when Prism::TrueNode
+        true
+      when Prism::FalseNode
+        false
+      end
+    end
+
     def constant_name(node)
       return nil unless node
 
@@ -532,12 +851,14 @@ module Necropsy
       when Prism::ConstantReadNode
         node.name.to_s
       when Prism::ConstantPathNode
-        [constant_name(node.parent), node.name.to_s].compact.join('::')
+        prefix = node.parent ? constant_name(node.parent) : ''
+        [prefix, node.name.to_s].join('::')
       end
     end
 
     def qualify_constant(name, namespace)
       return nil unless name
+      return name.delete_prefix('::') if name.start_with?('::')
       return name if namespace.nil? || namespace.empty? || name.include?('::')
 
       "#{namespace}::#{name}"
@@ -573,35 +894,32 @@ module Necropsy
 
     def class_infos
       class_data.values.map do |data|
+        superclass_candidates = data.fetch(:superclass_candidates)
         ClassInfo.new(
           id: data.fetch(:id),
           kind: data.fetch(:kind),
           file: data[:file],
           line: data[:line],
-          superclass: resolve_known_constants(data.fetch(:superclass_candidates)).first,
-          superclass_candidates: data.fetch(:superclass_candidates),
-          includes: resolve_known_constants(data.fetch(:includes)),
-          prepends: resolve_known_constants(data.fetch(:prepends)),
-          extends: resolve_known_constants(data.fetch(:extends)),
+          superclass: resolve_candidate_group(superclass_candidates),
+          superclass_candidates: superclass_candidates,
+          includes: resolve_candidate_groups(data.fetch(:includes)),
+          prepends: resolve_candidate_groups(data.fetch(:prepends)),
+          extends: resolve_candidate_groups(data.fetch(:extends)),
           dynamic: data.fetch(:dynamic)
         )
       end
     end
 
-    def resolve_known_constants(candidates)
-      grouped_candidates(candidates).map do |group|
-        group.find { |candidate| class_data.key?(candidate) } || group.first
-      end.compact.uniq
+    def resolve_candidate_groups(groups)
+      Array(groups).filter_map { |group| resolve_candidate_group(Array(group)) }.uniq
     end
 
-    def grouped_candidates(candidates)
-      Array(candidates).chunk_while do |left, right|
-        suffix = left.split('::').last
-        right&.end_with?("::#{suffix}") || right == suffix
-      end.to_a
+    def resolve_candidate_group(group)
+      group.find { |candidate| class_data.key?(candidate) } || group.first
     end
 
     def constant_candidates(name, namespace)
+      return [name.delete_prefix('::')] if name.start_with?('::')
       return [name] if namespace.nil? || namespace.empty? || name.include?('::')
 
       parts = namespace.split('::')

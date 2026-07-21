@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'set'
+
 require_relative 'necropsy/version'
 require_relative 'necropsy/models'
 require_relative 'necropsy/configuration'

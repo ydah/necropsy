@@ -24,11 +24,28 @@ module Necropsy
           end
         end
 
+        api_files = primary_library_files(project)
         graph.method_nodes.each do |node|
-          next unless node.file == 'lib/necropsy.rb'
-          next unless node.kind == :singleton_method && node.owner == 'Necropsy'
+          next unless api_files.include?(node.file)
+          next unless node.kind == :singleton_method && node.visibility == :public
 
           graph.add_entry_point(node.id, :public_api_declared)
+        end
+      end
+
+      private
+
+      def primary_library_files(project)
+        gem_names(project).flat_map do |name|
+          ["lib/#{name.tr('-', '/')}.rb", "lib/#{name.tr('-', '_')}.rb"]
+        end.uniq.select { |relative| File.file?(File.join(project.root, relative)) }
+      end
+
+      def gem_names(project)
+        Dir.glob(File.join(project.root, '*.gemspec')).filter_map do |path|
+          File.read(path)[/\.name\s*=\s*["']([^"']+)["']/, 1]
+        rescue SystemCallError, EncodingError
+          nil
         end
       end
     end

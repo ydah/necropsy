@@ -6,7 +6,7 @@ require 'yaml'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 3
+      VERSION = 4
 
       def initialize(project:)
         @project = project
@@ -111,7 +111,8 @@ module Necropsy
           defined_via: data['defined_via'].to_sym,
           owner: data['owner'],
           name: data['name'],
-          test: data['test']
+          test: data['test'],
+          visibility: (data['visibility'] || 'public').to_sym
         )
       end
 

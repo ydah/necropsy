@@ -10,7 +10,7 @@ module Necropsy
     certain: 3
   }.freeze
 
-  Node = Data.define(:id, :kind, :file, :line, :end_line, :defined_via, :owner, :name, :test) do
+  Node = Data.define(:id, :kind, :file, :line, :end_line, :defined_via, :owner, :name, :test, :visibility) do
     def method?
       kind != :block_entry
     end
@@ -29,7 +29,8 @@ module Necropsy
         'defined_via' => defined_via.to_s,
         'owner' => owner,
         'name' => name,
-        'test' => test
+        'test' => test,
+        'visibility' => visibility.to_s
       }
     end
   end

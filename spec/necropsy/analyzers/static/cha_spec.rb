@@ -36,4 +36,17 @@ RSpec.describe Necropsy::Analyzers::Static::CHA do
 
     expect(described_class.new.analyze(graph, nil).edge_evidences.map(&:callee_id)).to eq(['Factory.build'])
   end
+
+  it 'resolves module instance methods exposed through extend' do
+    caller = node('Caller#run', owner: 'Caller', name: 'run')
+    extended = node('Messages#deliver', owner: 'Messages', name: 'deliver')
+    site = call_site(caller_id: caller.id, message: 'deliver', receiver_kind: :constant, receiver_name: 'Notifier')
+    graph = graph_with(
+      nodes: [caller, extended],
+      call_sites: [site],
+      class_infos: [class_info('Notifier', extends: ['Messages']), class_info('Messages', kind: :module)]
+    )
+
+    expect(described_class.new.analyze(graph, nil).edge_evidences.map(&:callee_id)).to eq(['Messages#deliver'])
+  end
 end

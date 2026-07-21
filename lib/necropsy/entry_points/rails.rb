@@ -6,21 +6,31 @@ module Necropsy
       ROUTE_VERBS = %w[get post put patch delete match].freeze
       RESTFUL_ACTIONS = %w[index show new create edit update destroy].freeze
       SINGULAR_ACTIONS = %w[show new create edit update destroy].freeze
+      IRREGULAR_PLURALS = { 'person' => 'people', 'man' => 'men', 'woman' => 'women', 'child' => 'children' }.freeze
       RouteContext = Struct.new(:modules, :resource, :controller, keyword_init: true)
 
       def apply(graph, project)
         return unless project.config.rails_enabled?
 
+        referenced_view_methods = view_method_names(project)
         graph.method_nodes.each do |node|
           case node.file
           when %r{\Aapp/jobs/}
             graph.add_entry_point(node.id, :job_perform) if node.name == 'perform'
           when %r{\Aapp/mailers/}
-            graph.add_entry_point(node.id, :mailer_action) if node.kind == :instance_method
+            graph.add_entry_point(node.id, :mailer_action) if node.kind == :instance_method && node.visibility == :public
           when %r{\Aapp/helpers/}
-            graph.add_entry_point(node.id, :rails_view_helper) if helper_referenced?(project, node.name)
+            graph.add_entry_point(node.id, :rails_view_helper) if referenced_view_methods.include?(node.name)
           when %r{\Aapp/components/}
             graph.add_entry_point(node.id, :rails_component) if component_entrypoint?(node)
+          when %r{\Adb/migrate/}
+            graph.add_entry_point(node.id, :rails_migration) if %w[change up down].include?(node.name)
+          end
+
+
+          if node.file.start_with?('app/') && !node.file.start_with?('app/helpers/', 'app/components/') &&
+             referenced_view_methods.include?(node.name)
+            graph.add_entry_point(node.id, :rails_view_reference)
           end
         end
 
@@ -257,8 +267,9 @@ module Necropsy
       end
 
       def pluralize(name)
+        return IRREGULAR_PLURALS.fetch(name) if IRREGULAR_PLURALS.key?(name)
         return "#{name}es" if name.end_with?('s', 'x', 'z', 'ch', 'sh')
-        return "#{name.delete_suffix('y')}ies" if name.end_with?('y')
+        return "#{name.delete_suffix('y')}ies" if name.match?(/[^aeiou]y\z/)
 
         "#{name}s"
       end
@@ -268,18 +279,11 @@ module Necropsy
       end
 
       def matching_route_nodes(graph, node_id)
-        return [node_id] if graph.nodes.key?(node_id)
-
-        suffix = "::#{node_id}"
-        graph.nodes.keys.select { |candidate| candidate.end_with?(suffix) }
+        graph.nodes.key?(node_id) ? [node_id] : []
       end
 
       def helper_referenced?(project, method_name)
-        view_files(project).any? do |path|
-          view_source(path).match?(/\b#{Regexp.escape(method_name)}\b/)
-        end
-      rescue SystemCallError, EncodingError
-        false
+        view_method_names(project).include?(method_name)
       end
 
       def view_files(project)
@@ -291,6 +295,17 @@ module Necropsy
             .gsub(/<%#.*?%>/m, '')
             .gsub(/<!--.*?-->/m, '')
             .lines.reject { |line| line.strip.start_with?('-#') }.join
+      end
+
+      def view_method_names(project)
+        @view_method_names ||= {}
+        @view_method_names[project.root] ||= view_files(project).each_with_object(Set.new) do |path, names|
+          view_source(path).scan(/(?<![A-Za-z0-9_])([a-zA-Z_]\w*[!?=]?)(?![A-Za-z0-9_])/).each do |match|
+            names << match.first
+          end
+        rescue SystemCallError, EncodingError
+          next
+        end
       end
 
       def component_entrypoint?(node)
