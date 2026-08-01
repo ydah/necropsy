@@ -20,6 +20,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.cache_path).to eq('.necropsy_cache/scan.json')
         expect(configuration.include_paths).to eq([])
         expect(configuration.exclude_paths).to eq([])
+        expect(configuration.implicit_callers).to eq([])
       end
     end
 
@@ -37,7 +38,10 @@ RSpec.describe Necropsy::Configuration do
           bench: { precision_threshold: 0.9, recall_threshold: 0.8 },
           cache: { enabled: false, path: 'tmp/cache.yml' },
           rta: { factory_methods: ['spawn'] },
-          resolution: { ambiguity_limit: 4 }
+          resolution: { ambiguity_limit: 4 },
+          implicit_callers: [
+            { name_pattern: '^on_', owner_ancestors: ['Framework::Base'], reason: 'framework callback' }
+          ]
         }
       end
 
@@ -56,6 +60,11 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.cache_path).to eq('tmp/cache.yml')
         expect(configuration.factory_methods).to eq(['spawn'])
         expect(configuration.ambiguity_limit).to eq(4)
+        expect(configuration.implicit_callers.first).to include(
+          name_pattern: /^on_/,
+          owner_ancestors: ['Framework::Base'],
+          reason: 'framework callback'
+        )
       end
     end
 
@@ -72,6 +81,14 @@ RSpec.describe Necropsy::Configuration do
 
       it 'rejects the value' do
         expect { configuration }.to raise_error(Necropsy::Error, /ambiguity_limit/)
+      end
+    end
+
+    context 'with an invalid implicit caller pattern' do
+      let(:config_data) { { implicit_callers: [{ name_pattern: '[' }] } }
+
+      it 'rejects the pattern' do
+        expect { configuration }.to raise_error(Necropsy::Error, /Invalid implicit caller name_pattern/)
       end
     end
 

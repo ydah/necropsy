@@ -35,3 +35,15 @@ RuboCop 1.75.0 at ambiguity limit four:
 |---|---:|
 | `medium` (selected default) | 1789 |
 | `low` (explicit compatibility mode) | 6029 |
+
+## Implicit caller experiment
+
+RuboCop 1.75.0 at ambiguity limit four and the default `medium` reporting threshold:
+
+| rules | reported findings | change |
+|---|---:|---:|
+| none | 1789 | baseline |
+| Ruby hooks and protocols | 1785 | -4 |
+| Ruby rules plus scoped RuboCop `on_*` rule | 1161 | -624 |
+
+The RuboCop rule is enabled as a built-in framework pack because its ancestor constraint limits it to commissioner-dispatched cop callbacks. The same rule remains configurable for other frameworks through `implicit_callers`.

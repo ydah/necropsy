@@ -92,6 +92,10 @@ cache:
   path: .necropsy_cache/scan.json
 resolution:
   ambiguity_limit: 4 # use "unlimited" to retain every same-name candidate
+implicit_callers:
+  - name_pattern: "^on_"
+    owner_ancestors: ["RuboCop::Cop::Base"]
+    reason: "RuboCop Commissioner callback"
 paths:
   include: ["app/**/*.rb", "lib/**/*.rb"]
   exclude: ["app/legacy/**/*.rb"]
@@ -115,6 +119,10 @@ change.
 When a call receiver cannot be resolved exactly, Necropsy conservatively keeps
 up to `resolution.ambiguity_limit` same-name candidates alive. The default of
 four is based on the RuboCop 1.75.0 measurements in `MEASUREMENTS.md`.
+
+Ruby VM hooks and common protocol methods receive lower confidence because
+their callers may not appear in source. Add `implicit_callers` rules for
+framework or application callbacks; `owner_ancestors` is optional.
 
 Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 `edges` with `caller_id`/`callee_id`, and an `observation` hash. SARIF and

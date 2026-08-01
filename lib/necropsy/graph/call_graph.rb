@@ -33,6 +33,7 @@ module Necropsy
       @nodes_by_name = nil
       @dispatch_cache = nil
       @lookup_chain_cache = nil
+      @owner_ancestor_cache = nil
       nodes[node.id] = node
     end
 
@@ -151,6 +152,16 @@ module Necropsy
 
     def ambiguous_resolution?
       @ambiguity_limit > 1
+    end
+
+    def owner_reachable_from_ancestor?(owner, ancestor)
+      @owner_ancestor_cache ||= {}
+      key = [owner, ancestor]
+      return @owner_ancestor_cache[key] if @owner_ancestor_cache.key?(key)
+
+      @owner_ancestor_cache[key] = descendants_of(ancestor).any? do |descendant|
+        cached_lookup_chain(descendant).include?(owner)
+      end
     end
 
     def resolve_call_site(site, rta: false)

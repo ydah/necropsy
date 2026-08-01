@@ -6,8 +6,9 @@ RSpec.describe Necropsy::Confidence::Scorer do
       described_class.new(graph: graph, reachability: reachability, project: project_for(project_root)).findings
     end
 
-    let(:project_root) { create_project(files: files) }
+    let(:project_root) { create_project(files: files, config: config) }
     let(:files) { {} }
+    let(:config) { nil }
     let(:findings_by_id) { findings.to_h { |finding| [finding.node.id, finding] } }
 
     context 'with runtime, dynamic, test-only, and unreachable nodes' do
@@ -79,6 +80,42 @@ RSpec.describe Necropsy::Confidence::Scorer do
       it 'raises confidence to certain' do
         expect(findings.first.confidence).to eq(:certain)
         expect(findings.first.reasons).to include(match(/quarantine annotation has expired/))
+      end
+    end
+
+    context 'with methods invoked implicitly' do
+      let(:protocol) { node('Sample#to_s', name: 'to_s') }
+      let(:callback) { node('FrameworkCallback#on_send', owner: 'FrameworkCallback', name: 'on_send') }
+      let(:rubocop_callback) { node('RuboCopCallback#on_def', owner: 'RuboCopCallback', name: 'on_def') }
+      let(:graph) do
+        graph_with(
+          nodes: [protocol, callback, rubocop_callback],
+          class_infos: [
+            class_info('Framework::Base'),
+            class_info('ConcreteCallback', superclass: 'Framework::Base', includes: ['FrameworkCallback']),
+            class_info('FrameworkCallback', kind: :module),
+            class_info('RuboCop::Cop::Base'),
+            class_info('ConcreteCop', superclass: 'RuboCop::Cop::Base', includes: ['RuboCopCallback']),
+            class_info('RuboCopCallback', kind: :module)
+          ]
+        )
+      end
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_alive: Set[], test_alive: Set[]) }
+      let(:config) do
+        {
+          implicit_callers: [
+            { name_pattern: '^on_', owner_ancestors: ['Framework::Base'], reason: 'framework callback' }
+          ]
+        }
+      end
+
+      it 'lowers confidence for Ruby protocols and configured callbacks' do
+        expect(findings_by_id.fetch(protocol.id).confidence).to eq(:low)
+        expect(findings_by_id.fetch(protocol.id).reasons).to include(match(/Ruby protocol/))
+        expect(findings_by_id.fetch(callback.id).confidence).to eq(:low)
+        expect(findings_by_id.fetch(callback.id).reasons).to include(match(/framework callback/))
+        expect(findings_by_id.fetch(rubocop_callback.id).confidence).to eq(:low)
+        expect(findings_by_id.fetch(rubocop_callback.id).reasons).to include(match(/RuboCop Commissioner/))
       end
     end
 

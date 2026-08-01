@@ -6,7 +6,9 @@ module Necropsy
   class Configuration
     DEFAULT_FAIL_ON = :high
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
-    TOP_LEVEL_KEYS = %w[analyzers frameworks entry_points ci quarantine bench cache rta resolution paths logging].freeze
+    TOP_LEVEL_KEYS = %w[
+      analyzers frameworks entry_points ci quarantine bench cache rta resolution paths logging implicit_callers
+    ].freeze
     NESTED_KEYS = {
       'analyzers' => %w[static dynamic custom],
       'analyzers.dynamic' => %w[coverage coverband trace_point],
@@ -21,6 +23,7 @@ module Necropsy
       'logging' => %w[verbose]
     }.freeze
     DYNAMIC_KEYS = %w[source min_observation_days keys key pattern connect_timeout read_timeout].freeze
+    IMPLICIT_CALLER_KEYS = %w[name_pattern owner_ancestors reason].freeze
 
     attr_reader :root, :path, :data
 
@@ -134,6 +137,16 @@ module Necropsy
       Array(fetch('paths', 'exclude')).map(&:to_s)
     end
 
+    def implicit_callers
+      @implicit_callers ||= Array(data['implicit_callers']).map do |entry|
+        {
+          name_pattern: Regexp.new(entry.fetch('name_pattern')),
+          owner_ancestors: Array(entry['owner_ancestors']).map(&:to_s),
+          reason: entry['reason']&.to_s
+        }
+      end
+    end
+
     def verbose?
       fetch('logging', 'verbose') == true
     end
@@ -172,6 +185,7 @@ module Necropsy
         validate_hash_keys(value, DYNAMIC_KEYS, "analyzers.dynamic.#{name}") if value
       end
       validate_custom_analyzers!
+      validate_implicit_callers!
       ambiguity_limit
     end
 
@@ -191,6 +205,20 @@ module Necropsy
 
         validate_hash_keys(entry, %w[class require], 'custom analyzer')
         raise Error, 'Custom analyzer mapping requires class' unless entry['class']
+      end
+    end
+
+    def validate_implicit_callers!
+      Array(data['implicit_callers']).each do |entry|
+        raise Error, 'Each implicit caller must be a mapping' unless entry.is_a?(Hash)
+
+        validate_hash_keys(entry, IMPLICIT_CALLER_KEYS, 'implicit caller')
+        pattern = entry['name_pattern']
+        raise Error, 'Implicit caller requires name_pattern' unless pattern.is_a?(String)
+
+        Regexp.new(pattern)
+      rescue RegexpError => e
+        raise Error, "Invalid implicit caller name_pattern: #{e.message}"
       end
     end
   end
