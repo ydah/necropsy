@@ -966,12 +966,14 @@ module Necropsy
 
     def constant_candidates(name, namespace)
       return [name.delete_prefix('::')] if name.start_with?('::')
-      return [name] if namespace.nil? || namespace.empty? || name.include?('::')
+      return [name] if namespace.nil? || namespace.empty?
 
+      head, *rest = name.split('::')
+      suffix = rest.empty? ? '' : "::#{rest.join('::')}"
       parts = namespace.split('::')
       candidates = []
       parts.length.downto(1) do |length|
-        candidates << "#{parts.first(length).join('::')}::#{name}"
+        candidates << "#{parts.first(length).join('::')}::#{head}#{suffix}"
       end
       candidates << name
       candidates.uniq

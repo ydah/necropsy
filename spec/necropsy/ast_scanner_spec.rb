@@ -172,6 +172,31 @@ RSpec.describe Necropsy::AstScanner do
       end
     end
 
+    context 'with qualified constants in a lexical scope' do
+      let(:files) do
+        {
+          'lib/qualified_constant.rb' => <<~RUBY
+            module QualifiedNamespace
+              module Analyzers
+                class Runner
+                end
+              end
+
+              class Service
+                def build
+                  Analyzers::Runner.new
+                end
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'resolves the leading segment through the lexical scope' do
+        expect(scan.instantiated_classes).to include('QualifiedNamespace::Analyzers::Runner')
+      end
+    end
+
     context 'with singleton-scope macros, delegation, and absolute constants' do
       let(:files) do
         {
