@@ -86,6 +86,8 @@ analyzers:
 cache:
   enabled: true
   path: .necropsy_cache/scan.json
+resolution:
+  ambiguity_limit: 4 # use "unlimited" to retain every same-name candidate
 paths:
   include: ["app/**/*.rb", "lib/**/*.rb"]
   exclude: ["app/legacy/**/*.rb"]
@@ -105,6 +107,10 @@ logging:
 
 The scan cache is invalidated when scanned Ruby files or configuration values
 change.
+
+When a call receiver cannot be resolved exactly, Necropsy conservatively keeps
+up to `resolution.ambiguity_limit` same-name candidates alive. The default of
+four is based on the RuboCop 1.75.0 measurements in `MEASUREMENTS.md`.
 
 Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 `edges` with `caller_id`/`callee_id`, and an `observation` hash. SARIF and

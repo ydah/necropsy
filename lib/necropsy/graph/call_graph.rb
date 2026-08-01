@@ -5,7 +5,7 @@ module Necropsy
     attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
                 :entrypoint_hints
 
-    def initialize(scan_result)
+    def initialize(scan_result, ambiguity_limit: 4)
       @nodes = {}
       @edges = {}
       @incoming_edges = {}
@@ -13,6 +13,7 @@ module Necropsy
       @instantiated_classes = scan_result.instantiated_classes.dup
       @class_infos = scan_result.class_infos.to_h { |info| [info.id, info] }
       @entrypoint_hints = scan_result.entrypoint_hints
+      @ambiguity_limit = ambiguity_limit
       @entry_points = []
       @profiles = []
       @uncertainties = scan_result.uncertainties.to_h do |node_id, messages|
@@ -140,6 +141,18 @@ module Necropsy
       nodes_by_name.fetch(message, [])
     end
 
+    def ambiguous_fallback_candidates(message)
+      candidates = candidate_nodes(message)
+      return candidates if candidates.one?
+      return [] if candidates.size > @ambiguity_limit
+
+      candidates
+    end
+
+    def ambiguous_resolution?
+      @ambiguity_limit > 1
+    end
+
     def resolve_call_site(site, rta: false)
       candidates = rta ? rta_candidates_for_receiver(site) : candidates_for_receiver(site)
       candidates = candidates.select { |node| rta_candidate?(node, site) } if rta
@@ -210,20 +223,20 @@ module Necropsy
       case site.receiver_kind
       when :constant
         exact = receiver_candidates(site).filter_map { |name| nodes["#{name}.#{site.message}"] }.first
-        exact ? [exact] : unique_fallback_candidate(site.message)
+        exact ? [exact] : ambiguous_fallback_candidates(site.message)
       when :instance
         exact = receiver_candidates(site).filter_map { |name| nodes["#{name}##{site.message}"] }.first
-        exact ? [exact] : unique_fallback_candidate(site.message)
+        exact ? [exact] : ambiguous_fallback_candidates(site.message)
       when :self
         same_owner_candidates(site)
       when :super
         super_candidates(site)
       when :implicit
         same_owner_candidates(site).then do |matches|
-          matches.empty? ? unique_fallback_candidate(site.message) : matches
+          matches.empty? ? ambiguous_fallback_candidates(site.message) : matches
         end
       else
-        unique_fallback_candidate(site.message)
+        ambiguous_fallback_candidates(site.message)
       end
     end
 
@@ -263,11 +276,6 @@ module Necropsy
     def receiver_candidates(site)
       candidates = site.metadata['receiver_candidates'] || site.metadata[:receiver_candidates]
       Array(candidates).compact.empty? ? [site.receiver_name].compact : Array(candidates).compact
-    end
-
-    def unique_fallback_candidate(message)
-      candidates = candidate_nodes(message)
-      candidates.one? ? candidates : []
     end
 
     def rta_candidate?(node, site)

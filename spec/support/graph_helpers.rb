@@ -61,7 +61,7 @@ module GraphHelpers
   end
 
   def graph_with(nodes:, call_sites: [], instantiated_classes: Set.new, uncertainties: {}, class_infos: [],
-                 entrypoint_hints: [])
+                 entrypoint_hints: [], ambiguity_limit: 4)
     Necropsy::CallGraph.new(
       scan_result(
         nodes: nodes,
@@ -70,7 +70,8 @@ module GraphHelpers
         uncertainties: uncertainties,
         class_infos: class_infos,
         entrypoint_hints: entrypoint_hints
-      )
+      ),
+      ambiguity_limit: ambiguity_limit
     )
   end
 

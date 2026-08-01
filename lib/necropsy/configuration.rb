@@ -6,7 +6,7 @@ module Necropsy
   class Configuration
     DEFAULT_FAIL_ON = :high
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
-    TOP_LEVEL_KEYS = %w[analyzers frameworks entry_points ci quarantine bench cache rta paths logging].freeze
+    TOP_LEVEL_KEYS = %w[analyzers frameworks entry_points ci quarantine bench cache rta resolution paths logging].freeze
     NESTED_KEYS = {
       'analyzers' => %w[static dynamic custom],
       'analyzers.dynamic' => %w[coverage coverband trace_point],
@@ -16,6 +16,7 @@ module Necropsy
       'bench' => %w[precision_threshold recall_threshold],
       'cache' => %w[enabled path],
       'rta' => %w[factory_methods],
+      'resolution' => %w[ambiguity_limit],
       'paths' => %w[include exclude],
       'logging' => %w[verbose]
     }.freeze
@@ -112,6 +113,19 @@ module Necropsy
       Array(fetch('rta', 'factory_methods') || %w[build create build_stubbed]).map(&:to_s)
     end
 
+    def ambiguity_limit
+      value = fetch('resolution', 'ambiguity_limit')
+      return 4 if value.nil?
+      return Float::INFINITY if value.to_s == 'unlimited'
+
+      limit = Integer(value)
+      return limit if limit.positive?
+
+      raise Error, 'resolution.ambiguity_limit must be a positive integer or unlimited'
+    rescue ArgumentError, TypeError
+      raise Error, 'resolution.ambiguity_limit must be a positive integer or unlimited'
+    end
+
     def include_paths
       Array(fetch('paths', 'include')).map(&:to_s)
     end
@@ -158,6 +172,7 @@ module Necropsy
         validate_hash_keys(value, DYNAMIC_KEYS, "analyzers.dynamic.#{name}") if value
       end
       validate_custom_analyzers!
+      ambiguity_limit
     end
 
     def validate_hash_keys(value, allowed, location)

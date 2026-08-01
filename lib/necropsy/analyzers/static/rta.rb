@@ -79,8 +79,15 @@ module Necropsy
 
         def rta_candidates(graph, site)
           candidates = Analyzers::Static::CHA.new.candidates(graph, site)
-          candidates = graph.candidate_nodes(site.message) if candidates.empty? && site.receiver_kind == :unknown
+          candidates = fallback_candidates(graph, site) if candidates.empty?
           graph.retain_rta_candidates(candidates, site)
+        end
+
+        def fallback_candidates(graph, site)
+          return graph.candidate_nodes(site.message) if site.receiver_kind == :unknown
+          return [] unless graph.ambiguous_resolution?
+
+          graph.ambiguous_fallback_candidates(site.message)
         end
       end
     end

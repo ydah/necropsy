@@ -24,4 +24,17 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
     expect(result.edge_evidences).to eq([])
     expect(result.uncertainties.fetch(caller.id)).to include(match(/Unknown receiver for missing/))
   end
+
+  it 'uses low-weight evidence for bounded ambiguous fallbacks' do
+    caller = node('Caller#run', owner: 'Caller', name: 'run')
+    first = node('First#render', owner: 'First', name: 'render')
+    second = node('Second#render', owner: 'Second', name: 'render')
+    site = call_site(caller_id: caller.id, message: 'render', receiver_kind: :unknown)
+    graph = graph_with(nodes: [caller, first, second], call_sites: [site], ambiguity_limit: 2)
+
+    result = described_class.new.analyze(graph, nil)
+
+    expect(result.edge_evidences.map(&:callee_id)).to contain_exactly(first.id, second.id)
+    expect(result.edge_evidences.map { |edge| edge.evidence.weight }).to all(eq(0.35))
+  end
 end

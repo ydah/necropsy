@@ -10,3 +10,19 @@ Measurements are local wall-clock results. Compare runs made on the same machine
 | 2026-08-01 | +T-04,T-05 | necropsy | 681 | 19 | 2.8% | 0.52 |
 | 2026-08-01 | +T-04,T-05 | rubocop 1.75.0 | 8999 | 6039 | 67.1% | 20.50 |
 | 2026-08-02 | +T-06 | necropsy (Ruby 4.0.0) | 683 | 19 | 2.8% | 0.18 |
+| 2026-08-02 | +T-07 | necropsy (Ruby 4.0.0) | 686 | 19 | 2.8% | 0.20 |
+| 2026-08-02 | +T-07 | rubocop 1.75.0 (Ruby 4.0.0) | 8999 | 6029 | 67.0% | 6.53 |
+
+## Ambiguous fallback experiment
+
+RuboCop 1.75.0, Ruby 4.0.0. The limit of four is the smallest value with the lowest bounded finding count. Eight adds edges without reducing findings; unlimited has a small precision gain at a substantial runtime and recall risk.
+
+| ambiguity limit | nodes | edges | findings | medium | low | seconds |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 (previous behavior) | 8999 | 44313 | 6039 | 1039 | 5000 | 5.96 |
+| 2 | 8999 | 46398 | 6032 | 1292 | 4740 | 6.32 |
+| 4 (selected) | 8999 | 46607 | 6029 | 1789 | 4240 | 6.76 |
+| 8 | 8999 | 46951 | 6029 | 2184 | 3845 | 6.77 |
+| unlimited | 8999 | 70616 | 5931 | 2351 | 3580 | 10.27 |
+
+The 19 self-analysis findings remain unchanged at every tested limit, including the verified dead methods `Necropsy::CallGraph#modules_for` and `Necropsy::EntryPoints::Rails#helper_referenced?`.

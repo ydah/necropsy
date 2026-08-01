@@ -65,6 +65,20 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.resolve_call_site(site, rta: true).map(&:id)).to eq([])
   end
 
+  it 'resolves bounded ambiguous fallbacks conservatively' do
+    caller = node('Caller#run', owner: 'Caller', name: 'run')
+    first = node('First#render', owner: 'First', name: 'render')
+    second = node('Second#render', owner: 'Second', name: 'render')
+    site = call_site(caller_id: caller.id, message: 'render', receiver_kind: :unknown)
+    nodes = [caller, first, second]
+
+    strict = graph_with(nodes: nodes, call_sites: [site], ambiguity_limit: 1)
+    conservative = graph_with(nodes: nodes, call_sites: [site], ambiguity_limit: 2)
+
+    expect(strict.resolve_call_site(site)).to eq([])
+    expect(conservative.resolve_call_site(site)).to contain_exactly(first, second)
+  end
+
   it 'exports graph state for reports' do
     graph = graph_with(nodes: [node('Sample#run')])
     graph.add_profile(Necropsy::AnalyzerProfile.new(name: :spec, kind: :static, soundness: :partial,

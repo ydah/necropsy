@@ -16,6 +16,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.baseline_path).to eq('.necropsy_baseline.yml')
         expect(configuration.cache_enabled?).to eq(true)
         expect(configuration.factory_methods).to include('build', 'create', 'build_stubbed')
+        expect(configuration.ambiguity_limit).to eq(4)
         expect(configuration.cache_path).to eq('.necropsy_cache/scan.json')
         expect(configuration.include_paths).to eq([])
         expect(configuration.exclude_paths).to eq([])
@@ -35,7 +36,8 @@ RSpec.describe Necropsy::Configuration do
           quarantine: { days: 7 },
           bench: { precision_threshold: 0.9, recall_threshold: 0.8 },
           cache: { enabled: false, path: 'tmp/cache.yml' },
-          rta: { factory_methods: ['spawn'] }
+          rta: { factory_methods: ['spawn'] },
+          resolution: { ambiguity_limit: 4 }
         }
       end
 
@@ -53,6 +55,23 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.cache_enabled?).to eq(false)
         expect(configuration.cache_path).to eq('tmp/cache.yml')
         expect(configuration.factory_methods).to eq(['spawn'])
+        expect(configuration.ambiguity_limit).to eq(4)
+      end
+    end
+
+    context 'with unlimited ambiguous resolution' do
+      let(:config_data) { { resolution: { ambiguity_limit: 'unlimited' } } }
+
+      it 'accepts all same-name fallback candidates' do
+        expect(configuration.ambiguity_limit).to eq(Float::INFINITY)
+      end
+    end
+
+    context 'with an invalid ambiguity limit' do
+      let(:config_data) { { resolution: { ambiguity_limit: 0 } } }
+
+      it 'rejects the value' do
+        expect { configuration }.to raise_error(Necropsy::Error, /ambiguity_limit/)
       end
     end
 

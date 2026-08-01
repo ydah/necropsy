@@ -3,8 +3,9 @@
 require_relative '../lib/necropsy'
 
 root = File.expand_path(ARGV[0] || '.', Dir.pwd)
+config_path = ARGV[1]
 started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-report = Necropsy.analyze(root: root)
+report = Necropsy.analyze(root: root, config_path: config_path)
 elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
 node_count = report.graph.nodes.size
 

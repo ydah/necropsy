@@ -12,7 +12,7 @@ module Necropsy
 
     def analyze
       project = Project.new(root: root, config: config)
-      graph = CallGraph.new(project.scan_result)
+      graph = CallGraph.new(project.scan_result, ambiguity_limit: config.ambiguity_limit)
       rta_results = []
 
       apply_entry_points(graph, project)
