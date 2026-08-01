@@ -73,7 +73,7 @@ module Necropsy
         root: '.',
         config: nil,
         format: :human,
-        min_confidence: :low,
+        min_confidence: Reporter::DEFAULT_MIN_CONFIDENCE,
         baseline: nil,
         fail_on: nil,
         diff_base: nil,

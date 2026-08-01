@@ -4,6 +4,8 @@ All notable changes to Necropsy are documented in this file.
 
 ## Unreleased
 
+- **Breaking:** Reports now omit `low` confidence findings by default. Pass `--min-confidence low` to retain the previous output.
+
 ## 0.2.0 - 2026-08-02
 
 - Correct dynamic-evidence classification and CI ratchet behavior.

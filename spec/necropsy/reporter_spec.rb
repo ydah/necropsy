@@ -22,6 +22,22 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'without an explicit confidence threshold' do
+      let(:report) do
+        report_with_findings([
+                               finding(id: 'Sample#dead', confidence: :medium),
+                               finding(id: 'Sample#maybe', confidence: :low)
+                             ])
+      end
+
+      it 'omits low-confidence findings by default' do
+        output = described_class.new(report).render
+
+        expect(output).to include('Findings: 1', 'Sample#dead')
+        expect(output).not_to include('Sample#maybe')
+      end
+    end
+
     context 'with GitHub annotations' do
       let(:format) { :github }
       let(:report) do

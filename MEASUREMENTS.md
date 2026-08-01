@@ -26,3 +26,12 @@ RuboCop 1.75.0, Ruby 4.0.0. The limit of four is the smallest value with the low
 | unlimited | 8999 | 70616 | 5931 | 2351 | 3580 | 10.27 |
 
 The 19 self-analysis findings remain unchanged at every tested limit, including the verified dead methods `Necropsy::CallGraph#modules_for` and `Necropsy::EntryPoints::Rails#helper_referenced?`.
+
+## Default reporting threshold
+
+RuboCop 1.75.0 at ambiguity limit four:
+
+| threshold | reported findings |
+|---|---:|
+| `medium` (selected default) | 1789 |
+| `low` (explicit compatibility mode) | 6029 |

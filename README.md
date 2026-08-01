@@ -33,8 +33,12 @@ Run a report:
 
 ```bash
 bundle exec necropsy analyze --root . --format human
+bundle exec necropsy analyze --root . --min-confidence low # include exploratory findings
 bundle exec necropsy --version
 ```
+
+Reports omit `low` confidence findings by default. Pass `--min-confidence low`
+to retain the pre-0.3 behavior.
 
 Fail CI only for new high-confidence findings:
 

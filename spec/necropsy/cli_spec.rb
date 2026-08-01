@@ -83,6 +83,21 @@ RSpec.describe Necropsy::CLI do
       end
     end
 
+    context 'with the default confidence threshold' do
+      let(:project_root) do
+        create_project(files: { 'app/sample.rb' => 'class CliSample; attr_reader :maybe; end' })
+      end
+
+      it 'omits low-confidence findings unless explicitly requested' do
+        expect do
+          described_class.run(['analyze', '--root', project_root])
+        end.to output(/Findings: 0/).to_stdout
+        expect do
+          described_class.run(['analyze', '--root', project_root, '--min-confidence', 'low'])
+        end.to output(/Findings: 1.*CliSample#maybe/m).to_stdout
+      end
+    end
+
     context 'with informational flags' do
       it 'returns normally for help and version' do
         expect { described_class.run(['--help']) }.to output(/Usage: necropsy/).to_stdout

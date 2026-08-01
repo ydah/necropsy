@@ -3,12 +3,13 @@
 module Necropsy
   class Reporter
     FORMATS = %i[human json yaml yml sarif github annotations].freeze
+    DEFAULT_MIN_CONFIDENCE = :medium
 
     def initialize(report)
       @report = report
     end
 
-    def render(format: :human, min_confidence: :low, include_graph: false)
+    def render(format: :human, min_confidence: DEFAULT_MIN_CONFIDENCE, include_graph: false)
       normalized_format = format.to_sym
       raise Error, "Unknown report format: #{format}" unless FORMATS.include?(normalized_format)
 
