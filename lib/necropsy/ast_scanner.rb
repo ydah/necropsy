@@ -644,10 +644,22 @@ module Necropsy
       return record_factory_instantiation(node, context) unless %i[new []].include?(node.name)
 
       receiver = classify_receiver(node.receiver, context)
-      return unless receiver[:kind] == :constant
+      receiver = implicit_self_constructor(context) if implicit_constructor?(receiver, context)
+      return unless receiver && receiver[:kind] == :constant
 
       Array(receiver[:candidates] || receiver[:name]).each { |name| instantiated_classes << name }
       record_initialize_call(node, context, receiver)
+    end
+
+    def implicit_constructor?(receiver, context)
+      return false unless %i[implicit self].include?(receiver[:kind])
+      return false unless context.owner
+
+      context.current_kind == :singleton_method || context.current_caller_id == context.root_id
+    end
+
+    def implicit_self_constructor(context)
+      { kind: :constant, name: context.owner, candidates: [context.owner] }
     end
 
     def record_initialize_call(node, context, receiver)

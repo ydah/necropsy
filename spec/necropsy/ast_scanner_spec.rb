@@ -172,6 +172,33 @@ RSpec.describe Necropsy::AstScanner do
       end
     end
 
+    context 'with self constructors' do
+      let(:files) do
+        {
+          'lib/self_constructors.rb' => <<~RUBY
+            class ImplicitFactory
+              def self.build
+                new
+              end
+            end
+
+            class ExplicitFactory
+              def self.build
+                self.new
+              end
+            end
+
+            ImplicitFactory.build
+            ExplicitFactory.build
+          RUBY
+        }
+      end
+
+      it 'records new calls with implicit and explicit self receivers' do
+        expect(scan.instantiated_classes).to include('ImplicitFactory', 'ExplicitFactory')
+      end
+    end
+
     context 'with qualified constants in a lexical scope' do
       let(:files) do
         {

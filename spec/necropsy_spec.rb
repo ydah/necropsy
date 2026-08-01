@@ -74,9 +74,6 @@ RSpec.describe Necropsy do
     dir = Dir.mktmpdir
     File.write(File.join(dir, 'app.rb'), <<~RUBY)
       class CacheFactorySample
-        def self.spawn
-          new
-        end
       end
 
       CacheFactorySample.spawn
