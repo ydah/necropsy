@@ -26,7 +26,13 @@ module Necropsy
     end
 
     def add_node(node)
-      nodes[node.id] ||= node
+      return nodes[node.id] if nodes.key?(node.id)
+
+      @method_nodes = nil
+      @nodes_by_name = nil
+      @dispatch_cache = nil
+      @lookup_chain_cache = nil
+      nodes[node.id] = node
     end
 
     def add_entry_point(node_id, reason)
@@ -106,7 +112,11 @@ module Necropsy
     end
 
     def method_nodes
-      nodes.values.select(&:method?)
+      @method_nodes ||= nodes.values.select(&:method?)
+    end
+
+    def nodes_by_name
+      @nodes_by_name ||= method_nodes.group_by(&:name).freeze
     end
 
     def class_info(owner)
@@ -127,7 +137,7 @@ module Necropsy
     end
 
     def candidate_nodes(message)
-      method_nodes.select { |node| node.name == message }
+      nodes_by_name.fetch(message, [])
     end
 
     def resolve_call_site(site, rta: false)
@@ -274,7 +284,16 @@ module Necropsy
     end
 
     def dispatched_instance_owner(owner, message)
-      method_lookup_chain(owner).find { |candidate| nodes.key?("#{candidate}##{message}") }
+      @dispatch_cache ||= {}
+      key = [owner, message]
+      return @dispatch_cache[key] if @dispatch_cache.key?(key)
+
+      @dispatch_cache[key] = cached_lookup_chain(owner).find { |candidate| nodes.key?("#{candidate}##{message}") }
+    end
+
+    def cached_lookup_chain(owner)
+      @lookup_chain_cache ||= {}
+      @lookup_chain_cache[owner] ||= method_lookup_chain(owner)
     end
 
     def method_lookup_chain(owner, seen = Set.new)

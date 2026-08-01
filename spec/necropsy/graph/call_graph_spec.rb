@@ -103,6 +103,19 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.edges.length).to eq(1)
   end
 
+  it 'invalidates method and dispatch indexes when a node is added' do
+    graph = graph_with(nodes: [], class_infos: [class_info('Sample')])
+
+    expect(graph.candidate_nodes('run')).to eq([])
+    expect(graph.send(:dispatched_instance_owner, 'Sample', 'run')).to be_nil
+
+    added = node('Sample#run', owner: 'Sample', name: 'run')
+    graph.add_node(added)
+
+    expect(graph.candidate_nodes('run')).to eq([added])
+    expect(graph.send(:dispatched_instance_owner, 'Sample', 'run')).to eq('Sample')
+  end
+
   it 'resolves super calls to the nearest ancestor implementation' do
     parent = node('Parent#render', owner: 'Parent', name: 'render')
     child = node('Child#render', owner: 'Child', name: 'render')
