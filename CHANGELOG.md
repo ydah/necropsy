@@ -4,10 +4,15 @@ All notable changes to Necropsy are documented in this file.
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-02
+
 - Correct dynamic-evidence classification and CI ratchet behavior.
 - Expand Ruby AST coverage, Rails entry-point detection, and call resolution.
 - Harden TracePoint, Coverage, Coverband, Redis, configuration, and cache handling.
 - Add path controls, compact reports, packaging checks, and development tooling.
+- Resolve qualified constants through lexical scopes.
+- Detect constructors invoked through implicit or explicit `self` receivers.
+- Index method names and cache dispatch lookup chains for faster analysis.
 
 ## 0.1.0 - 2026-07-09
 
