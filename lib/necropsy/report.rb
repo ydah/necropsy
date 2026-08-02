@@ -10,7 +10,7 @@ module Necropsy
     def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [])
       @root = root
       @graph = graph
-      @findings = findings
+      @findings = findings.sort_by { |finding| [finding.node.file, finding.node.line, finding.node.id] }
       @reachability = reachability
       @report_include_paths = report_include_paths
       @report_exclude_paths = report_exclude_paths

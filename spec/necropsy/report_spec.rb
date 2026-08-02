@@ -42,4 +42,16 @@ RSpec.describe Necropsy::Report do
     expect(report.summary['findings']).to eq(1)
     expect(report.to_h['findings'].map { |finding| finding.dig('node', 'id') }).to eq([included.node.id])
   end
+
+  it 'serializes findings deterministically regardless of insertion order' do
+    later = finding(id: 'Later#dead', file: 'lib/z_later.rb', line: 3)
+    earlier = finding(id: 'Earlier#dead', file: 'lib/a_earlier.rb', line: 9)
+    graph = graph_with(nodes: [later.node, earlier.node])
+
+    forward = described_class.new(root: '/repo', graph: graph, findings: [later, earlier])
+    reverse = described_class.new(root: '/repo', graph: graph, findings: [earlier, later])
+
+    expect(forward.findings.map { |item| item.node.id }).to eq(%w[Earlier#dead Later#dead])
+    expect(forward.to_json).to eq(reverse.to_json)
+  end
 end
