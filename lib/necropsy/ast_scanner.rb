@@ -987,8 +987,22 @@ module Necropsy
       parts.length.downto(1) do |length|
         candidates << "#{parts.first(length).join('::')}::#{head}#{suffix}"
       end
+      inherited_namespaces(namespace).each do |ancestor|
+        candidates << "#{ancestor}::#{head}#{suffix}"
+      end
       candidates << name
       candidates.uniq
+    end
+
+    def inherited_namespaces(namespace, seen = Set.new)
+      return [] unless namespace && seen.add?(namespace)
+
+      data = class_data[namespace]
+      return [] unless data
+
+      Array(data[:superclass_candidates]).flat_map do |superclass|
+        [superclass, *inherited_namespaces(superclass, seen)]
+      end.uniq
     end
   end
 end

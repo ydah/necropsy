@@ -224,6 +224,33 @@ RSpec.describe Necropsy::AstScanner do
       end
     end
 
+    context 'with constants inherited from a superclass' do
+      let(:files) do
+        {
+          'lib/inherited_constant.rb' => <<~RUBY
+            class ConstantParent
+              class Service
+                def self.call
+                end
+              end
+            end
+
+            class ConstantChild < ConstantParent
+              def run
+                Service.call
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'adds superclass namespaces after lexical candidates' do
+        site = scan.call_sites.find { |candidate| candidate.caller_id == 'ConstantChild#run' }
+
+        expect(site.metadata.fetch('receiver_candidates')).to include('ConstantParent::Service')
+      end
+    end
+
     context 'with singleton-scope macros, delegation, and absolute constants' do
       let(:files) do
         {
