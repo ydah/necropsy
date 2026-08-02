@@ -26,7 +26,13 @@ module Necropsy
 
       reachability = Reachability::Engine.new(graph).call
       findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings
-      Report.new(root: root, graph: graph, findings: findings)
+      Report.new(
+        root: root,
+        graph: graph,
+        findings: findings,
+        report_include_paths: config.report_include_paths,
+        report_exclude_paths: config.report_exclude_paths
+      )
     end
 
     private

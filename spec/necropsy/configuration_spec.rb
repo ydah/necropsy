@@ -20,6 +20,8 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.cache_path).to eq('.necropsy_cache/scan.json')
         expect(configuration.include_paths).to eq([])
         expect(configuration.exclude_paths).to eq([])
+        expect(configuration.report_include_paths).to eq([])
+        expect(configuration.report_exclude_paths).to eq([])
         expect(configuration.implicit_callers).to eq([])
       end
     end
@@ -41,7 +43,8 @@ RSpec.describe Necropsy::Configuration do
           resolution: { ambiguity_limit: 4 },
           implicit_callers: [
             { name_pattern: '^on_', owner_ancestors: ['Framework::Base'], reason: 'framework callback' }
-          ]
+          ],
+          report: { include: ['app/**'], exclude: ['app/legacy/**'] }
         }
       end
 
@@ -65,6 +68,8 @@ RSpec.describe Necropsy::Configuration do
           owner_ancestors: ['Framework::Base'],
           reason: 'framework callback'
         )
+        expect(configuration.report_include_paths).to eq(['app/**'])
+        expect(configuration.report_exclude_paths).to eq(['app/legacy/**'])
       end
     end
 

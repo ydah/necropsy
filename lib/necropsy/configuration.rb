@@ -7,7 +7,7 @@ module Necropsy
     DEFAULT_FAIL_ON = :high
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
     TOP_LEVEL_KEYS = %w[
-      analyzers frameworks entry_points ci quarantine bench cache rta resolution paths logging implicit_callers
+      analyzers frameworks entry_points ci quarantine bench cache rta resolution paths report logging implicit_callers
     ].freeze
     NESTED_KEYS = {
       'analyzers' => %w[static dynamic custom],
@@ -20,6 +20,7 @@ module Necropsy
       'rta' => %w[factory_methods],
       'resolution' => %w[ambiguity_limit],
       'paths' => %w[include exclude],
+      'report' => %w[include exclude],
       'logging' => %w[verbose]
     }.freeze
     DYNAMIC_KEYS = %w[source min_observation_days keys key pattern connect_timeout read_timeout].freeze
@@ -109,7 +110,7 @@ module Necropsy
     end
 
     def scan_cache_key
-      data.except('cache')
+      data.except('cache', 'report')
     end
 
     def factory_methods
@@ -135,6 +136,14 @@ module Necropsy
 
     def exclude_paths
       Array(fetch('paths', 'exclude')).map(&:to_s)
+    end
+
+    def report_include_paths
+      Array(fetch('report', 'include')).map(&:to_s)
+    end
+
+    def report_exclude_paths
+      Array(fetch('report', 'exclude')).map(&:to_s)
     end
 
     def implicit_callers

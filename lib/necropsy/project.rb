@@ -37,6 +37,7 @@ module Necropsy
         gemspecs = Dir.glob(File.join(root, '*.gemspec'))
         candidates = (globbed + special + rake + executables + gemspecs).uniq
         candidates.select! { |file| analyzable_file?(file) }
+        warn_excluded_entry_points(candidates) if config.include_paths.any?
         candidates.select! { |file| included_path?(relative_path(file)) } if config.include_paths.any?
         candidates.reject! { |file| excluded_path?(relative_path(file)) }
         candidates.sort
@@ -86,6 +87,25 @@ module Necropsy
     def path_matches?(pattern, relative)
       File.fnmatch?(pattern, relative, File::FNM_PATHNAME | File::FNM_EXTGLOB) ||
         File.fnmatch?(File.join(pattern, '**', '*'), relative, File::FNM_PATHNAME | File::FNM_EXTGLOB)
+    end
+
+    def warn_excluded_entry_points(candidates)
+      excluded = candidates.filter_map do |file|
+        relative = relative_path(file)
+        relative if potential_entry_point_path?(relative) && !included_path?(relative)
+      end
+      return if excluded.empty?
+
+      sample = excluded.sort.first(5)
+      suffix = excluded.length > sample.length ? " and #{excluded.length - sample.length} more" : ''
+      warn "Necropsy paths.include excludes potential entry points: #{sample.join(', ')}#{suffix}. " \
+           'Use report.include to filter findings without narrowing analysis.'
+    end
+
+    def potential_entry_point_path?(relative)
+      relative == 'Rakefile' || relative == 'config/routes.rb' ||
+        relative.start_with?('bin/', 'exe/', 'spec/', 'test/') ||
+        relative.end_with?('.rake', '.gemspec')
     end
   end
 end

@@ -97,8 +97,10 @@ implicit_callers:
     owner_ancestors: ["RuboCop::Cop::Base"]
     reason: "RuboCop Commissioner callback"
 paths:
-  include: ["app/**/*.rb", "lib/**/*.rb"]
   exclude: ["app/legacy/**/*.rb"]
+report:
+  include: ["app/**", "lib/**"]
+  exclude: ["lib/generated/**"]
 entry_points:
   extra:
     - "PublicApi::*"
@@ -123,6 +125,12 @@ four is based on the RuboCop 1.75.0 measurements in `MEASUREMENTS.md`.
 Ruby VM hooks and common protocol methods receive lower confidence because
 their callers may not appear in source. Add `implicit_callers` rules for
 framework or application callbacks; `owner_ancestors` is optional.
+
+`paths.include` narrows the source files used to construct the call graph and
+can remove executables, tests, routes, and other entry points. Use
+`report.include` and `report.exclude` when the full project should be analyzed
+but only selected application paths should be reported. Necropsy warns when a
+configured `paths.include` excludes detected entry-point files.
 
 Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 `edges` with `caller_id`/`callee_id`, and an `observation` hash. SARIF and

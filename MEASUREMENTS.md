@@ -47,3 +47,15 @@ RuboCop 1.75.0 at ambiguity limit four and the default `medium` reporting thresh
 | Ruby rules plus scoped RuboCop `on_*` rule | 1161 | -624 |
 
 The RuboCop rule is enabled as a built-in framework pack because its ancestor constraint limits it to commissioner-dispatched cop callbacks. The same rule remains configurable for other frameworks through `implicit_callers`.
+
+## Report path experiment
+
+RuboCop 1.75.0 at the default `medium` reporting threshold:
+
+| configuration | graph nodes | raw findings | reported findings | outside `lib/` |
+|---|---:|---:|---:|---:|
+| full scan and report | 8999 | 6029 | 1161 | 4 |
+| `report.include: ["lib/**"]` | 8999 | 6029 | 1157 | 0 |
+| `paths.include: ["lib/**"]` | 8131 | — | 1552 | 0 |
+
+`report.include` preserves the full graph and removes only four out-of-scope reports. `paths.include` removes 868 graph nodes, emits an entry-point warning, and increases reported findings by 34%.

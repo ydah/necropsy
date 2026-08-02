@@ -23,4 +23,23 @@ RSpec.describe Necropsy::Report do
     expect(report.to_h(include_graph: true)).to include('graph' => include('nodes'))
     expect(JSON.parse(JSON.generate('report' => report))).to include('report' => include('root' => '/repo'))
   end
+
+  it 'filters report output by path without removing graph nodes' do
+    included = finding(id: 'Included#dead', file: 'lib/included.rb')
+    excluded = finding(id: 'Excluded#dead', file: 'app/excluded.rb')
+    ignored = finding(id: 'Ignored#dead', file: 'lib/generated/ignored.rb')
+    graph = graph_with(nodes: [included.node, excluded.node, ignored.node])
+    report = described_class.new(
+      root: '/repo',
+      graph: graph,
+      findings: [included, excluded, ignored],
+      report_include_paths: ['lib/**'],
+      report_exclude_paths: ['lib/generated/**']
+    )
+
+    expect(report.graph.nodes.length).to eq(3)
+    expect(report.dead_methods.map(&:node)).to eq([included.node])
+    expect(report.summary['findings']).to eq(1)
+    expect(report.to_h['findings'].map { |finding| finding.dig('node', 'id') }).to eq([included.node.id])
+  end
 end

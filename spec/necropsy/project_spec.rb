@@ -47,6 +47,19 @@ RSpec.describe Necropsy::Project do
     end
   end
 
+  it 'warns when scan includes exclude potential entry points' do
+    with_project(
+      files: { 'lib/sample.rb' => '', 'exe/sample' => "#!/usr/bin/env ruby\n", 'spec/sample_spec.rb' => '' },
+      config: { paths: { include: ['lib/**'] } }
+    ) do |root|
+      project = project_for(root)
+
+      expect { project.ruby_files }.to output(
+        %r{paths.include excludes.*exe/sample.*spec/sample_spec.rb.*report.include}m
+      ).to_stderr
+    end
+  end
+
   it 'classifies spec and test files as test sources' do
     with_project(files: { 'spec/example_spec.rb' => '', 'test/example_test.rb' => '',
                           'app/example.rb' => '' }) do |root|
