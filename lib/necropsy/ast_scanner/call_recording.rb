@@ -1,0 +1,156 @@
+# frozen_string_literal: true
+
+module Necropsy
+  class AstScanner
+    private
+
+    def build_call_site(node, context)
+      message = node.name&.to_s
+      dynamic = false
+      receiver = classify_receiver(node.receiver, context)
+      metadata = { 'original_message' => message, 'receiver_candidates' => receiver[:candidates] }
+
+      if DYNAMIC_SENDS.include?(node.name)
+        literal = first_symbol_argument(node) || first_string_argument(node)
+        dynamic = literal.nil?
+        message = literal
+        metadata['dynamic_dispatch'] = true
+      end
+
+      return nil unless message
+
+      CallSite.new(
+        caller_id: context.current_caller_id,
+        message: message,
+        receiver_kind: receiver.fetch(:kind),
+        receiver_name: receiver[:name],
+        file: context.relative_file,
+        line: node.location.start_line,
+        test: context.test,
+        dynamic: dynamic,
+        metadata: metadata
+      )
+    end
+
+    def record_instantiation(node, context)
+      return record_factory_instantiation(node, context) unless %i[new []].include?(node.name)
+
+      receiver = classify_receiver(node.receiver, context)
+      receiver = implicit_self_constructor(context) if implicit_constructor?(receiver, context)
+      return unless receiver && receiver[:kind] == :constant
+
+      Array(receiver[:candidates] || receiver[:name]).each { |name| instantiated_classes << name }
+      record_initialize_call(node, context, receiver)
+    end
+
+    def implicit_constructor?(receiver, context)
+      return false unless %i[implicit self].include?(receiver[:kind])
+      return false unless context.owner
+
+      context.current_kind == :singleton_method || context.current_caller_id == context.root_id
+    end
+
+    def implicit_self_constructor(context)
+      { kind: :constant, name: context.owner, candidates: [context.owner] }
+    end
+
+    def record_initialize_call(node, context, receiver)
+      return unless node.name == :new
+
+      call_sites << CallSite.new(
+        caller_id: context.current_caller_id,
+        message: 'initialize',
+        receiver_kind: :instance,
+        receiver_name: receiver[:name],
+        file: context.relative_file,
+        line: node.location.start_line,
+        test: context.test,
+        dynamic: false,
+        metadata: { 'original_message' => 'new', 'receiver_candidates' => receiver[:candidates],
+                    'implicit_from' => 'new' }
+      )
+    end
+
+    def record_factory_instantiation(node, context)
+      return unless @factory_methods.include?(node.name.to_s)
+
+      receiver = classify_receiver(node.receiver, context)
+      return unless receiver[:kind] == :constant
+
+      Array(receiver[:candidates] || receiver[:name]).each do |name|
+        instantiated_classes << name
+      end
+    end
+
+    def record_uncertainty(site)
+      uncertainties[site.caller_id] << "Dynamic dispatch at #{site.file}:#{site.line}"
+    end
+
+    def record_uncertainty_at(node, context)
+      uncertainties[context.current_caller_id] << "Dynamic dispatch at #{context.relative_file}:#{node.location.start_line}"
+    end
+
+    def unresolved_dynamic_dispatch?(node)
+      DYNAMIC_SENDS.include?(node.name) && first_symbol_argument(node).nil? && first_string_argument(node).nil?
+    end
+
+    def record_parse_errors(root_id, result)
+      result.errors.each do |error|
+        uncertainties[root_id] << "Parse warning at line #{error.location.start_line}: #{error.message}"
+      end
+    end
+
+    def definition_owner(node, context)
+      return context.owner unless node.receiver
+      return context.owner if node.receiver.is_a?(Prism::SelfNode)
+
+      receiver = classify_receiver(node.receiver, context)
+      receiver[:name]
+    end
+
+    def definition_owner_for_call(node, context)
+      return context.owner unless node.receiver
+      return context.owner if node.receiver.is_a?(Prism::SelfNode)
+
+      classify_receiver(node.receiver, context)[:name]
+    end
+
+    def eval_owner(node, context)
+      return context.owner unless node.receiver
+
+      definition_owner_for_call(node, context)
+    end
+
+    def method_kind_and_separator(context)
+      context.singleton_scope ? [:singleton_method, '.'] : [:instance_method, '#']
+    end
+
+    def update_method_visibility(context, name, visibility, singleton: false)
+      separator = singleton ? '.' : method_kind_and_separator(context).last
+      id = "#{context.owner}#{separator}#{name}"
+      index = nodes.rindex { |candidate| candidate.id == id }
+      nodes[index] = nodes[index].with(visibility: visibility) if index
+    end
+
+    def promote_module_function(context, name, location)
+      instance_id = "#{context.owner}##{name}"
+      index = nodes.rindex { |candidate| candidate.id == instance_id }
+      return unless index
+
+      instance_node = nodes[index]
+      nodes[index] = instance_node.with(visibility: :private)
+      nodes << Node.new(
+        id: "#{context.owner}.#{name}",
+        kind: :singleton_method,
+        file: context.relative_file,
+        line: location.start_line,
+        end_line: location.end_line,
+        defined_via: :module_function,
+        owner: context.owner,
+        name: name,
+        test: context.test,
+        visibility: :public
+      )
+    end
+  end
+end

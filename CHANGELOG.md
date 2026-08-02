@@ -14,6 +14,7 @@ All notable changes to Necropsy are documented in this file.
 - Sort findings by source location and symbol ID for deterministic reports.
 - Preserve CRLF and final-newline style when writing quarantine annotations.
 - Add report-only include/exclude paths and warn when scan includes hide potential entry points.
+- Split the AST scanner into focused traversal, definition, DSL, reference, and Ruby-semantics files.
 
 ## 0.2.0 - 2026-08-02
 
