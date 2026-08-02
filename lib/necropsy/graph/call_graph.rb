@@ -198,8 +198,8 @@ module Necropsy
       rebuild_incoming_edges
     end
 
-    def fallback_resolution?(site)
-      resolved = resolve_call_site(site)
+    def fallback_resolution?(site, resolved: nil)
+      resolved ||= resolve_call_site(site)
       return false if resolved.empty?
 
       case site.receiver_kind

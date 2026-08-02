@@ -10,6 +10,7 @@ All notable changes to Necropsy are documented in this file.
 - Retain shortest runtime and test reachability witnesses for diagnostics.
 - Add `why` and `explain` commands with human/JSON paths, uncertainty, suggestions, and score components.
 - Resolve unqualified constants through superclass namespaces after lexical lookup.
+- Resolve each call site once during name resolution and reuse the result for evidence and uncertainty.
 - Add report-only include/exclude paths and warn when scan includes hide potential entry points.
 
 ## 0.2.0 - 2026-08-02

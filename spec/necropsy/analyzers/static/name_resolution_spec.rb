@@ -37,4 +37,16 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
     expect(result.edge_evidences.map(&:callee_id)).to contain_exactly(first.id, second.id)
     expect(result.edge_evidences.map { |edge| edge.evidence.weight }).to all(eq(0.35))
   end
+
+  it 'resolves each call site only once' do
+    caller = node('Sample#caller', name: 'caller')
+    callee = node('Sample#callee', name: 'callee')
+    site = call_site(caller_id: caller.id, message: 'callee')
+    graph = graph_with(nodes: [caller, callee], call_sites: [site])
+    allow(graph).to receive(:resolve_call_site).and_call_original
+
+    described_class.new.analyze(graph, nil)
+
+    expect(graph).to have_received(:resolve_call_site).once
+  end
 end
