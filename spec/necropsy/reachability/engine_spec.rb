@@ -14,7 +14,10 @@ RSpec.describe Necropsy::Reachability::Engine do
 
     result = described_class.new(graph).call
 
-    expect(result.runtime_alive).to eq(Set[runtime.id, runtime_child.id])
-    expect(result.test_alive).to eq(Set[test_root.id, test_child.id])
+    expect(result.runtime_alive).to contain_exactly(runtime.id, runtime_child.id)
+    expect(result.test_alive).to contain_exactly(test_root.id, test_child.id)
+    expect(result.witness(runtime_child.id)).to eq([runtime.id, runtime_child.id])
+    expect(result.witness(test_child.id, kind: :test)).to eq([test_root.id, test_child.id])
+    expect(result.witness('Missing#node')).to be_nil
   end
 end

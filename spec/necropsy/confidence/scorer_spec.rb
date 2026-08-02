@@ -24,8 +24,8 @@ RSpec.describe Necropsy::Confidence::Scorer do
       end
       let(:reachability) do
         Necropsy::Reachability::Result.new(
-          runtime_alive: Set[live.id, unused.id],
-          test_alive: Set[test_only.id]
+          runtime_paths: { live.id => nil, unused.id => live.id },
+          test_paths: { test_only.id => nil }
         )
       end
 
@@ -46,7 +46,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
           class_infos: [class_info('Sample', dynamic: true)]
         )
       end
-      let(:reachability) { Necropsy::Reachability::Result.new(runtime_alive: Set[], test_alive: Set[]) }
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
 
       it 'lowers confidence and explains why' do
         finding = findings.first
@@ -75,7 +75,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
           result.apply_result(analyzer_result(observation: { 'coverage' => { 'days' => 90 } }))
         end
       end
-      let(:reachability) { Necropsy::Reachability::Result.new(runtime_alive: Set[], test_alive: Set[]) }
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
 
       it 'raises confidence to certain' do
         expect(findings.first.confidence).to eq(:certain)
@@ -101,7 +101,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
           ]
         ).tap { |result| result.add_edge(callback.id, callback_helper.id, evidence) }
       end
-      let(:reachability) { Necropsy::Reachability::Result.new(runtime_alive: Set[], test_alive: Set[]) }
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
       let(:config) do
         {
           implicit_callers: [
@@ -129,7 +129,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
           result.add_alive(executed.id, evidence(analyzer: :coverage, kind: :alive))
         end
       end
-      let(:reachability) { Necropsy::Reachability::Result.new(runtime_alive: Set[], test_alive: Set[]) }
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
 
       it 'does not report the executed node as dead' do
         expect(findings).to be_empty
@@ -145,7 +145,10 @@ RSpec.describe Necropsy::Confidence::Scorer do
         end
       end
       let(:reachability) do
-        Necropsy::Reachability::Result.new(runtime_alive: Set[accessor.id, observed.id], test_alive: Set[])
+        Necropsy::Reachability::Result.new(
+          runtime_paths: { accessor.id => nil, observed.id => nil },
+          test_paths: {}
+        )
       end
 
       it 'does not infer unused from evidence that cannot observe accessors' do

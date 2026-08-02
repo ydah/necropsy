@@ -7,6 +7,7 @@ All notable changes to Necropsy are documented in this file.
 - **Breaking:** Reports now omit `low` confidence findings by default. Pass `--min-confidence low` to retain the previous output.
 - Lower confidence for Ruby hooks, protocol methods, configured implicit callers, and RuboCop commissioner callbacks.
 - Propagate implicit-caller uncertainty to methods reachable from those callbacks.
+- Retain shortest runtime and test reachability witnesses for diagnostics.
 - Add report-only include/exclude paths and warn when scan includes hide potential entry points.
 
 ## 0.2.0 - 2026-08-02

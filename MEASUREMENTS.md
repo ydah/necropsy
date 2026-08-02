@@ -79,3 +79,7 @@ Twenty alphabetically stable entries from each exclusive set were inspected agai
 - Necropsy-only: 0/20 were probable dead methods. Two `CopsDocumentationGenerator` methods are called through the `STRUCTURE` lambda table and a Rake entry point. The other 18 belong to CLI command subclasses selected through `Base.by_command_name` and constructed dynamically.
 
 The sample shows why the sets overlap only slightly: debride reports Ruby/RuboCop callbacks by name, while Necropsy's remaining false positives cluster around registry-selected classes and callable tables. The next diagnostic priority is therefore witness/explanation support; adding broader survival rules without path evidence would risk hiding the four probable true positives found in the debride-only sample.
+
+## Witness storage
+
+RuboCop 1.75.0 retained 6,029 raw findings and 359 default reports after predecessor paths were added. Wall time was 5.35 seconds and peak RSS was 557.0 MB, below the 600 MB guardrail.

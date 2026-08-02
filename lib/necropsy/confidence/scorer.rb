@@ -54,11 +54,11 @@ module Necropsy
       def classification_for(node)
         return nil if graph.dynamic_alive?(node.id)
 
-        if reachability.runtime_alive.include?(node.id)
+        if reachability.runtime_paths.key?(node.id)
           return :unused if graph.dynamic_enabled? && !generated_accessor?(node)
 
           nil
-        elsif reachability.test_alive.include?(node.id)
+        elsif reachability.test_paths.key?(node.id)
           :test_only_reachable
         else
           :unreachable
