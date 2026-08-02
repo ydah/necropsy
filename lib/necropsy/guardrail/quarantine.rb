@@ -26,7 +26,11 @@ module Necropsy
       def write(min_confidence: :high)
         grouped = suggestions(min_confidence: min_confidence).group_by { |suggestion| suggestion[:path] }
         grouped.each do |path, entries|
-          lines = File.readlines(path, chomp: true)
+          source = File.binread(path)
+          newline = source[/\r\n|\n/] || "\n"
+          trailing_newline = source.end_with?("\r\n", "\n")
+          lines = source.split(/\r\n|\n/, -1)
+          lines.pop if trailing_newline
           entries.sort_by { |entry| -entry[:line] }.each do |entry|
             index = [entry[:line] - 1, 0].max
             next if index.positive? && lines[index - 1]&.include?(ANNOTATION_PREFIX)
@@ -34,7 +38,9 @@ module Necropsy
             indent = lines[index][/^\s*/] || ''
             lines.insert(index, "#{indent}#{entry[:annotation]}")
           end
-          File.write(path, "#{lines.join("\n")}\n")
+          rewritten = lines.join(newline)
+          rewritten << newline if trailing_newline
+          File.binwrite(path, rewritten)
         end
       end
 

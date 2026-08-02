@@ -50,4 +50,19 @@ RSpec.describe Necropsy::Guardrail::Quarantine do
       expect(File.readlines(File.join(root, 'first.rb')).first).to match(/necropsy:quarantine/)
     end
   end
+
+  it 'preserves CRLF line endings when writing annotations' do
+    source = "class WindowsSample\r\n  def dead\r\n  end\r\nend\r\n"
+
+    with_project(files: { 'windows_sample.rb' => source }) do |root|
+      target = finding(id: 'WindowsSample#dead', confidence: :high, file: 'windows_sample.rb', line: 2)
+      report = report_with_findings([target], root: root)
+
+      described_class.new(report: report, root: root).write(min_confidence: :high)
+
+      rewritten = File.binread(File.join(root, 'windows_sample.rb'))
+      expect(rewritten.scan("\r\n").length).to eq(rewritten.lines.length)
+      expect(rewritten.gsub("\r\n", '')).not_to include("\n")
+    end
+  end
 end

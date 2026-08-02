@@ -12,6 +12,7 @@ All notable changes to Necropsy are documented in this file.
 - Resolve unqualified constants through superclass namespaces after lexical lookup.
 - Resolve each call site once during name resolution and reuse the result for evidence and uncertainty.
 - Sort findings by source location and symbol ID for deterministic reports.
+- Preserve CRLF and final-newline style when writing quarantine annotations.
 - Add report-only include/exclude paths and warn when scan includes hide potential entry points.
 
 ## 0.2.0 - 2026-08-02
