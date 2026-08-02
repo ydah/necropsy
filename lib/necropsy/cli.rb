@@ -56,6 +56,8 @@ module Necropsy
         record(options, argv)
       when 'coverage'
         coverage(options, argv)
+      when 'why', 'explain'
+        diagnose(command, options, argv)
       else
         warn "Unknown command: #{command}"
         warn parser
@@ -135,6 +137,17 @@ module Necropsy
 
     def analyze(options)
       Necropsy.analyze(root: options[:root], config_path: options[:config])
+    end
+
+    def diagnose(command, options, argv)
+      node_id = argv.shift
+      raise Error, "#{command} requires a symbol ID" unless node_id
+      raise Error, "Unexpected arguments for #{command}: #{argv.join(' ')}" unless argv.empty?
+
+      diagnostics = Diagnostics.new(analyze(options))
+      payload = command == 'why' ? diagnostics.why(node_id) : diagnostics.explain(node_id)
+      puts diagnostics.render(payload, format: options[:format])
+      0
     end
 
     def apply_config_defaults(options)

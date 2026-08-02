@@ -40,6 +40,18 @@ bundle exec necropsy --version
 Reports omit `low` confidence findings by default. Pass `--min-confidence low`
 to retain the pre-0.3 behavior.
 
+Inspect why a symbol is alive or dead, including the shortest evidenced path,
+nearby alive node, and unresolved dispatch notes:
+
+```bash
+bundle exec necropsy why 'MyService#call' --root .
+bundle exec necropsy why 'MyService#call' --root . --format json
+bundle exec necropsy explain 'LegacyService#unused' --root .
+```
+
+`explain` shows every confidence score component and the final confidence
+level. Missing symbol IDs return partial-match suggestions.
+
 Fail CI only for new high-confidence findings:
 
 ```bash

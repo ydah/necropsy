@@ -101,6 +101,9 @@ module GraphHelpers
       classification: classification,
       confidence: confidence,
       score: score,
+      score_components: [
+        Necropsy::ScoreComponent.new(name: "base(#{classification})", value: score, details: 'spec component')
+      ],
       reasons: ['spec reason'],
       evidences: [evidence]
     )

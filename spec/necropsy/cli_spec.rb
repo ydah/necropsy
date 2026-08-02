@@ -104,5 +104,34 @@ RSpec.describe Necropsy::CLI do
         expect { described_class.run(['--version']) }.to output("#{Necropsy::VERSION}\n").to_stdout
       end
     end
+
+    context 'with diagnostic commands' do
+      let(:project_root) do
+        create_project(files: {
+                         'lib/cli_diagnostics.rb' => <<~RUBY,
+                           class CliDiagnostics
+                             def live
+                             end
+
+                             def dead
+                             end
+                           end
+                         RUBY
+                         'exe/tool' => <<~RUBY
+                           #!/usr/bin/env ruby
+                           CliDiagnostics.new.live
+                         RUBY
+                       })
+      end
+
+      it 'shows reachability paths and score explanations' do
+        expect do
+          described_class.run(['why', 'CliDiagnostics#live', '--root', project_root])
+        end.to output(/Alive \(runtime\).*CliDiagnostics#live/m).to_stdout
+        expect do
+          described_class.run(['explain', 'CliDiagnostics#dead', '--root', project_root])
+        end.to output(/CliDiagnostics#dead: unreachable.*base\(unreachable\)/m).to_stdout
+      end
+    end
   end
 end

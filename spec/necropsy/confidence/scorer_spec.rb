@@ -34,6 +34,9 @@ RSpec.describe Necropsy::Confidence::Scorer do
         expect(findings_by_id.fetch(unused.id).classification).to eq(:unused)
         expect(findings_by_id.fetch(test_only.id).classification).to eq(:test_only_reachable)
         expect(findings_by_id.fetch(dead.id).classification).to eq(:unreachable)
+        expect(findings_by_id.fetch(dead.id).score_components).to include(
+          have_attributes(name: 'base(unreachable)', value: 0.62)
+        )
       end
     end
 

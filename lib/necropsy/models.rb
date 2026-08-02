@@ -135,13 +135,19 @@ module Necropsy
   EdgeEvidence = Data.define(:caller_id, :callee_id, :evidence)
   AliveEvidence = Data.define(:node_id, :evidence)
 
+  ScoreComponent = Data.define(:name, :value, :details) do
+    def to_h
+      { 'name' => name, 'value' => value, 'details' => details }
+    end
+  end
+
   AnalyzerResult = Data.define(:edge_evidences, :alive_evidences, :uncertainties, :observation) do
     def self.empty
       new(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {})
     end
   end
 
-  Finding = Data.define(:node, :classification, :confidence, :score, :reasons, :evidences) do
+  Finding = Data.define(:node, :classification, :confidence, :score, :score_components, :reasons, :evidences) do
     def at_least?(level)
       CONFIDENCE_LEVELS.fetch(confidence) >= CONFIDENCE_LEVELS.fetch(level)
     end
@@ -156,6 +162,7 @@ module Necropsy
         'classification' => classification.to_s,
         'confidence' => confidence.to_s,
         'score' => score,
+        'score_components' => score_components.map(&:to_h),
         'node' => node.to_h,
         'reasons' => reasons,
         'evidences' => evidences.map(&:to_h)

@@ -30,6 +30,7 @@ module Necropsy
         root: root,
         graph: graph,
         findings: findings,
+        reachability: reachability,
         report_include_paths: config.report_include_paths,
         report_exclude_paths: config.report_exclude_paths
       )

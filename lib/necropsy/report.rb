@@ -5,12 +5,13 @@ require 'yaml'
 
 module Necropsy
   class Report
-    attr_reader :root, :graph, :findings
+    attr_reader :root, :graph, :findings, :reachability
 
-    def initialize(root:, graph:, findings:, report_include_paths: [], report_exclude_paths: [])
+    def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [])
       @root = root
       @graph = graph
       @findings = findings
+      @reachability = reachability
       @report_include_paths = report_include_paths
       @report_exclude_paths = report_exclude_paths
     end
