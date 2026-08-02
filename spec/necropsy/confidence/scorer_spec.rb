@@ -86,10 +86,11 @@ RSpec.describe Necropsy::Confidence::Scorer do
     context 'with methods invoked implicitly' do
       let(:protocol) { node('Sample#to_s', name: 'to_s') }
       let(:callback) { node('FrameworkCallback#on_send', owner: 'FrameworkCallback', name: 'on_send') }
+      let(:callback_helper) { node('FrameworkCallback#helper', owner: 'FrameworkCallback', name: 'helper') }
       let(:rubocop_callback) { node('RuboCopCallback#on_def', owner: 'RuboCopCallback', name: 'on_def') }
       let(:graph) do
         graph_with(
-          nodes: [protocol, callback, rubocop_callback],
+          nodes: [protocol, callback, callback_helper, rubocop_callback],
           class_infos: [
             class_info('Framework::Base'),
             class_info('ConcreteCallback', superclass: 'Framework::Base', includes: ['FrameworkCallback']),
@@ -98,7 +99,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
             class_info('ConcreteCop', superclass: 'RuboCop::Cop::Base', includes: ['RuboCopCallback']),
             class_info('RuboCopCallback', kind: :module)
           ]
-        )
+        ).tap { |result| result.add_edge(callback.id, callback_helper.id, evidence) }
       end
       let(:reachability) { Necropsy::Reachability::Result.new(runtime_alive: Set[], test_alive: Set[]) }
       let(:config) do
@@ -116,6 +117,8 @@ RSpec.describe Necropsy::Confidence::Scorer do
         expect(findings_by_id.fetch(callback.id).reasons).to include(match(/framework callback/))
         expect(findings_by_id.fetch(rubocop_callback.id).confidence).to eq(:low)
         expect(findings_by_id.fetch(rubocop_callback.id).reasons).to include(match(/RuboCop Commissioner/))
+        expect(findings_by_id.fetch(callback_helper.id).confidence).to eq(:low)
+        expect(findings_by_id.fetch(callback_helper.id).reasons).to include(match(/reachable from implicitly invoked/))
       end
     end
 

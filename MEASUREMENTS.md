@@ -45,6 +45,7 @@ RuboCop 1.75.0 at ambiguity limit four and the default `medium` reporting thresh
 | none | 1789 | baseline |
 | Ruby hooks and protocols | 1785 | -4 |
 | Ruby rules plus scoped RuboCop `on_*` rule | 1161 | -624 |
+| Rules plus transitive implicit-caller uncertainty | 359 | -802 |
 
 The RuboCop rule is enabled as a built-in framework pack because its ancestor constraint limits it to commissioner-dispatched cop callbacks. The same rule remains configurable for other frameworks through `implicit_callers`.
 
@@ -59,3 +60,22 @@ RuboCop 1.75.0 at the default `medium` reporting threshold:
 | `paths.include: ["lib/**"]` | 8131 | — | 1552 | 0 |
 
 `report.include` preserves the full graph and removes only four out-of-scope reports. `paths.include` removes 868 graph nodes, emits an entry-point warning, and increases reported findings by 34%.
+
+## Debride comparison
+
+Debride 1.15.2 and Necropsy's default `medium` threshold, both restricted to RuboCop 1.75.0's `lib/` definitions. Debride output was mapped back to fully qualified Necropsy node IDs; 19 unmatched debride entries were constants or definitions without an unambiguous method ID.
+
+| set | methods |
+|---|---:|
+| debride | 718 |
+| Necropsy | 355 |
+| both | 39 |
+| debride only | 679 |
+| Necropsy only | 316 |
+
+Twenty alphabetically stable entries from each exclusive set were inspected against RuboCop source and specs.
+
+- Debride-only: 4/20 were probable production-dead compatibility methods (`ConfigLoader.inject_defaults!`, `Alignment#end_of_line_comment`, `AllowedPattern#ignored_line?`, and `AllowedPattern#matches_ignored_pattern?`). The other 16 were a test-only generated writer, public subclass API, node-pattern callback, or commissioner-dispatched `on_*` callbacks.
+- Necropsy-only: 0/20 were probable dead methods. Two `CopsDocumentationGenerator` methods are called through the `STRUCTURE` lambda table and a Rake entry point. The other 18 belong to CLI command subclasses selected through `Base.by_command_name` and constructed dynamically.
+
+The sample shows why the sets overlap only slightly: debride reports Ruby/RuboCop callbacks by name, while Necropsy's remaining false positives cluster around registry-selected classes and callable tables. The next diagnostic priority is therefore witness/explanation support; adding broader survival rules without path evidence would risk hiding the four probable true positives found in the debride-only sample.
