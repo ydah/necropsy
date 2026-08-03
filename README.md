@@ -38,7 +38,7 @@ bundle exec necropsy --version
 ```
 
 Reports omit `low` confidence findings by default. Pass `--min-confidence low`
-to retain the pre-0.3 behavior.
+to retain the pre-0.2 behavior.
 
 Inspect why a symbol is alive or dead, including the shortest evidenced path,
 nearby alive node, and unresolved dispatch notes:
