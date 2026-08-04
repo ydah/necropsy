@@ -88,6 +88,72 @@ RSpec.describe Necropsy::CLI do
       end
     end
 
+    context 'with an invalid quarantine date' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'app/sample.rb' => <<~RUBY
+              class CliInvalidQuarantine
+                # necropsy:quarantine since=not-a-date
+                def dead
+                end
+              end
+            RUBY
+          },
+          config: { quarantine: { expiry: expiry_policy } }
+        )
+      end
+
+      %w[warn fail ignore].each do |policy|
+        context "when expiry policy is #{policy}" do
+          let(:expiry_policy) { policy }
+
+          it 'always warns without failing check' do
+            result = nil
+            expect do
+              result = described_class.run(['check', '--root', project_root])
+            end.to output("Necropsy check passed\n").to_stdout.and output(
+              %r{Invalid quarantine date warning:.*app/sample.rb:3 CliInvalidQuarantine#dead}m
+            ).to_stderr
+            expect(result).to eq(0)
+          end
+        end
+      end
+    end
+
+    context 'with expired and invalid quarantine annotations' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'app/sample.rb' => <<~RUBY
+              class CliMixedQuarantine
+                # necropsy:quarantine since=not-a-date
+                def invalid_date
+                end
+
+                # necropsy:quarantine since=2000-01-01
+                def expired
+                end
+              end
+            RUBY
+          },
+          config: { quarantine: { expiry: 'fail' } }
+        )
+      end
+
+      it 'warns for the invalid date and fails only for the required review' do
+        result = nil
+        expect do
+          result = described_class.run(['check', '--root', project_root])
+        end.to output(
+          %r{Quarantine expiry failed:.*app/sample.rb:7 CliMixedQuarantine#expired}m
+        ).to_stdout.and output(
+          %r{Invalid quarantine date warning:.*app/sample.rb:3 CliMixedQuarantine#invalid_date}m
+        ).to_stderr
+        expect(result).to eq(1)
+      end
+    end
+
     context 'with bench without a gold standard' do
       let(:project_root) { create_project }
       let(:argv) { ['bench', '--root', project_root] }

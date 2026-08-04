@@ -158,6 +158,7 @@ module Necropsy
 
     def check(options)
       report = analyze(options)
+      report_invalid_quarantine_dates(report)
       expiry_failure = apply_quarantine_expiry_policy(report, report_config(options))
       findings = filtered_findings(report, options)
       baseline_path = File.expand_path(options[:baseline], options[:root])
@@ -188,9 +189,7 @@ module Necropsy
       policy = config.quarantine_expiry
       return false if policy == :ignore
 
-      findings = report.dead_methods(min_confidence: :low).select do |finding|
-        finding.score_components.any? { |component| component.name == 'quarantine_review_required' }
-      end
+      findings = findings_with_quarantine_component(report, 'quarantine_review_required')
       return false if findings.empty?
 
       noun = findings.length == 1 ? 'annotation requires' : 'annotations require'
@@ -204,6 +203,21 @@ module Necropsy
 
       puts message
       true
+    end
+
+    def report_invalid_quarantine_dates(report)
+      findings = findings_with_quarantine_component(report, 'quarantine_invalid_date')
+      return if findings.empty?
+
+      noun = findings.length == 1 ? 'annotation has' : 'annotations have'
+      lines = findings.map { |finding| "  #{finding.node.file}:#{finding.node.line} #{finding.node.id}" }
+      warn "Invalid quarantine date warning: #{findings.length} #{noun} an invalid since date\n#{lines.join("\n")}"
+    end
+
+    def findings_with_quarantine_component(report, name)
+      report.dead_methods(min_confidence: :low).select do |finding|
+        finding.score_components.any? { |component| component.name == name }
+      end
     end
 
     def filtered_findings(report, options)
