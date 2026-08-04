@@ -130110,7 +130110,7 @@
       "corpus": "self",
       "id": "Necropsy::CallGraph#dynamic_enabled?",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 97,
+      "line": 102,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130132,7 +130132,7 @@
       "corpus": "self",
       "id": "Necropsy::CallGraph#modules_for",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 143,
+      "line": 148,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130154,7 +130154,7 @@
       "corpus": "self",
       "id": "Necropsy::Configuration#min_observation_days",
       "path": "lib/necropsy/configuration.rb",
-      "line": 85,
+      "line": 86,
       "tool_results": {
         "debride": {
           "candidate": false

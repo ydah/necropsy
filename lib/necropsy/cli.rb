@@ -158,6 +158,7 @@ module Necropsy
 
     def check(options)
       report = analyze(options)
+      expiry_failure = apply_quarantine_expiry_policy(report, report_config(options))
       findings = filtered_findings(report, options)
       baseline_path = File.expand_path(options[:baseline], options[:root])
       baseline = Guardrail::Baseline.load(baseline_path)
@@ -177,8 +178,32 @@ module Necropsy
         return 1
       end
 
+      return 1 if expiry_failure
+
       puts 'Necropsy check passed'
       0
+    end
+
+    def apply_quarantine_expiry_policy(report, config)
+      policy = config.quarantine_expiry
+      return false if policy == :ignore
+
+      findings = report.dead_methods(min_confidence: :low).select do |finding|
+        finding.score_components.any? { |component| component.name == 'quarantine_review_required' }
+      end
+      return false if findings.empty?
+
+      noun = findings.length == 1 ? 'annotation requires' : 'annotations require'
+      lines = findings.map { |finding| "  #{finding.node.file}:#{finding.node.line} #{finding.node.id}" }
+      message = "Quarantine expiry #{policy == :fail ? 'failed' : 'warning'}: " \
+                "#{findings.length} #{noun} review\n#{lines.join("\n")}"
+      if policy == :warn
+        warn message
+        return false
+      end
+
+      puts message
+      true
     end
 
     def filtered_findings(report, options)

@@ -2,10 +2,10 @@
   "schema_version": 1,
   "corpus": "self",
   "metrics": {
-    "nodes": 852,
-    "definitions": 750,
-    "call_sites": 9118,
-    "edges": 4003,
+    "nodes": 860,
+    "definitions": 758,
+    "call_sites": 9451,
+    "edges": 4041,
     "findings": 80
   },
   "states": {
@@ -777,7 +777,7 @@
     {
       "id": "Necropsy::CallGraph#dynamic_enabled?",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 97,
+      "line": 102,
       "state": "unreachable",
       "confidence": "low",
       "reasons": [
@@ -787,7 +787,7 @@
     {
       "id": "Necropsy::CallGraph#modules_for",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 143,
+      "line": 148,
       "state": "unreachable",
       "confidence": "low",
       "reasons": [
@@ -797,7 +797,7 @@
     {
       "id": "Necropsy::Configuration#min_observation_days",
       "path": "lib/necropsy/configuration.rb",
-      "line": 85,
+      "line": 86,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [

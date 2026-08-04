@@ -338,7 +338,7 @@ RSpec.describe Necropsy do
     expect(report.graph.dynamic_alive?('Sample::Widget#render')).to eq(true)
   end
 
-  it 'raises expired quarantined unreachable methods to certain confidence' do
+  it 'keeps expired quarantined methods at their original deadness' do
     dir = File.join(Dir.mktmpdir, 'sample_project')
     FileUtils.mkdir_p(dir)
     FileUtils.cp_r(Dir.glob(File.join(fixture_path('sample_project'), '*'), File::FNM_DOTMATCH).reject do |path|
@@ -353,7 +353,10 @@ RSpec.describe Necropsy do
     report = described_class.analyze(root: dir)
     finding = report.findings.find { |item| item.node.id == 'Sample::Widget#dead_model' }
 
-    expect(finding.confidence).to eq(:certain)
+    expect(finding).to have_attributes(classification: :unreachable, confidence: :medium, score: 0.62)
+    expect(finding.score_components).to include(
+      have_attributes(name: 'quarantine_review_required', value: 0.0)
+    )
   end
 end
 

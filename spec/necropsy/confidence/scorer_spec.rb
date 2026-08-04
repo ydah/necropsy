@@ -104,29 +104,89 @@ RSpec.describe Necropsy::Confidence::Scorer do
       end
     end
 
-    context 'with an expired quarantine annotation' do
+    context 'with a quarantine annotation' do
       let(:files) do
         {
           'app/quarantined.rb' => <<~RUBY
             class Quarantined
-              # necropsy:quarantine since=2000-01-01
+              # necropsy:quarantine since=#{since} reason=cleanup owner=team issue=123
               def dead
               end
             end
           RUBY
         }
       end
+      let(:since) { (Date.today - 31).iso8601 }
       let(:dead) { node('Quarantined#dead', owner: 'Quarantined', name: 'dead', file: 'app/quarantined.rb', line: 3) }
-      let(:graph) do
-        graph_with(nodes: [dead]).tap do |result|
-          result.apply_result(analyzer_result(observation: { 'coverage' => { 'days' => 90 } }))
-        end
-      end
+      let(:graph) { graph_with(nodes: [dead]) }
       let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
 
-      it 'raises confidence to certain' do
-        expect(findings.first.confidence).to eq(:certain)
-        expect(findings.first.reasons).to include(match(/quarantine annotation has expired/))
+      it 'marks the day after expiry for review without changing deadness' do
+        expect(findings.first).to have_attributes(
+          classification: :unreachable,
+          score: 0.62,
+          confidence: :medium
+        )
+        expect(findings.first.score_components).to include(
+          have_attributes(name: 'quarantine_review_required', value: 0.0)
+        )
+      end
+
+      context 'at the expiry boundary' do
+        let(:since) { (Date.today - 30).iso8601 }
+
+        it 'requires review without changing deadness' do
+          expect(findings.first).to have_attributes(
+            classification: :unreachable,
+            score: 0.62,
+            confidence: :medium
+          )
+          expect(findings.first.score_components.map(&:name)).to include('quarantine_review_required')
+        end
+      end
+
+      context 'immediately before expiry' do
+        let(:since) { (Date.today - 29).iso8601 }
+
+        it 'keeps the same state and does not require review' do
+          expect(findings.first).to have_attributes(
+            classification: :unreachable,
+            score: 0.62,
+            confidence: :medium
+          )
+          expect(findings.first.score_components.map(&:name)).not_to include('quarantine_review_required')
+        end
+      end
+
+      context 'with an invalid date in an existing annotation' do
+        let(:since) { 'not-a-date' }
+
+        it 'adds one bounded diagnostic without changing deadness' do
+          expect(findings.first).to have_attributes(
+            classification: :unreachable,
+            score: 0.62,
+            confidence: :medium
+          )
+          expect(findings.first.score_components).to include(
+            have_attributes(name: 'quarantine_invalid_date', value: 0.0)
+          )
+          expect(findings.first.reasons.grep(/invalid since date/).length).to eq(1)
+        end
+      end
+
+      context 'with each operational expiry policy' do
+        it 'keeps the analysis result identical' do
+          states = %w[warn fail ignore].map do |policy|
+            finding = described_class.new(
+              graph: graph,
+              reachability: reachability,
+              project: project_for(create_project(files: files, config: { quarantine: { expiry: policy } }))
+            ).findings.first
+            [finding.classification, finding.score, finding.confidence, finding.score_components.map(&:name)]
+          end
+
+          expect(states.uniq.length).to eq(1)
+        end
       end
     end
 

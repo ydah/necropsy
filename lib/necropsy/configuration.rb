@@ -7,6 +7,7 @@ module Necropsy
     DEFAULT_FAIL_ON = :high
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
     RTA_PRUNING_MODES = %w[rank_only legacy].freeze
+    QUARANTINE_EXPIRY_POLICIES = %w[warn fail ignore].freeze
     TOP_LEVEL_KEYS = %w[
       analyzers frameworks entry_points ci quarantine bench cache rta resolution paths report logging implicit_callers
     ].freeze
@@ -15,7 +16,7 @@ module Necropsy
       'analyzers.dynamic' => %w[coverage coverband trace_point],
       'entry_points' => %w[extra],
       'ci' => %w[baseline fail_on],
-      'quarantine' => %w[days],
+      'quarantine' => %w[days expiry],
       'bench' => %w[precision_threshold recall_threshold],
       'cache' => %w[enabled path],
       'rta' => %w[factory_methods pruning],
@@ -90,6 +91,14 @@ module Necropsy
 
     def quarantine_days
       (fetch('quarantine', 'days') || 30).to_i
+    end
+
+    def quarantine_expiry
+      configured = fetch('quarantine', 'expiry')
+      policy = configured.nil? ? 'warn' : configured.to_s
+      return policy.to_sym if QUARANTINE_EXPIRY_POLICIES.include?(policy)
+
+      raise Error, "quarantine.expiry must be one of: #{QUARANTINE_EXPIRY_POLICIES.join(', ')}"
     end
 
     def bench_precision_threshold
@@ -206,6 +215,7 @@ module Necropsy
       validate_implicit_callers!
       rta_pruning
       ambiguity_limit
+      quarantine_expiry
     end
 
     def validate_hash_keys(value, allowed, location)

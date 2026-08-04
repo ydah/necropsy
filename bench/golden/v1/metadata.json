@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "update_reason": "Adopt positive-only runtime evidence",
+  "update_reason": "quarantine expiry no longer changes deadness",
   "artifacts": {
-    "candidate_union.json": "ddc2136fc0a4ffd00d9bea44e01d181aac81d6e3c2186c688e5df2d928d7f5b5",
+    "candidate_union.json": "4b2b84b5062b94bf42777690b2582da1e29e9001d29a9b1f2a21be8228f3cfcb",
     "reports/dynamic_evidence.json": "f3c0d56cc4dc89f68fede9b34b551cd9423577f95fea37b17896bf54453ed91d",
     "reports/plain_ruby.json": "0aa08379241266e828fc64a2018c673f7ca2e1a664f9786c44dbac606c5a08d1",
     "reports/rails.json": "7a18e296e2ad72944161bd4c7a528768f6ce2c9fadbd078731ebac5241117d24",
     "reports/rubocop_1_75_0.json": "6345b5868cb69f0e054700213c301c6d4c4d892b88228dcc48c8eac7f765ebe6",
-    "reports/self.json": "57b4e9c0a90b8171fdafad767dadb79ff09de98195b30237852d175e3845eb43"
+    "reports/self.json": "64f1cac3afaefe0a0e5fa7f6898567145e2283546082011f5a524fa7dcf092fc"
   }
 }

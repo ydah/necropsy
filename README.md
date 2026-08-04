@@ -123,6 +123,7 @@ ci:
   baseline: .necropsy_baseline.yml
 quarantine:
   days: 30
+  expiry: warn # warn | fail | ignore
 bench:
   precision_threshold: 0.85
 logging:
@@ -154,8 +155,12 @@ GitHub Actions annotations are available via `--format sarif` and
 Runtime evidence is positive-only: executed methods and the endpoints of
 observed edges are kept alive, while an unobserved method never becomes a new
 finding and never receives higher confidence. Observation duration and
-environment remain informational metadata. Reports include attempted, matched,
-and unmatched evidence counts plus a bounded unmatched sample.
+environment remain informational metadata. `min_observation_days` is a
+read-compatibility no-op and cannot change candidates, classifications, or
+confidence. The `unused` state remains only for reading and aggregating legacy
+schemas; positive-only analysis does not produce new `unused` findings. Reports
+include attempted, matched, and unmatched evidence counts plus a bounded
+unmatched sample.
 
 Schema v1 payloads may omit the analyzed source revision. Their positive
 evidence is accepted for liveness for compatibility, but an omitted revision is
@@ -171,8 +176,11 @@ entry point detection covers common `resources`, `resource`, `namespace`,
 forms.
 
 `necropsy quarantine --write` adds `# necropsy:quarantine since=YYYY-MM-DD`.
-When the configured quarantine window expires and no alive evidence appears,
-the finding is raised to `certain`.
+Expiry never changes a finding's classification, score, or confidence. Instead,
+the finding receives a `quarantine_review_required` diagnostic. The `check`
+command warns by default; set `quarantine.expiry` to `fail` to make an expired
+annotation fail CI, or to `ignore` to suppress the operational check. An invalid
+`since` date is reported as `quarantine_invalid_date` without changing deadness.
 
 ## Development
 

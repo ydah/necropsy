@@ -18,6 +18,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.factory_methods).to include('build', 'create', 'build_stubbed')
         expect(configuration.rta_pruning).to eq(:rank_only)
         expect(configuration.ambiguity_limit).to eq(4)
+        expect(configuration.quarantine_expiry).to eq(:warn)
         expect(configuration.cache_path).to eq('.necropsy_cache/scan.json')
         expect(configuration.include_paths).to eq([])
         expect(configuration.exclude_paths).to eq([])
@@ -58,6 +59,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.baseline_path).to eq('tmp/baseline.yml')
         expect(configuration.min_observation_days).to eq(14)
         expect(configuration.quarantine_days).to eq(7)
+        expect(configuration.quarantine_expiry).to eq(:warn)
         expect(configuration.bench_precision_threshold).to eq(0.9)
         expect(configuration.bench_recall_threshold).to eq(0.8)
         expect(configuration.cache_enabled?).to eq(false)
@@ -98,6 +100,25 @@ RSpec.describe Necropsy::Configuration do
         expect { configuration }.to raise_error(
           Necropsy::Error,
           'rta.pruning must be one of: rank_only, legacy'
+        )
+      end
+    end
+
+    context 'with quarantine expiry policy' do
+      let(:config_data) { { quarantine: { expiry: 'fail' } } }
+
+      it 'exposes the configured CI behavior' do
+        expect(configuration.quarantine_expiry).to eq(:fail)
+      end
+    end
+
+    context 'with an invalid quarantine expiry policy' do
+      let(:config_data) { { quarantine: { expiry: 'raise_score' } } }
+
+      it 'rejects the value' do
+        expect { configuration }.to raise_error(
+          Necropsy::Error,
+          'quarantine.expiry must be one of: warn, fail, ignore'
         )
       end
     end

@@ -35,6 +35,59 @@ RSpec.describe Necropsy::CLI do
       end
     end
 
+    context 'with an expired quarantine annotation' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'app/sample.rb' => <<~RUBY
+              class CliQuarantine
+                # necropsy:quarantine since=2000-01-01
+                def dead
+                end
+              end
+            RUBY
+          },
+          config: { quarantine: { expiry: expiry_policy } }
+        )
+      end
+
+      context 'when expiry warns' do
+        let(:expiry_policy) { 'warn' }
+
+        it 'reports the review and lets check pass' do
+          result = nil
+          expect do
+            result = described_class.run(['check', '--root', project_root])
+          end.to output("Necropsy check passed\n").to_stdout.and output(/Quarantine expiry warning/).to_stderr
+          expect(result).to eq(0)
+        end
+      end
+
+      context 'when expiry fails' do
+        let(:expiry_policy) { 'fail' }
+
+        it 'fails check without changing analysis confidence' do
+          result = nil
+          expect do
+            result = described_class.run(['check', '--root', project_root])
+          end.to output(/Quarantine expiry failed/).to_stdout.and output('').to_stderr
+          expect(result).to eq(1)
+        end
+      end
+
+      context 'when expiry is ignored' do
+        let(:expiry_policy) { 'ignore' }
+
+        it 'does not report or fail the operational check' do
+          result = nil
+          expect do
+            result = described_class.run(['check', '--root', project_root])
+          end.to output("Necropsy check passed\n").to_stdout.and output('').to_stderr
+          expect(result).to eq(0)
+        end
+      end
+    end
+
     context 'with bench without a gold standard' do
       let(:project_root) { create_project }
       let(:argv) { ['bench', '--root', project_root] }

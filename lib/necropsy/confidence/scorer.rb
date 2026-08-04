@@ -95,12 +95,7 @@ module Necropsy
 
         add_runtime_unobserved_annotation(node, reasons, components)
 
-        if classification == :unreachable && quarantine_expired?(node)
-          raised_score = [score, 0.95].max
-          components << score_component('expired_quarantine', raised_score - score, 'Expired without alive evidence')
-          score = raised_score
-          reasons << 'Raised because quarantine annotation has expired without alive evidence.'
-        end
+        add_quarantine_annotation(node, reasons, components)
 
         clamped_score = score.clamp(0.0, 1.0)
         components << score_component('score_clamp', clamped_score - score, 'Clamped to the 0.0–1.0 range') if clamped_score != score
@@ -194,14 +189,24 @@ module Necropsy
         :low
       end
 
-      def quarantine_expired?(node)
-        since = quarantine_since(node)
-        return false unless since
+      def add_quarantine_annotation(node, reasons, components)
+        status = quarantine_status(node)
+        return unless status
 
-        since <= Date.today - project.config.quarantine_days
+        if status == :review_required
+          components << score_component(
+            'quarantine_review_required', 0.0, 'Quarantine expired; deadness is unchanged'
+          )
+          reasons << 'Quarantine annotation has expired and requires review; classification and confidence are unchanged.'
+        elsif status == :invalid
+          components << score_component(
+            'quarantine_invalid_date', 0.0, 'Invalid quarantine date; deadness is unchanged'
+          )
+          reasons << 'Quarantine annotation has an invalid since date; classification and confidence are unchanged.'
+        end
       end
 
-      def quarantine_since(node)
+      def quarantine_status(node)
         path = File.join(project.root, node.file)
         return nil unless File.exist?(path)
 
@@ -210,8 +215,14 @@ module Necropsy
         annotation = window.find { |line| line.include?('necropsy:quarantine') && line.match?(/\bsince=/) }
         return nil unless annotation
 
-        Date.iso8601(annotation[/\bsince=([0-9-]+)/, 1])
-      rescue ArgumentError, SystemCallError
+        raw_since = annotation[/\bsince=([^\s]+)/, 1]
+        return :invalid unless raw_since
+
+        since = Date.iso8601(raw_since)
+        since <= Date.today - project.config.quarantine_days ? :review_required : :active
+      rescue ArgumentError, TypeError
+        :invalid
+      rescue SystemCallError
         nil
       end
     end
