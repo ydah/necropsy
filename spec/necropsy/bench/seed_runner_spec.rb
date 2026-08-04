@@ -92,6 +92,62 @@ RSpec.describe Necropsy::Bench::SeedRunner do
     end
   end
 
+  it 'fails a pinned Git corpus with tracked working-tree changes' do
+    with_project(files: {
+                   'labels.yml' => { 'labels' => [] }.to_yaml,
+                   'manifest.yml' => {
+                     'schema_version' => 1,
+                     'repository_root' => '.',
+                     'golden_dir' => 'golden',
+                     'labels' => 'labels.yml',
+                     'minimum_reviewed_labels' => 0,
+                     'corpora' => { 'pinned' => { 'path' => '.', 'git_commit' => 'expected' } },
+                     'tools' => { 'necropsy' => {} }
+                   }.to_yaml
+                 }) do |root|
+      result = described_class.new(
+        manifest_path: File.join(root, 'manifest.yml'),
+        output_dir: File.join(root, 'output'),
+        io: StringIO.new,
+        analyzer: ->(*) { raise 'analysis must not run' },
+        revision_reader: ->(*) { 'expected' },
+        dirty_reader: ->(*) { true }
+      ).call
+
+      expect(result.fetch('corpora').first).to include('status' => 'failed')
+      expect(result.fetch('diagnostics')).to include(match(/tracked Git changes present/))
+    end
+  end
+
+  it 'preserves existing golden files when a required corpus was not generated' do
+    with_project(files: {
+                   'labels.yml' => { 'labels' => [] }.to_yaml,
+                   'golden/candidate_union.json' => "existing golden\n",
+                   'manifest.yml' => {
+                     'schema_version' => 1,
+                     'repository_root' => '.',
+                     'golden_dir' => 'golden',
+                     'labels' => 'labels.yml',
+                     'minimum_reviewed_labels' => 0,
+                     'corpora' => {
+                       'external' => { 'required' => true, 'path_env' => 'NECROPSY_REQUIRED_MISSING' }
+                     },
+                     'tools' => { 'necropsy' => {} }
+                   }.to_yaml
+                 }) do |root|
+      runner = described_class.new(
+        manifest_path: File.join(root, 'manifest.yml'),
+        output_dir: File.join(root, 'output'),
+        io: StringIO.new
+      )
+
+      expect do
+        runner.call(update_golden_reason: 'must not apply')
+      end.to raise_error(Necropsy::Error, /required corpora were not generated: external/)
+      expect(File.read(File.join(root, 'golden/candidate_union.json'))).to eq("existing golden\n")
+    end
+  end
+
   it 'reports unavailable RSS without presenting it as a peak measurement' do
     with_project(files: {
                    'labels.yml' => { 'labels' => [] }.to_yaml,

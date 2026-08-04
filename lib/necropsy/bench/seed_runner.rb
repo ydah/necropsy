@@ -19,7 +19,8 @@ module Necropsy
         clock: Process.method(:clock_gettime),
         analyzer: nil,
         rss_reader: nil,
-        revision_reader: nil
+        revision_reader: nil,
+        dirty_reader: nil
       )
         @manifest_path = File.expand_path(manifest_path)
         @output_dir = File.expand_path(output_dir)
@@ -28,6 +29,7 @@ module Necropsy
         @analyzer = analyzer || ->(root, config_path) { Necropsy.analyze(root: root, config_path: config_path) }
         @rss_reader = rss_reader || method(:read_process_rss)
         @revision_reader = revision_reader || method(:read_git_revision)
+        @dirty_reader = dirty_reader || method(:tracked_git_dirty?)
       end
 
       def call(update_golden_reason: nil)
@@ -43,7 +45,7 @@ module Necropsy
           diagnostics: diagnostics
         ).call
         write_json(File.join(output_dir, 'candidate_union.json'), union)
-        update_golden(update_golden_reason) if update_golden_reason
+        update_golden(update_golden_reason, corpus_runs) if update_golden_reason
         golden = golden_status
         report_golden_status(golden)
         summary = build_summary(corpus_runs, union, golden)
@@ -53,7 +55,7 @@ module Necropsy
 
       private
 
-      attr_reader :manifest_path, :output_dir, :io, :clock, :analyzer, :rss_reader, :revision_reader
+      attr_reader :manifest_path, :output_dir, :io, :clock, :analyzer, :rss_reader, :revision_reader, :dirty_reader
 
       def manifest
         @manifest ||= YAML.safe_load_file(manifest_path, aliases: false).tap do |payload|
@@ -83,7 +85,9 @@ module Necropsy
       def run_corpus(id, definition, reports)
         path = corpus_path(definition)
         return skipped_corpus(id, definition, path) unless path && File.directory?(path)
-        return failed_revision(id, definition, path) unless revision_matches?(definition, path)
+
+        revision_error = pinned_corpus_error(definition, path)
+        return failed_revision(id, definition, revision_error) if revision_error
 
         started_at = monotonic_time
         report = analyzer.call(path, config_path(path, definition))
@@ -128,21 +132,22 @@ module Necropsy
         { 'id' => id, 'status' => 'skipped', 'revision' => definition['revision'], 'diagnostic' => message }.compact
       end
 
-      def revision_matches?(definition, path)
+      def pinned_corpus_error(definition, path)
         expected = definition['git_commit']
-        return true unless expected
+        return unless expected
 
-        revision_reader.call(path, 'HEAD') == expected && tag_matches?(definition, path, expected)
-      end
+        actual = revision_reader.call(path, 'HEAD')
+        return "expected Git HEAD #{expected}, got #{actual || 'not a Git checkout'} at #{path}" unless actual == expected
 
-      def tag_matches?(definition, path, expected)
         tag = definition['git_tag']
-        !tag || revision_reader.call(path, "refs/tags/#{tag}^{commit}") == expected
+        tag_revision = revision_reader.call(path, "refs/tags/#{tag}^{commit}") if tag
+        return "expected Git tag #{tag} at #{expected}, got #{tag_revision || 'missing'}" if tag && tag_revision != expected
+
+        "tracked Git changes present at #{path}" if dirty_reader.call(path)
       end
 
-      def failed_revision(id, definition, path)
-        actual = revision_reader.call(path, 'HEAD') || 'not a Git checkout'
-        message = "#{id} failed: expected Git HEAD #{definition['git_commit']}, got #{actual} at #{path}"
+      def failed_revision(id, definition, reason)
+        message = "#{id} failed: #{reason}"
         diagnostics << message
         io.puts message
         { 'id' => id, 'status' => 'failed', 'revision' => definition['git_commit'], 'diagnostic' => message }
@@ -188,6 +193,13 @@ module Necropsy
         status.success? ? output.strip : nil
       rescue SystemCallError
         nil
+      end
+
+      def tracked_git_dirty?(path)
+        output, status = Open3.capture2e('git', '-C', path, 'status', '--porcelain', '--untracked-files=no')
+        !status.success? || !output.strip.empty?
+      rescue SystemCallError
+        true
       end
 
       def monotonic_time
@@ -267,17 +279,15 @@ module Necropsy
         File.write(path, "#{JSON.pretty_generate(payload)}\n")
       end
 
-      def update_golden(reason)
+      def update_golden(reason, corpus_runs)
         raise Error, 'Updating benchmark golden files requires a non-empty reason' if reason.to_s.strip.empty?
+
+        ensure_required_corpora_generated!(corpus_runs)
 
         golden_dir = File.expand_path(manifest.fetch('golden_dir'), repository_root)
         FileUtils.mkdir_p(File.join(golden_dir, 'reports'))
         FileUtils.cp(File.join(output_dir, 'candidate_union.json'), File.join(golden_dir, 'candidate_union.json'))
         sources = Dir.glob(File.join(output_dir, 'reports', '*.json'))
-        source_names = sources.map { |source| File.basename(source) }
-        Dir.glob(File.join(golden_dir, 'reports', '*.json')).each do |existing|
-          FileUtils.rm_f(existing) unless source_names.include?(File.basename(existing))
-        end
         sources.each do |source|
           FileUtils.cp(source, File.join(golden_dir, 'reports', File.basename(source)))
         end
@@ -286,6 +296,16 @@ module Necropsy
                      'update_reason' => reason.strip,
                      'artifacts' => artifact_digests(golden_dir).sort.to_h
                    })
+      end
+
+      def ensure_required_corpora_generated!(corpus_runs)
+        statuses = corpus_runs.to_h { |corpus| [corpus.fetch('id'), corpus.fetch('status')] }
+        missing = manifest.fetch('corpora').filter_map do |id, definition|
+          id if definition['required'] == true && statuses[id] != 'generated'
+        end.sort
+        return if missing.empty?
+
+        raise Error, "Cannot update golden files; required corpora were not generated: #{missing.join(', ')}"
       end
     end
   end

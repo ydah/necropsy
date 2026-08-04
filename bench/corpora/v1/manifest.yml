@@ -6,18 +6,22 @@ minimum_reviewed_labels: 30
 
 corpora:
   dynamic_evidence:
+    required: true
     kind: fixture
     path: spec/fixtures/benchmark/dynamic_evidence
     revision: benchmark-v1
   plain_ruby:
+    required: true
     kind: fixture
     path: spec/fixtures/benchmark/plain_ruby
     revision: benchmark-v1
   rails:
+    required: true
     kind: fixture
     path: spec/fixtures/sample_project
     revision: sample-project-v1
   rubocop_1_75_0:
+    required: true
     kind: external
     path_env: NECROPSY_RUBOCOP_CORPUS
     version: 1.75.0
@@ -25,6 +29,7 @@ corpora:
     git_commit: 9c2bc8eb11e269f1cf47113041a1be3ff615f68b
     revision: 9c2bc8eb11e269f1cf47113041a1be3ff615f68b
   self:
+    required: true
     kind: repository
     path: .
     revision: working-tree

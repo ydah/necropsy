@@ -18,7 +18,9 @@ fixture, and a positive dynamic-evidence fixture. The small fixtures are in `spe
 RuboCop is fixed to tag `v1.75.0` and commit `9c2bc8eb11e269f1cf47113041a1be3ff615f68b`;
 a checkout at another commit fails before analysis. Missing external corpora are recorded as
 explicit skips rather than downloaded automatically, but omission causes golden drift and a
-nonzero exit once the pinned RuboCop result is present in the golden set.
+nonzero exit once the pinned RuboCop result is present in the golden set. All five manifest entries
+are required for golden updates; an incomplete run raises an error before touching existing golden
+files. Pinned Git corpora must also have no tracked working-tree changes.
 
 The comparison-tool YAML files are versioned review seeds, not claims from a fresh tool execution.
 They exercise the candidate-union schema for Necropsy, Debride, Spoom, and a type-aware analyzer
