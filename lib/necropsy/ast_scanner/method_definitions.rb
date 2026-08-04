@@ -23,7 +23,7 @@ module Necropsy
         name: method_name,
         visibility: context.visibility
       )
-      record_module_function_copy(node, context, context.owner, method_name) if context.module_function
+      record_module_function_copy(node, context, definition) if context.module_function
 
       if node.block
         block_context = context.dup
@@ -114,13 +114,14 @@ module Necropsy
         context.module_function = true
         context.visibility = :private
       else
-        names.each { |name| promote_module_function(context, name, node) }
+        names.each { |name| defer_module_function(context, name, node) }
       end
       true
     end
 
-    def record_module_function_copy(node, context, _owner, method_name = node.name.to_s)
-      promote_module_function(context, method_name, node)
+    def record_module_function_copy(node, context, instance_node)
+      copy = add_module_function_definition(context, instance_node.name, node)
+      module_function_sources[copy.graph_id] = [instance_node.graph_id]
     end
 
     def handle_alias_method(node, context)

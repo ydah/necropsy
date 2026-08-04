@@ -76,11 +76,13 @@ module Necropsy
       @source_errors = []
       @definition_ordinals = Hash.new(0)
       @module_function_sources = {}
+      @deferred_module_functions = {}
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
     end
 
     def scan
       files.sort_by { |file| project.relative_path(file) }.each { |file| scan_file(file) }
+      resolve_deferred_module_function_sources
       copy_module_function_call_sites
       ScanResult.new(
         nodes: nodes,
@@ -97,6 +99,7 @@ module Necropsy
     private
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
-                :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources
+                :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
+                :deferred_module_functions
   end
 end

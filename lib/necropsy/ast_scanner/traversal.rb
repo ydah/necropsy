@@ -4,10 +4,20 @@ module Necropsy
   class AstScanner
     private
 
+    def resolve_deferred_module_function_sources
+      deferred_module_functions.each do |copy_id, instance_id|
+        module_function_sources[copy_id] = nodes.filter_map do |definition|
+          definition.graph_id if definition.kind == :instance_method && definition.symbol_id == instance_id
+        end
+      end
+    end
+
     def copy_module_function_call_sites
-      copies = module_function_sources.flat_map do |copy_id, source_id|
-        call_sites.select { |site| site.caller_id == source_id }.map do |site|
-          site.with(caller_id: copy_id, metadata: site.metadata.merge('module_function' => true))
+      copies = module_function_sources.flat_map do |copy_id, source_ids|
+        source_ids.flat_map do |source_id|
+          call_sites.select { |site| site.caller_id == source_id }.map do |site|
+            site.with(caller_id: copy_id, metadata: site.metadata.merge('module_function' => true))
+          end
         end
       end
       call_sites.concat(copies)
@@ -109,7 +119,7 @@ module Necropsy
         name: node.name.to_s,
         visibility: node.receiver ? :public : context.visibility
       )
-      record_module_function_copy(node, context, owner) if kind == :instance_method && context.module_function
+      record_module_function_copy(node, context, definition) if kind == :instance_method && context.module_function
       if node.name == :method_missing
         uncertainties[definition.graph_id] << "#{owner} defines method_missing"
         class_record(owner)[:dynamic] = true

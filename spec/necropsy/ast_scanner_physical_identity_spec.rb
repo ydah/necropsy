@@ -75,6 +75,57 @@ RSpec.describe Necropsy::AstScanner do
     end
   end
 
+  it 'copies calls from every reopened definition for an explicit module function' do
+    files = {
+      'lib/a.rb' => "module Tools\n  def work\n    from_a\n  end\nend\n",
+      'lib/b.rb' => "module Tools\n  def work\n    from_b\n  end\nend\n",
+      'lib/c.rb' => "module Tools\n  module_function :work\nend\n"
+    }
+
+    with_project(files: files) do |root|
+      scan = scan_project(root)
+      instances = definitions(scan, 'Tools#work')
+      module_copy = definitions(scan, 'Tools.work').fetch(0)
+      copied_calls = scan.call_sites.select { |site| site.caller_id == module_copy.graph_id }
+
+      expect(copied_calls.map(&:message)).to contain_exactly('from_a', 'from_b')
+      expect(instances.map(&:visibility)).to contain_exactly(:public, :public)
+    end
+  end
+
+  it 'resolves an explicit module function declared before reopened definitions' do
+    files = {
+      'lib/a_macro.rb' => "module Tools\n  module_function :work\nend\n",
+      'lib/b.rb' => "module Tools\n  def work\n    from_b\n  end\nend\n",
+      'lib/c.rb' => "module Tools\n  def work\n    from_c\n  end\nend\n"
+    }
+
+    with_project(files: files) do |root|
+      scan = scan_project(root)
+      module_copy = definitions(scan, 'Tools.work').fetch(0)
+      copied_calls = scan.call_sites.select { |site| site.caller_id == module_copy.graph_id }
+
+      expect(copied_calls.map(&:message)).to contain_exactly('from_b', 'from_c')
+    end
+  end
+
+  it 'keeps implicit module-function copies associated with their syntactic definitions' do
+    files = {
+      'lib/a.rb' => "module Tools\n  module_function\n  def work\n    from_a\n  end\nend\n",
+      'lib/b.rb' => "module Tools\n  module_function\n  def work\n    from_b\n  end\nend\n"
+    }
+
+    with_project(files: files) do |root|
+      scan = scan_project(root)
+      copies = definitions(scan, 'Tools.work').to_h { |definition| [definition.file, definition] }
+
+      expect(scan.call_sites.select { |site| site.caller_id == copies.fetch('lib/a.rb').graph_id }.map(&:message))
+        .to contain_exactly('from_a')
+      expect(scan.call_sites.select { |site| site.caller_id == copies.fetch('lib/b.rb').graph_id }.map(&:message))
+        .to contain_exactly('from_b')
+    end
+  end
+
   it 'keeps definition ids stable across comments and line shifts' do
     original = "class Shifted\n  def call\n    helper\n  end\nend\n"
     shifted = "# leading comment\n\nclass Shifted\n  # method comment\n  def call\n    helper\n  end\nend\n"
