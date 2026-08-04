@@ -25,8 +25,23 @@ RSpec.describe Necropsy::Reporter do
     context 'with partially matched dynamic evidence' do
       let(:format) { :human }
       let(:report) do
-        graph = graph_with(nodes: [node('Sample#live')])
+        full_caller = node('FullCaller#run')
+        full_callee = node('FullCallee#run')
+        partial_caller = node('PartialCaller#run')
+        graph = graph_with(nodes: [node('Sample#live'), full_caller, full_callee, partial_caller])
+        dynamic_edge = evidence(analyzer: :coverage, kind: :call_edge)
         result = analyzer_result(
+          edge_evidences: [
+            Necropsy::EdgeEvidence.new(
+              caller_id: full_caller.id, callee_id: full_callee.id, evidence: dynamic_edge
+            ),
+            Necropsy::EdgeEvidence.new(
+              caller_id: partial_caller.id, callee_id: 'MissingCallee#run', evidence: dynamic_edge
+            ),
+            Necropsy::EdgeEvidence.new(
+              caller_id: 'MissingCaller#run', callee_id: 'OtherMissingCallee#run', evidence: dynamic_edge
+            )
+          ],
           alive_evidences: [
             Necropsy::AliveEvidence.new(node_id: 'Sample#live', evidence: evidence(kind: :alive)),
             Necropsy::AliveEvidence.new(node_id: 'Other#live', evidence: evidence(kind: :alive))
@@ -40,15 +55,27 @@ RSpec.describe Necropsy::Reporter do
       it 'renders match counts and an unmatched sample' do
         output = nil
 
-        expect { output = rendered }.to output(/matched 1 of 2 dynamic node IDs/).to_stderr
+        expect { output = rendered }.to output(
+          /matched 1 of 2 dynamic node IDs.*fully matched 1 of 3 dynamic edges; partially matched 1; unmatched 1/m
+        ).to_stderr
         expect(output).to include(
-          'Dynamic evidence (positive-only): nodes attempted=2 matched=1 unmatched=1; ' \
-          'edges attempted=0 matched=0 unmatched=0',
-          'Unmatched dynamic evidence: Other#live'
+          'Dynamic evidence (positive-only): nodes attempted=2 matched=1 partial=0 unmatched=1; ' \
+          'edges attempted=3 matched=1 partial=1 unmatched=1',
+          'Unmatched dynamic evidence: Other#live, '
         )
-        expect(report.to_h.fetch('diagnostics').fetch('dynamic_evidence')).to include(
-          'unmatched' => { 'nodes' => 1, 'edges' => 0 }
+        diagnostic = report.to_h.fetch('diagnostics').fetch('dynamic_evidence')
+        expect(diagnostic).to include(
+          'attempted' => { 'nodes' => 2, 'edges' => 3 },
+          'matched' => { 'nodes' => 1, 'edges' => 1 },
+          'partially_matched' => { 'nodes' => 0, 'edges' => 1 },
+          'unmatched' => { 'nodes' => 1, 'edges' => 1 }
         )
+        %w[nodes edges].each do |kind|
+          expect(diagnostic.dig('attempted', kind)).to eq(
+            diagnostic.dig('matched', kind) + diagnostic.dig('partially_matched', kind) +
+            diagnostic.dig('unmatched', kind)
+          )
+        end
       end
     end
 

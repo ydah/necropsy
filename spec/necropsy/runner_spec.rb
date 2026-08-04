@@ -264,25 +264,30 @@ RSpec.describe Necropsy::Runner do
       cache: { enabled: false },
       entry_points: { extra: ['Caller#run'] }
     }
-    without_rta = nil
-    with_rta = nil
+    without_rta_report = nil
+    with_rta_report = nil
 
     with_project(
       files: { 'app/sample.rb' => rta_source },
       config: common.merge(analyzers: { static: [] })
     ) do |root|
-      without_rta = described_class.new(root: root).analyze.dead_methods(min_confidence: :high).map { |finding| finding.node.id }
+      without_rta_report = described_class.new(root: root).analyze
     end
     with_project(
       files: { 'app/sample.rb' => rta_source },
       config: common.merge(analyzers: { static: ['rta'] })
     ) do |root|
-      with_rta = described_class.new(root: root).analyze.dead_methods(min_confidence: :high).map { |finding| finding.node.id }
+      with_rta_report = described_class.new(root: root).analyze
     end
 
-    expect(without_rta).to include('Live#render')
-    expect(with_rta).not_to include('Live#render')
-    expect(with_rta - without_rta).to be_empty
+    without_rta_candidates = without_rta_report.dead_methods(min_confidence: :low).map { |finding| finding.node.id }
+    with_rta_candidates = with_rta_report.dead_methods(min_confidence: :low).map { |finding| finding.node.id }
+    expect(without_rta_candidates).to include('Live#render')
+    expect(with_rta_candidates).not_to include('Live#render')
+
+    without_rta_high = without_rta_report.dead_methods(min_confidence: :high).map { |finding| finding.node.id }
+    with_rta_high = with_rta_report.dead_methods(min_confidence: :high).map { |finding| finding.node.id }
+    expect(with_rta_high - without_rta_high).to be_empty
   end
 
   def render_targets_for(report, message)

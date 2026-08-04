@@ -60,11 +60,13 @@ module Necropsy
 
       attempted = diagnostic.fetch('attempted')
       matched = diagnostic.fetch('matched')
+      partially_matched = diagnostic.fetch('partially_matched')
       unmatched = diagnostic.fetch('unmatched')
       samples = diagnostic.fetch('unmatched_samples').values.flatten
       lines << "Dynamic evidence (positive-only): nodes attempted=#{attempted['nodes']} matched=#{matched['nodes']} " \
-               "unmatched=#{unmatched['nodes']}; edges attempted=#{attempted['edges']} matched=#{matched['edges']} " \
-               "unmatched=#{unmatched['edges']}"
+               "partial=#{partially_matched['nodes']} unmatched=#{unmatched['nodes']}; " \
+               "edges attempted=#{attempted['edges']} matched=#{matched['edges']} " \
+               "partial=#{partially_matched['edges']} unmatched=#{unmatched['edges']}"
       lines << "Unmatched dynamic evidence: #{samples.join(', ')}" unless samples.empty?
     end
 
