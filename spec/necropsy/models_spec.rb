@@ -64,6 +64,25 @@ RSpec.describe 'Necropsy model objects' do
     end
   end
 
+  describe Necropsy::ScanResult do
+    it 'keeps construction without source completeness fields compatible' do
+      result = scan_result(nodes: [])
+
+      expect(result.file_statuses).to eq({})
+      expect(result.source_errors).to eq([])
+    end
+  end
+
+  describe Necropsy::SourceError do
+    it 'serializes its source location and diagnostic type' do
+      error = described_class.new(file: 'lib/sample.rb', line: 3, message: 'unexpected token', type: :parse_error)
+
+      expect(error.to_h).to eq(
+        'file' => 'lib/sample.rb', 'line' => 3, 'message' => 'unexpected token', 'type' => 'parse_error'
+      )
+    end
+  end
+
   describe Necropsy::Blocker do
     it 'serializes scope, source, action, and call-site metadata' do
       blocker = described_class.new(

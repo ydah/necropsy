@@ -128724,7 +128724,7 @@
       "corpus": "self",
       "id": "Necropsy::AstScanner::Context#file=",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 35,
+      "line": 49,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -128746,7 +128746,7 @@
       "corpus": "self",
       "id": "Necropsy::AstScanner::Context#module_function",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 35,
+      "line": 49,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -128768,7 +128768,7 @@
       "corpus": "self",
       "id": "Necropsy::AstScanner::Context#relative_file=",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 35,
+      "line": 49,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -128790,7 +128790,7 @@
       "corpus": "self",
       "id": "Necropsy::AstScanner::Context#root_id=",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 35,
+      "line": 49,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -128812,7 +128812,7 @@
       "corpus": "self",
       "id": "Necropsy::AstScanner::Context#test=",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 35,
+      "line": 49,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130132,7 +130132,7 @@
       "corpus": "self",
       "id": "Necropsy::CallGraph#dynamic_enabled?",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 107,
+      "line": 112,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130154,7 +130154,7 @@
       "corpus": "self",
       "id": "Necropsy::CallGraph#modules_for",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 153,
+      "line": 175,
       "tool_results": {
         "debride": {
           "candidate": false

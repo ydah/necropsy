@@ -52,6 +52,7 @@ module Necropsy
         'nodes' => graph.nodes.length,
         'edges' => graph.edges.length,
         'entry_points' => graph.entry_points.length,
+        'incomplete_files' => graph.incomplete_files.length,
         'findings' => reported_findings.length,
         'unreachable' => grouped.fetch(:unreachable, []).length,
         'unused' => grouped.fetch(:unused, []).length,
@@ -61,8 +62,11 @@ module Necropsy
     end
 
     def diagnostics
+      result = {}
       dynamic = graph.dynamic_evidence_diagnostic
-      dynamic ? { 'dynamic_evidence' => dynamic } : {}
+      result['dynamic_evidence'] = dynamic if dynamic
+      result['source_incompleteness'] = graph.source_incompleteness if graph.incomplete_files.any?
+      result
     end
 
     private

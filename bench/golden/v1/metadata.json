@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "update_reason": "Record scoped unresolved dispatch blockers",
+  "update_reason": "Record parse incompleteness safety barrier",
   "artifacts": {
-    "candidate_union.json": "7ebd1f9a3ae644d429acd1f084fe60643086b6123cfb71701012d77bd6ad8858",
+    "candidate_union.json": "5168a90f8ab65efe2fcd9efc559cb2f11601db27de60c7bae31fd9ad1d26de79",
     "reports/dynamic_evidence.json": "f3c0d56cc4dc89f68fede9b34b551cd9423577f95fea37b17896bf54453ed91d",
     "reports/plain_ruby.json": "0aa08379241266e828fc64a2018c673f7ca2e1a664f9786c44dbac606c5a08d1",
     "reports/rails.json": "7a18e296e2ad72944161bd4c7a528768f6ce2c9fadbd078731ebac5241117d24",
     "reports/rubocop_1_75_0.json": "615e3d9fffac45ec71e301bcd9efe0ddb7f72df6acab218eb8fb5b6461df68dd",
-    "reports/self.json": "2a8840e4816f7051687f4904cb1f94305bde442f7693b6d5c9ff11935d9f4b72"
+    "reports/self.json": "f710f8a6822da02a5a1b571281681b6bed9dd1bcb2d4cb49a36c0be965a0b26f"
   }
 }

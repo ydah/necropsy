@@ -14,28 +14,28 @@ module Necropsy
 
     def why(node_id)
       node = graph.nodes[node_id]
-      return missing_payload(node_id) unless node
+      return with_source_incompleteness(missing_payload(node_id)) unless node
 
       runtime_path = reachability.witness(node_id)
-      return alive_payload(node, runtime_path, :runtime) if runtime_path
+      return with_source_incompleteness(alive_payload(node, runtime_path, :runtime)) if runtime_path
 
       finding = finding_for(node_id)
-      return dead_payload(node, finding) if finding&.classification == :blocked
+      return with_source_incompleteness(dead_payload(node, finding)) if finding&.classification == :blocked
 
       test_path = reachability.witness(node_id, kind: :test)
-      return alive_payload(node, test_path, :test) if test_path
+      return with_source_incompleteness(alive_payload(node, test_path, :test)) if test_path
 
-      dead_payload(node, finding)
+      with_source_incompleteness(dead_payload(node, finding))
     end
 
     def explain(node_id)
       node = graph.nodes[node_id]
-      return missing_payload(node_id) unless node
+      return with_source_incompleteness(missing_payload(node_id)) unless node
 
       finding = finding_for(node_id)
-      return { 'status' => 'alive', 'node' => node.to_h } unless finding
+      return with_source_incompleteness({ 'status' => 'alive', 'node' => node.to_h }) unless finding
 
-      {
+      payload = {
         'status' => 'finding',
         'node' => node.to_h,
         'classification' => finding.classification.to_s,
@@ -45,6 +45,7 @@ module Necropsy
         'reasons' => finding.reasons,
         'blockers' => finding.blockers.map(&:to_h)
       }
+      with_source_incompleteness(payload)
     end
 
     def render(payload, format: :human)
@@ -147,13 +148,14 @@ module Necropsy
     end
 
     def render_human(payload)
-      case payload.fetch('status')
-      when 'alive' then render_alive(payload)
-      when 'dead', 'blocked' then render_dead(payload)
-      when 'finding' then render_explanation(payload)
-      when 'not_found' then render_missing(payload)
-      else "#{payload.dig('node', 'id')} is alive and has no dead-code finding."
-      end
+      rendered = case payload.fetch('status')
+                 when 'alive' then render_alive(payload)
+                 when 'dead', 'blocked' then render_dead(payload)
+                 when 'finding' then render_explanation(payload)
+                 when 'not_found' then render_missing(payload)
+                 else "#{payload.dig('node', 'id')} is alive and has no dead-code finding."
+                 end
+      append_source_incompleteness(rendered, payload)
     end
 
     def render_alive(payload)
@@ -218,6 +220,30 @@ module Necropsy
     def render_missing(payload)
       lines = ["Node not found: #{payload['node_id']}"]
       lines << "Suggestions: #{payload['suggestions'].join(', ')}" unless payload['suggestions'].empty?
+      lines.join("\n")
+    end
+
+    def with_source_incompleteness(payload)
+      return payload if graph.incomplete_files.empty?
+
+      payload.merge('source_incompleteness' => graph.source_incompleteness)
+    end
+
+    def append_source_incompleteness(rendered, payload)
+      diagnostic = payload['source_incompleteness']
+      return rendered unless diagnostic
+
+      lines = [rendered, "Incomplete source files: #{diagnostic['incomplete_files']}"]
+      diagnostic.fetch('files').each do |file|
+        errors = file.fetch('errors')
+        if errors.empty?
+          lines << "  #{file['file']}:1 [#{file['status']}]"
+        else
+          errors.each do |error|
+            lines << "  #{error['file']}:#{error['line']} [#{error['type']}] #{error['message']}"
+          end
+        end
+      end
       lines.join("\n")
     end
   end

@@ -6,7 +6,7 @@ require 'json'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 4
+      VERSION = 5
 
       def initialize(project:)
         @project = project
@@ -89,7 +89,9 @@ module Necropsy
           'instantiated_classes' => result.instantiated_classes.to_a.sort,
           'uncertainties' => result.uncertainties.transform_values { |messages| Array(messages).map(&:to_s) },
           'class_infos' => result.class_infos.map(&:to_h),
-          'entrypoint_hints' => result.entrypoint_hints.map(&:to_h)
+          'entrypoint_hints' => result.entrypoint_hints.map(&:to_h),
+          'file_statuses' => result.file_statuses.transform_values(&:to_s),
+          'source_errors' => result.source_errors.map(&:to_h)
         }
       end
 
@@ -100,7 +102,18 @@ module Necropsy
           instantiated_classes: Set.new(Array(data['instantiated_classes'])),
           uncertainties: deserialize_uncertainties(data['uncertainties']),
           class_infos: Array(data['class_infos']).map { |info| deserialize_class_info(info) },
-          entrypoint_hints: Array(data['entrypoint_hints']).map { |entry| deserialize_entry_point(entry) }
+          entrypoint_hints: Array(data['entrypoint_hints']).map { |entry| deserialize_entry_point(entry) },
+          file_statuses: (data['file_statuses'] || {}).transform_values(&:to_sym),
+          source_errors: Array(data['source_errors']).map { |error| deserialize_source_error(error) }
+        )
+      end
+
+      def deserialize_source_error(data)
+        SourceError.new(
+          file: data['file'],
+          line: data['line']&.to_i || 1,
+          message: data['message'],
+          type: data['type'].to_s
         )
       end
 

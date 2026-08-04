@@ -81,6 +81,8 @@ module Necropsy
     end
 
     def blocker_visibility_matches?(blocker, node)
+      return true if blocker.scope_kind.to_sym == :file
+
       metadata = blocker.metadata
       receiver_kind = (metadata['receiver_kind'] || metadata[:receiver_kind])&.to_sym
       original_message = (metadata['original_message'] || metadata[:original_message])&.to_s

@@ -37,9 +37,11 @@ module Necropsy
         'Necropsy report',
         "Root: #{report.root}",
         "Nodes: #{report.summary['nodes']}, Edges: #{report.summary['edges']}, Entry points: #{report.summary['entry_points']}",
+        "Incomplete source files: #{report.summary['incomplete_files']}",
         "Findings: #{findings.length}"
       ]
       append_dynamic_diagnostic(lines)
+      append_source_diagnostic(lines)
 
       findings.group_by(&:classification).sort_by do |classification, _|
         classification.to_s
@@ -81,6 +83,23 @@ module Necropsy
                "edges attempted=#{attempted['edges']} matched=#{matched['edges']} " \
                "partial=#{partially_matched['edges']} unmatched=#{unmatched['edges']}"
       lines << "Unmatched dynamic evidence: #{samples.join(', ')}" unless samples.empty?
+    end
+
+    def append_source_diagnostic(lines)
+      diagnostic = report.diagnostics['source_incompleteness']
+      return unless diagnostic
+
+      diagnostic.fetch('files').each do |file|
+        errors = file.fetch('errors')
+        if errors.empty?
+          lines << "Incomplete source: #{file['file']}:1 [#{file['status']}]"
+          next
+        end
+
+        errors.each do |error|
+          lines << "Incomplete source: #{error['file']}:#{error['line']} [#{error['type']}] #{error['message']}"
+        end
+      end
     end
 
     def render_github_annotations(min_confidence)

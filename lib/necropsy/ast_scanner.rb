@@ -10,7 +10,21 @@ require_relative 'ast_scanner/references'
 require_relative 'ast_scanner/ruby_semantics'
 
 module Necropsy
-  ScanResult = Data.define(:nodes, :call_sites, :instantiated_classes, :uncertainties, :class_infos, :entrypoint_hints)
+  ScanResult = Data.define(
+    :nodes,
+    :call_sites,
+    :instantiated_classes,
+    :uncertainties,
+    :class_infos,
+    :entrypoint_hints,
+    :file_statuses,
+    :source_errors
+  ) do
+    def initialize(nodes:, call_sites:, instantiated_classes:, uncertainties:, class_infos:, entrypoint_hints:,
+                   file_statuses: {}, source_errors: [])
+      super
+    end
+  end
 
   class AstScanner
     ATTR_MACROS = %i[attr_reader attr_writer attr_accessor].freeze
@@ -56,6 +70,8 @@ module Necropsy
       @uncertainties = Hash.new { |hash, key| hash[key] = [] }
       @class_data = {}
       @entrypoint_hints = []
+      @file_statuses = {}
+      @source_errors = []
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
     end
 
@@ -68,13 +84,15 @@ module Necropsy
         instantiated_classes: instantiated_classes,
         uncertainties: uncertainties,
         class_infos: class_infos,
-        entrypoint_hints: entrypoint_hints.uniq
+        entrypoint_hints: entrypoint_hints.uniq,
+        file_statuses: file_statuses,
+        source_errors: source_errors
       )
     end
 
     private
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
-                :entrypoint_hints
+                :entrypoint_hints, :file_statuses, :source_errors
   end
 end

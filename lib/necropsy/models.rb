@@ -135,6 +135,17 @@ module Necropsy
   EdgeEvidence = Data.define(:caller_id, :callee_id, :evidence)
   AliveEvidence = Data.define(:node_id, :evidence)
 
+  SourceError = Data.define(:file, :line, :message, :type) do
+    def to_h
+      {
+        'file' => file,
+        'line' => line,
+        'message' => message,
+        'type' => type.to_s
+      }
+    end
+  end
+
   Blocker = Data.define(:kind, :scope_kind, :scope_value, :source, :reason, :suggested_action, :metadata) do
     def initialize(kind:, scope_kind:, scope_value:, source:, reason:, suggested_action: :review, metadata: {})
       super

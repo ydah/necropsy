@@ -33,7 +33,12 @@ module Necropsy
       )
 
       result = Prism.parse(File.read(file))
-      record_parse_errors(root_id, result) if result.failure?
+      if result.failure?
+        file_statuses[relative] = :recovered
+        record_parse_errors(root_id, relative, result)
+      else
+        file_statuses[relative] = :complete
+      end
 
       visit(
         result.value,
@@ -52,7 +57,7 @@ module Necropsy
         )
       )
     rescue SystemCallError, EncodingError => e
-      uncertainties[root_id] << "Could not parse #{relative}: #{e.message}"
+      record_source_failure(root_id, relative, e)
     end
 
     def visit(node, context)

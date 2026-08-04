@@ -94,10 +94,27 @@ module Necropsy
       DYNAMIC_SENDS.include?(node.name) && first_symbol_argument(node).nil? && first_string_argument(node).nil?
     end
 
-    def record_parse_errors(root_id, result)
+    def record_parse_errors(root_id, relative, result)
       result.errors.each do |error|
         uncertainties[root_id] << "Parse warning at line #{error.location.start_line}: #{error.message}"
+        source_errors << SourceError.new(
+          file: relative,
+          line: error.location.start_line,
+          message: error.message,
+          type: error.type
+        )
       end
+    end
+
+    def record_source_failure(root_id, relative, error)
+      file_statuses[relative] = :failed
+      uncertainties[root_id] << "Could not parse #{relative}: #{error.message}"
+      source_errors << SourceError.new(
+        file: relative,
+        line: 1,
+        message: error.message,
+        type: error.class.name
+      )
     end
 
     def definition_owner(node, context)

@@ -6,7 +6,7 @@ module Necropsy
     include BlockerMatching
 
     attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
-                :entrypoint_hints, :ambiguity_limit
+                :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors
 
     def initialize(scan_result, ambiguity_limit: 4)
       @nodes = {}
@@ -16,6 +16,10 @@ module Necropsy
       @instantiated_classes = scan_result.instantiated_classes.dup
       @class_infos = scan_result.class_infos.to_h { |info| [info.id, info] }
       @entrypoint_hints = scan_result.entrypoint_hints
+      @file_statuses = scan_result.file_statuses.to_h do |file, status|
+        [file.to_s, status.to_sym]
+      end
+      @source_errors = scan_result.source_errors.dup
       @ambiguity_limit = ambiguity_limit
       @blockers = []
       @blocker_keys = Set.new
@@ -29,6 +33,7 @@ module Necropsy
       @observation = {}
       @descendants = {}
       scan_result.nodes.each { |node| add_node(node) }
+      register_incomplete_source_blockers
       retain_known_instantiated_classes
     end
 
@@ -130,6 +135,23 @@ module Necropsy
       return @uncertainties unless node_id
 
       @uncertainties.fetch(node_id, [])
+    end
+
+    def incomplete_files
+      file_statuses.filter_map { |file, status| file unless status == :complete }.sort
+    end
+
+    def source_incompleteness
+      {
+        'incomplete_files' => incomplete_files.length,
+        'files' => incomplete_files.map do |file|
+          {
+            'file' => file,
+            'status' => file_statuses.fetch(file).to_s,
+            'errors' => source_errors.select { |error| error.file == file }.map(&:to_h)
+          }
+        end
+      }
     end
 
     def method_nodes
@@ -248,11 +270,34 @@ module Necropsy
         'instantiated_classes' => instantiated_classes.to_a.sort,
         'profiles' => profiles.map(&:to_h),
         'blockers' => blockers.map(&:to_h),
+        'file_statuses' => file_statuses.transform_values(&:to_s),
+        'source_errors' => source_errors.map(&:to_h),
         'observation' => observation
       }
     end
 
     private
+
+    def register_incomplete_source_blockers
+      incomplete_files.each do |file|
+        errors = source_errors.select { |error| error.file == file }
+        first_error = errors.first
+        status = file_statuses.fetch(file)
+        add_blocker(Blocker.new(
+                      kind: :parse_incomplete,
+                      scope_kind: :file,
+                      scope_value: file,
+                      source: first_error || :ast_scanner,
+                      reason: "Source file was #{status}; dead-code conclusions are incomplete",
+                      metadata: {
+                        'file' => file,
+                        'line' => first_error&.line || 1,
+                        'status' => status.to_s,
+                        'source_errors' => errors.map(&:to_h)
+                      }
+                    ))
+      end
+    end
 
     def candidates_for_receiver(site)
       case site.receiver_kind
