@@ -1,0 +1,16 @@
+schema_version: 1
+captured_at: "2026-08-04T21:10:00+09:00"
+git_ref: 51d490188ae9ad846b4c023f14e252ec624a2d5e
+environment:
+  ruby: "ruby 4.0.0 (2025-12-25 revision 553f1675f3) +PRISM [arm64-darwin24]"
+  os: "macOS 26.3 (25D125), Darwin 25.3.0 arm64"
+  command: "NECROPSY_RUBOCOP_CORPUS=/private/tmp/necropsy-rubocop-1.75.0 bundle exec ruby bench/run.rb"
+  execution: "detached temporary worktree; sandbox-external run so ps-based RSS measurement was available"
+  rss_kind: current_process_rss_after_corpus
+  rss_scope: benchmark_runner_process
+corpora:
+  dynamic_evidence: { wall_time_seconds: 0.001035, rss_kb: 52720 }
+  plain_ruby: { wall_time_seconds: 0.001883, rss_kb: 53088 }
+  rails: { wall_time_seconds: 0.003610, rss_kb: 54272 }
+  rubocop_1_75_0: { wall_time_seconds: 5.196168, rss_kb: 576256 }
+  self: { wall_time_seconds: 0.217221, rss_kb: 608448 }

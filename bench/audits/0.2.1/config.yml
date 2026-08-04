@@ -1,0 +1,43 @@
+schema_version: 1
+release: 0.2.1
+corpora: [dynamic_evidence, plain_ruby, rails, rubocop_1_75_0, self]
+
+baseline:
+  git_ref: 51d490188ae9ad846b4c023f14e252ec624a2d5e
+  reports_path: bench/golden/v1/reports
+  reason: >-
+    51d490188ae9ad846b4c023f14e252ec624a2d5e is the first commit with integrity-bound normalized
+    reports for all five required P0-01
+    corpora, including the pinned RuboCop 1.75.0 checkout, so it is the reproducible pre-safety baseline.
+
+labels_path: bench/corpora/v1/labels.yml
+
+review:
+  path: bench/audits/0.2.1/review.yml
+  corpora:
+    rails: { strategy: all }
+    rubocop_1_75_0: { strategy: stratified, minimum_per_stratum: 5 }
+
+performance:
+  baseline_path: bench/audits/0.2.1/baseline_performance.yml
+  wall_time_ratio: 1.5
+  wall_time_allowance_seconds: 0.75
+  max_wall_time_seconds:
+    dynamic_evidence: 1.0
+    plain_ruby: 1.0
+    rails: 2.0
+    rubocop_1_75_0: 10.0
+    self: 2.0
+  rss_ratio: 1.25
+  rss_allowance_kb: 65536
+  max_rss_kb: 700000
+
+adversarial_suites:
+  ambiguity:
+    command: [bundle, exec, rspec, spec/necropsy/safety_invariants_spec.rb, spec/necropsy/reflective_blocker_visibility_spec.rb]
+  dynamic:
+    command: [bundle, exec, rspec, spec/necropsy/analyzers/dynamic/coverage_importer_spec.rb, spec/necropsy/confidence/scorer_spec.rb]
+  parse:
+    command: [bundle, exec, rspec, spec/necropsy/parse_incompleteness_spec.rb]
+  remote_input:
+    command: [bundle, exec, rspec, spec/necropsy/analyzers/dynamic/coverband_importer_spec.rb]

@@ -1,0 +1,56 @@
+schema_version: 1
+reviews:
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::Cop::Force#cops"
+    outcome: expected_safety_change
+    rationale: "A runtime unknown-dispatch blocker now conservatively overrides test-only status, so this finding cannot remain a deletion candidate."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::Cop::Force#name"
+    outcome: expected_safety_change
+    rationale: "Runtime dispatch by name is incomplete; blocked correctly takes precedence over the prior test-only conclusion."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::DirectiveComment#range"
+    outcome: expected_safety_change
+    rationale: "The new unresolved runtime call scope matches range, making blocked safer than the legacy test-only state."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::Formatter::SimpleTextFormatter#message"
+    outcome: expected_safety_change
+    rationale: "An unresolved runtime message call can target this method, so the blocked transition withdraws the candidate conservatively."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::CLI::Command::AutoGenerateConfig#run"
+    outcome: expected_safety_change
+    rationale: "CLI command classes are registry-selected; the run blocker removes a known dynamic-registry false positive from candidates."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::CLI::Command::ExecuteRunner#run"
+    outcome: expected_safety_change
+    rationale: "CLI command classes are registry-selected; the run blocker removes a known dynamic-registry false positive from candidates."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::CLI::Command::InitDotfile#run"
+    outcome: expected_safety_change
+    rationale: "CLI command classes are registry-selected; the run blocker removes a known dynamic-registry false positive from candidates."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::CLI::Command::LSP#run"
+    outcome: expected_safety_change
+    rationale: "CLI command classes are registry-selected; the run blocker removes a known dynamic-registry false positive from candidates."
+    reviewer: maintainer
+  - corpus: rubocop_1_75_0
+    change_type: state_changed
+    id: "RuboCop::CLI::Command::ShowCops#run"
+    outcome: expected_safety_change
+    rationale: "CLI command classes are registry-selected; the run blocker removes a known dynamic-registry false positive from candidates."
+    reviewer: maintainer

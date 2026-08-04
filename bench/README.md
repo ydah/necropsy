@@ -37,3 +37,25 @@ bundle exec ruby bench/run.rb --update-golden 'explain the intentional finding d
 Review `candidate_union.json` before accepting drift. Labels use `dead`, `alive`, `external`, or
 `unknown`, and every reviewed label includes a rationale. A label that does not match an actual
 candidate from a generated Necropsy report or a versioned comparison snapshot is rejected.
+
+## 0.2.1 safety release audit
+
+The release audit compares all five current corpus reports with the first integrity-bound
+five-corpus snapshot, reviews deterministic Rails/RuboCop differences, runs the dynamic, parse,
+ambiguity, and remote-input adversarial suites, and enforces wall-time and RSS budgets:
+
+```shell
+NECROPSY_RUBOCOP_CORPUS=/path/to/rubocop-1.75.0 \
+  bundle exec ruby bench/audit.rb
+```
+
+Run it from a clean worktree. The command binds generated reports to the exact Git revision and to
+the benchmark manifest and audit-config digests. It also records Ruby, OS, command, and RSS
+measurement provenance, and fails closed when those values are incompatible with the saved
+baseline. `--skip-benchmark` is intended only for an immediate rerun: it verifies the saved report
+digests and all source provenance before accepting existing output. `--skip-adversarial` records
+the suites as not run and cannot pass the release gate.
+
+The reviewed input policy and baseline performance measurement live under
+`bench/audits/0.2.1`. A passing run writes `audit.json` and `audit.md` there; neither an empty policy
+nor an unknown review outcome is accepted.
