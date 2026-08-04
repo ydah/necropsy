@@ -249,7 +249,28 @@ RSpec.describe Necropsy::CLI do
         end.to output(/Alive \(runtime\).*CliDiagnostics#live/m).to_stdout
         expect do
           described_class.run(['explain', 'CliDiagnostics#dead', '--root', project_root])
-        end.to output(/CliDiagnostics#dead: unreachable.*base\(unreachable\)/m).to_stdout
+        end.to output(/CliDiagnostics#dead \[def:v1:[a-f0-9]+\]: unreachable.*base\(unreachable\)/m).to_stdout
+      end
+
+      it 'requires either a logical symbol or physical definition ID' do
+        result = nil
+
+        expect { result = described_class.run(['why', '--root', project_root]) }
+          .to output(/why requires a symbol or definition ID/).to_stderr
+        expect(result).to eq(2)
+      end
+
+      it 'lists executable physical-ID commands for an ambiguous symbol' do
+        ambiguous_root = create_project(files: {
+                                          'lib/first.rb' => "class Repeated\n  def run; end\nend\n",
+                                          'lib/second.rb' => "class Repeated\n  def run; end\nend\n"
+                                        })
+
+        expect do
+          described_class.run(['why', 'Repeated#run', '--root', ambiguous_root])
+        end.to output(
+          /Ambiguous symbol ID: Repeated#run.*Matched 2 physical definitions:.*why: bundle exec necropsy why def:v1:/m
+        ).to_stdout
       end
     end
   end

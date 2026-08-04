@@ -17,7 +17,7 @@ RSpec.describe Necropsy::Reporter do
       end
 
       it 'renders only findings at or above the requested confidence' do
-        expect(rendered).to include('Necropsy report', 'Findings: 1', '[high] Sample#dead app/sample.rb:3')
+        expect(rendered).to include('Necropsy report', 'Findings: 1', '[high] Sample#dead [Sample#dead] app/sample.rb:3')
         expect(rendered).not_to include('Sample#maybe')
       end
     end
@@ -106,7 +106,7 @@ RSpec.describe Necropsy::Reporter do
       it 'keeps blocker diagnostics visible independently of candidate confidence filtering' do
         expect(rendered).to include(
           'blocked (1)',
-          '[low] Handler#call app/handler.rb:4',
+          '[low] Handler#call [Handler#call] app/handler.rb:4',
           'blocker unknown_dispatch at app/router.rb:12 caller=Router#route',
           'scope message="call" message=call',
           'reason receiver is unknown'
@@ -141,15 +141,17 @@ RSpec.describe Necropsy::Reporter do
     context 'with GitHub annotations' do
       let(:format) { :github }
       let(:report) do
-        report_with_findings([
-                               finding(id: 'Sample#dead', confidence: :high, classification: :unreachable,
-                                       file: 'app/sample.rb', line: 3)
-                             ])
+        logical = finding(
+          id: 'Sample#dead', confidence: :high, classification: :unreachable, file: 'app/sample.rb', line: 3
+        )
+        physical = logical.with(node: logical.node.with(definition_id: 'def:v1:dead'))
+        report_with_findings([physical])
       end
 
       it 'renders workflow warning commands' do
         expect(rendered).to eq(
-          '::warning file=app/sample.rb,line=3,title=Necropsy high::unreachable Sample#dead confidence=high'
+          '::warning file=app/sample.rb,line=3,title=Necropsy high::unreachable Sample#dead ' \
+          'definition_id=def:v1:dead confidence=high'
         )
       end
     end
@@ -202,9 +204,12 @@ RSpec.describe Necropsy::Reporter do
     context 'with SARIF output' do
       let(:format) { :sarif }
       let(:report) do
+        dead = finding(
+          id: 'Sample#dead', confidence: :certain, classification: :unreachable, file: 'app/sample.rb', line: 3
+        )
+        dead = dead.with(node: dead.node.with(definition_id: 'def:v1:dead'))
         report_with_findings([
-                               finding(id: 'Sample#dead', confidence: :certain, classification: :unreachable, file: 'app/sample.rb',
-                                       line: 3),
+                               dead,
                                finding(id: 'Sample#maybe', confidence: :low, classification: :unused,
                                        file: 'app/sample.rb', line: 8)
                              ])
@@ -216,6 +221,79 @@ RSpec.describe Necropsy::Reporter do
         expect(payload).to include('version' => '2.1.0')
         expect(results.map { |result| result.fetch('level') }).to contain_exactly('error', 'note')
         expect(results.first.fetch('partialFingerprints')).to include('necropsy')
+        dead_result = results.find { |result| result.dig('properties', 'definitionId') == 'def:v1:dead' }
+        expect(dead_result.fetch('properties')).to eq(
+          'symbolId' => 'Sample#dead', 'definitionId' => 'def:v1:dead'
+        )
+        expect(dead_result.dig('partialFingerprints', 'necropsy')).to eq(report.findings.first.fingerprint)
+      end
+    end
+
+    context 'with definition-resolution ambiguity' do
+      let(:format) { :human }
+      let(:report) do
+        graph = graph_with(nodes: [])
+        graph.observation['definition_resolution'] = {
+          'ambiguous_input_count' => 6,
+          'ambiguous_inputs' => 6.times.map do |index|
+            {
+              'kind' => 'alive', 'identifier' => "Repeated#{index}#run",
+              'definition_ids' => ["def:v1:#{index}-a", "def:v1:#{index}-b"]
+            }
+          end
+        }
+        report_with_findings([], graph: graph)
+      end
+
+      it 'renders a bounded summary of ambiguous inputs' do
+        expect(rendered).to include(
+          'Ambiguous definition inputs: 6',
+          'alive Repeated0#run -> def:v1:0-a, def:v1:0-b',
+          '... 1 more'
+        )
+        expect(rendered).not_to include('Repeated5#run')
+      end
+    end
+
+    context 'with a graph-recorded definition-resolution ambiguity' do
+      let(:format) { :human }
+      let(:report) do
+        first = node('Repeated#run', definition_id: 'def:v1:first')
+        second = node('Repeated#run', definition_id: 'def:v1:second')
+        graph = graph_with(nodes: [first, second])
+        graph.add_alive('Repeated#run', evidence(kind: :alive))
+        report_with_findings([], graph: graph)
+      end
+
+      it 'summarizes the current graph observation shape' do
+        expect(rendered).to include(
+          'Ambiguous definition inputs: 1',
+          'alive Repeated#run -> def:v1:first, def:v1:second'
+        )
+      end
+    end
+
+    context 'with ambiguous dynamic evidence' do
+      let(:format) { :human }
+      let(:report) do
+        first = node('Repeated#run', definition_id: 'def:v1:first')
+        second = node('Repeated#run', definition_id: 'def:v1:second')
+        graph = graph_with(nodes: [first, second])
+        graph.apply_result(
+          analyzer_result(
+            alive_evidences: [
+              Necropsy::AliveEvidence.new(node_id: 'Repeated#run', evidence: evidence(kind: :alive))
+            ]
+          )
+        )
+        report_with_findings([], graph: graph)
+      end
+
+      it 'renders the ambiguous runtime reference and every physical candidate' do
+        expect(rendered).to include(
+          'Ambiguous runtime references: 1',
+          'Repeated#run -> def:v1:first, def:v1:second'
+        )
       end
     end
 

@@ -141,7 +141,7 @@ module Necropsy
 
     def diagnose(command, options, argv)
       node_id = argv.shift
-      raise Error, "#{command} requires a symbol ID" unless node_id
+      raise Error, "#{command} requires a symbol or definition ID" unless node_id
       raise Error, "Unexpected arguments for #{command}: #{argv.join(' ')}" unless argv.empty?
 
       diagnostics = Diagnostics.new(analyze(options))

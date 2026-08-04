@@ -50,7 +50,20 @@ bundle exec necropsy explain 'LegacyService#unused' --root .
 ```
 
 `explain` shows every confidence score component and the final confidence
-level. Missing symbol IDs return partial-match suggestions.
+level. Missing IDs return partial-match suggestions. When a logical symbol ID
+matches multiple physical definitions, `why` and `explain` list every source
+location and an executable command using its full definition ID.
+
+For compatibility, the existing logical `id` and finding fingerprint remain
+stable. Reports also include `symbol_id` and `definition_id`; human, GitHub, and
+SARIF findings display or expose the full physical definition ID so reopened or
+duplicate methods can be distinguished.
+
+Runtime artifacts remain backward compatible: collectors keep the legacy
+`nodes` and `edges` fields while adding structured `node_references` and edge
+endpoint references with `definition_id`, `symbol_id`, `file`, and `line` when
+available. Importers prefer structured references and continue to accept v1
+logical-ID artifacts.
 
 Fail CI only for new high-confidence findings:
 

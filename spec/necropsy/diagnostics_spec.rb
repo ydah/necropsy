@@ -37,6 +37,10 @@ RSpec.describe Necropsy::Diagnostics do
     expect(payload).to include('status' => 'alive', 'kind' => 'runtime')
     expect(payload.fetch('path').map { |step| step.dig('node', 'id') }).to eq([root_node.id, alive.id])
     expect(payload.dig('path', 1, 'edge', 'evidences', 0)).to include('analyzer' => 'name_resolution')
+    expect(payload.dig('path', 1, 'edge')).to include(
+      'caller' => include('symbol_id' => root_node.symbol_id, 'definition_id' => root_node.definition_id),
+      'callee' => include('symbol_id' => alive.symbol_id, 'definition_id' => alive.definition_id)
+    )
     expect(diagnostics.render(payload)).to include('Alive (runtime)', 'via name_resolution', 'exe/tool:3')
   end
 
@@ -45,7 +49,54 @@ RSpec.describe Necropsy::Diagnostics do
 
     expect(payload).to include('status' => 'dead', 'classification' => 'unreachable')
     expect(payload.fetch('nearest_alive')).to include('node_id' => alive.id, 'distance' => 1)
+    expect(payload.dig('nearest_alive', 'node')).to include(
+      'symbol_id' => alive.symbol_id, 'definition_id' => alive.definition_id
+    )
     expect(payload.fetch('uncertainties')).to include('Dynamic dispatch nearby')
+  end
+
+  it 'returns every physical definition and executable commands for an ambiguous symbol' do
+    first = node(
+      'Repeated#run', symbol_id: 'Repeated#run', definition_id: 'def:v1:first', file: 'lib/first.rb', line: 3
+    )
+    second = node(
+      'Repeated#run', symbol_id: 'Repeated#run', definition_id: 'def:v1:second', file: 'lib/second.rb', line: 7
+    )
+    ambiguous_graph = graph_with(nodes: [second, first])
+    ambiguous_report = Necropsy::Report.new(
+      root: '/repo', graph: ambiguous_graph, findings: [],
+      reachability: Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {})
+    )
+    ambiguous_diagnostics = described_class.new(ambiguous_report)
+
+    payload = ambiguous_diagnostics.why('Repeated#run')
+
+    expect(payload).to include('status' => 'ambiguous', 'node_id' => 'Repeated#run')
+    expected_definitions = [
+      {
+        'symbol_id' => 'Repeated#run', 'definition_id' => 'def:v1:first', 'file' => 'lib/first.rb', 'line' => 3,
+        'commands' => {
+          'why' => 'bundle exec necropsy why def:v1:first --root /repo',
+          'explain' => 'bundle exec necropsy explain def:v1:first --root /repo'
+        }
+      },
+      {
+        'symbol_id' => 'Repeated#run', 'definition_id' => 'def:v1:second', 'file' => 'lib/second.rb', 'line' => 7,
+        'commands' => {
+          'why' => 'bundle exec necropsy why def:v1:second --root /repo',
+          'explain' => 'bundle exec necropsy explain def:v1:second --root /repo'
+        }
+      }
+    ]
+    expect(payload.fetch('definitions')).to eq(expected_definitions)
+    expect(ambiguous_diagnostics.explain('Repeated#run')).to eq(payload)
+    expect(ambiguous_diagnostics.why('def:v1:first')).to include('status' => 'dead')
+    expect(JSON.parse(ambiguous_diagnostics.render(payload, format: :json))).to eq(payload)
+    expect(ambiguous_diagnostics.render(payload)).to include(
+      'Ambiguous symbol ID: Repeated#run',
+      'Repeated#run [def:v1:first] lib/first.rb:3',
+      'why: bundle exec necropsy why def:v1:first --root /repo'
+    )
   end
 
   it 'suggests partial matches for missing IDs' do

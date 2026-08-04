@@ -4,6 +4,7 @@ module Necropsy
   class Reporter
     FORMATS = %i[human json yaml yml sarif github annotations].freeze
     DEFAULT_MIN_CONFIDENCE = :medium
+    DEFINITION_RESOLUTION_SAMPLE_LIMIT = 5
 
     def initialize(report)
       @report = report
@@ -41,6 +42,7 @@ module Necropsy
         "Findings: #{findings.length}"
       ]
       append_dynamic_diagnostic(lines)
+      append_definition_resolution_diagnostic(lines)
       append_source_diagnostic(lines)
 
       findings.group_by(&:classification).sort_by do |classification, _|
@@ -48,8 +50,11 @@ module Necropsy
       end.each do |classification, group|
         lines << ''
         lines << "#{classification} (#{group.length})"
-        group.sort_by { |finding| [finding.node.file, finding.node.line, finding.node.id] }.each do |finding|
-          lines << "  [#{finding.confidence}] #{finding.node.id} #{finding.node.file}:#{finding.node.line}"
+        group.sort_by do |finding|
+          [finding.node.file, finding.node.line, finding.node.id, finding.node.definition_id]
+        end.each do |finding|
+          lines << "  [#{finding.confidence}] #{finding.node.symbol_id} [#{finding.node.definition_id}] " \
+                   "#{finding.node.file}:#{finding.node.line}"
           append_finding_blockers(lines, finding)
         end
       end
@@ -83,6 +88,41 @@ module Necropsy
                "edges attempted=#{attempted['edges']} matched=#{matched['edges']} " \
                "partial=#{partially_matched['edges']} unmatched=#{unmatched['edges']}"
       lines << "Unmatched dynamic evidence: #{samples.join(', ')}" unless samples.empty?
+      append_dynamic_resolution_samples(lines, diagnostic)
+    end
+
+    def append_dynamic_resolution_samples(lines, diagnostic)
+      resolution_samples = diagnostic['resolution_samples'] || diagnostic[:resolution_samples]
+      return unless resolution_samples.is_a?(Hash)
+
+      samples = %w[nodes edge_endpoints].flat_map do |kind|
+        Array(resolution_samples[kind] || resolution_samples[kind.to_sym])
+      end.select { |sample| (sample['status'] || sample[:status]).to_s == 'ambiguous' }
+      resolution = diagnostic['resolution'] || diagnostic[:resolution]
+      count = dynamic_ambiguous_resolution_count(resolution, samples)
+      return unless count.positive?
+
+      lines << "Ambiguous runtime references: #{count}"
+      rendered_count = [count, DEFINITION_RESOLUTION_SAMPLE_LIMIT].min
+      samples.first(rendered_count).each do |sample|
+        endpoint = sample['endpoint'] || sample[:endpoint]
+        prefix = endpoint ? "#{endpoint} " : ''
+        ids = Array(sample['definition_ids'] || sample[:definition_ids])
+        lines << "  #{prefix}#{definition_resolution_identifier(sample)} -> #{ids.join(', ')}"
+      end
+      omitted = count - [samples.length, rendered_count].min
+      lines << "  ... #{omitted} more" if omitted.positive?
+    end
+
+    def dynamic_ambiguous_resolution_count(resolution, samples)
+      return samples.length unless resolution.is_a?(Hash)
+
+      %w[nodes edge_endpoints].sum do |kind|
+        counts = resolution[kind] || resolution[kind.to_sym]
+        counts.is_a?(Hash) ? Integer(counts['ambiguous'] || counts[:ambiguous] || 0) : 0
+      end
+    rescue ArgumentError, TypeError
+      samples.length
     end
 
     def append_source_diagnostic(lines)
@@ -102,9 +142,72 @@ module Necropsy
       end
     end
 
+    def append_definition_resolution_diagnostic(lines)
+      diagnostic = report.diagnostics['definition_resolution']
+      return unless diagnostic
+
+      entries = definition_resolution_entries(diagnostic)
+      count = definition_resolution_count(diagnostic, entries)
+      lines << "Ambiguous definition inputs: #{count}"
+      rendered_count = [count, DEFINITION_RESOLUTION_SAMPLE_LIMIT].min
+      entries.first(rendered_count).each do |entry|
+        if entry.is_a?(Hash)
+          kind = entry['kind'] || entry[:kind] || entry['status'] || entry[:status] || 'unknown'
+          identifier = definition_resolution_identifier(entry)
+          ids = Array(entry['definition_ids'] || entry[:definition_ids])
+          lines << "  #{kind} #{identifier} -> #{ids.join(', ')}"
+        else
+          lines << "  #{entry}"
+        end
+      end
+      omitted = count - [entries.length, rendered_count].min
+      lines << "  ... #{omitted} more" if omitted.positive?
+    end
+
+    def definition_resolution_entries(diagnostic)
+      return diagnostic if diagnostic.is_a?(Array)
+      return [] unless diagnostic.is_a?(Hash)
+
+      %w[ambiguous_inputs ambiguities samples].each do |key|
+        value = diagnostic[key] || diagnostic[key.to_sym]
+        return value if value.is_a?(Array)
+      end
+      []
+    end
+
+    def definition_resolution_identifier(entry)
+      direct = entry['identifier'] || entry[:identifier]
+      return direct if direct
+
+      reference = entry['reference'] || entry[:reference]
+      return reference unless reference.is_a?(Hash)
+
+      identifier = reference['identifier'] || reference[:identifier] ||
+                   reference['definition_id'] || reference[:definition_id] ||
+                   reference['symbol_id'] || reference[:symbol_id] || 'unknown'
+      file = reference['file'] || reference[:file]
+      line = reference['line'] || reference[:line]
+      location = [file, line].compact.join(':')
+      location.empty? ? identifier : "#{identifier} @ #{location}"
+    end
+
+    def definition_resolution_count(diagnostic, entries)
+      return entries.length unless diagnostic.is_a?(Hash)
+
+      counts = diagnostic['counts'] || diagnostic[:counts]
+      nested_count = counts['ambiguous'] || counts[:ambiguous] if counts.is_a?(Hash)
+      value = diagnostic['ambiguous_input_count'] || diagnostic[:ambiguous_input_count] ||
+              diagnostic['ambiguous_count'] || diagnostic[:ambiguous_count] ||
+              diagnostic['count'] || diagnostic[:count] || nested_count
+      Integer(value || entries.length)
+    rescue ArgumentError, TypeError
+      entries.length
+    end
+
     def render_github_annotations(min_confidence)
       finding_annotations = report.dead_methods(min_confidence: min_confidence).map do |finding|
-        message = "#{finding.classification} #{finding.node.id} confidence=#{finding.confidence}"
+        message = "#{finding.classification} #{finding.node.symbol_id} definition_id=#{finding.node.definition_id} " \
+                  "confidence=#{finding.confidence}"
         "::warning file=#{finding.node.file},line=#{finding.node.line},title=Necropsy #{finding.confidence}::" \
           "#{escape_annotation(message)}"
       end
@@ -159,6 +262,10 @@ module Necropsy
         'ruleId' => finding.classification.to_s,
         'level' => sarif_level(finding),
         'message' => { 'text' => "#{finding.node.id} is #{finding.classification} (#{finding.confidence})" },
+        'properties' => {
+          'symbolId' => finding.node.symbol_id,
+          'definitionId' => finding.node.definition_id
+        },
         'locations' => [
           {
             'physicalLocation' => {

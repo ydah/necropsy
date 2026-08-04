@@ -10,7 +10,9 @@ module Necropsy
     def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [])
       @root = root
       @graph = graph
-      @findings = findings.sort_by { |finding| [finding.node.file, finding.node.line, finding.node.id] }
+      @findings = findings.sort_by do |finding|
+        [finding.node.file, finding.node.line, finding.node.id, finding.node.definition_id]
+      end
       @reachability = reachability
       @report_include_paths = report_include_paths
       @report_exclude_paths = report_exclude_paths
@@ -65,6 +67,8 @@ module Necropsy
       result = {}
       dynamic = graph.dynamic_evidence_diagnostic
       result['dynamic_evidence'] = dynamic if dynamic
+      definition_resolution = graph.observation['definition_resolution']
+      result['definition_resolution'] = definition_resolution if definition_resolution
       result['source_incompleteness'] = graph.source_incompleteness if graph.incomplete_files.any?
       result
     end

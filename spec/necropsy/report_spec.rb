@@ -54,4 +54,33 @@ RSpec.describe Necropsy::Report do
     expect(forward.findings.map { |item| item.node.id }).to eq(%w[Earlier#dead Later#dead])
     expect(forward.to_json).to eq(reverse.to_json)
   end
+
+  it 'uses physical definition IDs to deterministically order otherwise identical findings' do
+    base = finding(id: 'Repeated#dead', file: 'lib/repeated.rb', line: 3)
+    second = base.with(node: base.node.with(definition_id: 'def:v1:second'))
+    first = base.with(node: base.node.with(definition_id: 'def:v1:first'))
+    graph = graph_with(nodes: [second.node, first.node])
+
+    report = described_class.new(root: '/repo', graph: graph, findings: [second, first])
+
+    expect(report.findings.map { |item| item.node.definition_id }).to eq(%w[def:v1:first def:v1:second])
+  end
+
+  it 'exposes definition-resolution observations without requiring the full graph' do
+    first = node('Repeated#run', definition_id: 'def:v1:first')
+    second = node('Repeated#run', definition_id: 'def:v1:second')
+    graph = graph_with(nodes: [first, second])
+    graph.add_alive('Repeated#run', evidence(kind: :alive))
+    report = described_class.new(root: '/repo', graph: graph, findings: [])
+
+    expect(report.to_h).not_to have_key('graph')
+    resolution = report.to_h.dig('diagnostics', 'definition_resolution')
+    expect(resolution.fetch('ambiguous_input_count')).to eq(1)
+    expect(resolution.fetch('ambiguous_inputs')).to include(
+      include(
+        'kind' => 'alive', 'identifier' => 'Repeated#run',
+        'definition_ids' => %w[def:v1:first def:v1:second]
+      )
+    )
+  end
 end

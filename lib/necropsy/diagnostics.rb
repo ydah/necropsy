@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'shellwords'
 
 module Necropsy
   class Diagnostics
@@ -13,8 +14,11 @@ module Necropsy
     end
 
     def why(node_id)
-      node = graph.nodes[node_id]
-      return with_source_incompleteness(missing_payload(node_id)) unless node
+      lookup = graph.nodes.lookup(node_id)
+      return with_source_incompleteness(ambiguous_payload(lookup)) if lookup.ambiguous?
+      return with_source_incompleteness(missing_payload(node_id)) if lookup.missing?
+
+      node = lookup.node
 
       graph_id = node.graph_id
       runtime_path = reachability.witness(graph_id)
@@ -30,8 +34,11 @@ module Necropsy
     end
 
     def explain(node_id)
-      node = graph.nodes[node_id]
-      return with_source_incompleteness(missing_payload(node_id)) unless node
+      lookup = graph.nodes.lookup(node_id)
+      return with_source_incompleteness(ambiguous_payload(lookup)) if lookup.ambiguous?
+      return with_source_incompleteness(missing_payload(node_id)) if lookup.missing?
+
+      node = lookup.node
 
       finding = finding_for(node.graph_id)
       return with_source_incompleteness({ 'status' => 'alive', 'node' => node.to_h }) unless finding
@@ -92,6 +99,8 @@ module Necropsy
       step['edge'] = {
         'caller_id' => caller_id,
         'callee_id' => node_id,
+        'caller' => graph.nodes.fetch(caller_id).to_h,
+        'callee' => graph.nodes.fetch(node_id).to_h,
         'evidences' => evidences.map(&:to_h)
       }
       step
@@ -125,13 +134,46 @@ module Necropsy
           next if visited.key?(neighbor)
 
           distance = visited.fetch(current) + 1
-          return { 'node_id' => neighbor, 'kind' => kinds.fetch(neighbor), 'distance' => distance } if kinds.key?(neighbor)
+          if kinds.key?(neighbor)
+            node = graph.nodes.fetch(neighbor)
+            return {
+              'node_id' => neighbor,
+              'symbol_id' => node.symbol_id,
+              'definition_id' => node.definition_id,
+              'node' => node.to_h,
+              'kind' => kinds.fetch(neighbor),
+              'distance' => distance
+            }
+          end
 
           visited[neighbor] = distance
           queue << neighbor
         end
       end
       nil
+    end
+
+    def ambiguous_payload(lookup)
+      {
+        'status' => 'ambiguous',
+        'node_id' => lookup.identifier,
+        'definitions' => lookup.definitions.map do |definition|
+          {
+            'symbol_id' => definition.symbol_id,
+            'definition_id' => definition.definition_id,
+            'file' => definition.file,
+            'line' => definition.line,
+            'commands' => {
+              'why' => diagnostic_command('why', definition.definition_id),
+              'explain' => diagnostic_command('explain', definition.definition_id)
+            }
+          }
+        end
+      }
+    end
+
+    def diagnostic_command(command, definition_id)
+      "bundle exec necropsy #{command} #{Shellwords.escape(definition_id)} --root #{Shellwords.escape(report.root)}"
     end
 
     def neighbors(node_id)
@@ -153,17 +195,18 @@ module Necropsy
                  when 'alive' then render_alive(payload)
                  when 'dead', 'blocked' then render_dead(payload)
                  when 'finding' then render_explanation(payload)
+                 when 'ambiguous' then render_ambiguous(payload)
                  when 'not_found' then render_missing(payload)
-                 else "#{payload.dig('node', 'id')} is alive and has no dead-code finding."
+                 else "#{node_reference(payload['node'])} is alive and has no dead-code finding."
                  end
       append_source_incompleteness(rendered, payload)
     end
 
     def render_alive(payload)
-      lines = ["Alive (#{payload.fetch('kind')}): #{payload.dig('node', 'id')}"]
+      lines = ["Alive (#{payload.fetch('kind')}): #{node_reference(payload.fetch('node'))}"]
       payload.fetch('path').each_with_index do |step, index|
         suffix = step['entry_reason'] ? " entry=#{step['entry_reason']}" : ''
-        lines << "  #{index}. #{step.dig('node', 'id')}#{suffix}"
+        lines << "  #{index}. #{node_reference(step.fetch('node'))}#{suffix}"
         Array(step.dig('edge', 'evidences')).each { |evidence| lines << render_evidence(evidence) }
       end
       lines.join("\n")
@@ -178,11 +221,12 @@ module Necropsy
 
     def render_dead(payload)
       heading = payload['status'] == 'blocked' ? 'Blocked' : 'Dead'
-      lines = ["#{heading}: #{payload.dig('node', 'id')}"]
+      lines = ["#{heading}: #{node_reference(payload.fetch('node'))}"]
       lines << "Classification: #{payload['classification']}" if payload['classification']
       nearest = payload['nearest_alive']
       lines << if nearest
-                 "Nearest alive: #{nearest['node_id']} (#{nearest['kind']}, distance #{nearest['distance']})"
+                 "Nearest alive: #{node_reference(nearest['node'])} " \
+                   "(#{nearest['kind']}, distance #{nearest['distance']})"
                else
                  'Nearest alive: none'
                end
@@ -194,7 +238,7 @@ module Necropsy
 
     def render_explanation(payload)
       lines = [
-        "#{payload.dig('node', 'id')}: #{payload['classification']}",
+        "#{node_reference(payload.fetch('node'))}: #{payload['classification']}",
         "Confidence: #{payload['confidence']} (score #{format('%.2f', payload['score'])})"
       ]
       payload.fetch('components').each do |component|
@@ -205,6 +249,21 @@ module Necropsy
       end
       lines << format('  %<name>-28s  %<value>0.2f', name: 'total', value: payload['score'])
       append_blockers(lines, payload.fetch('blockers', []))
+      lines.join("\n")
+    end
+
+    def render_ambiguous(payload)
+      definitions = payload.fetch('definitions')
+      lines = [
+        "Ambiguous symbol ID: #{payload['node_id']}",
+        "Matched #{definitions.length} physical definitions:"
+      ]
+      definitions.each do |definition|
+        lines << "  #{definition['symbol_id']} [#{definition['definition_id']}] " \
+                 "#{definition['file']}:#{definition['line']}"
+        lines << "    why: #{definition.dig('commands', 'why')}"
+        lines << "    explain: #{definition.dig('commands', 'explain')}"
+      end
       lines.join("\n")
     end
 
@@ -223,6 +282,14 @@ module Necropsy
       lines = ["Node not found: #{payload['node_id']}"]
       lines << "Suggestions: #{payload['suggestions'].join(', ')}" unless payload['suggestions'].empty?
       lines.join("\n")
+    end
+
+    def node_reference(node)
+      return 'unknown definition' unless node
+
+      symbol_id = node['symbol_id'] || node['id']
+      definition_id = node['definition_id'] || node['id']
+      "#{symbol_id} [#{definition_id}]"
     end
 
     def with_source_incompleteness(payload)
