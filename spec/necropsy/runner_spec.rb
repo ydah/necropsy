@@ -129,7 +129,7 @@ RSpec.describe Necropsy::Runner do
     end
   end
 
-  it 'keeps Runner reachability monotonic when an RTA edge is added to a rooted graph with allocation evidence' do
+  it 'does not reduce Runner reachability when RTA static-edge evidence is added' do
     common = { cache: { enabled: false }, entry_points: { extra: ['Caller#run'] } }
     without_rta = nil
     with_rta = nil
@@ -146,6 +146,33 @@ RSpec.describe Necropsy::Runner do
 
     expect(without_rta).to include('Caller#run', 'Base#render', 'Live#render', 'Dead#render')
     expect(without_rta - with_rta).to be_empty
+  end
+
+  it 'does not reduce Runner reachability when a root is added' do
+    before = analyze_fixture(files: { 'app/sample.rb' => rta_source })
+    after = analyze_fixture(
+      files: { 'app/sample.rb' => rta_source },
+      config: { entry_points: { extra: ['Caller#run'] } }
+    )
+    before_reachable = before.reachability.runtime_alive.to_set
+    after_reachable = after.reachability.runtime_alive.to_set
+
+    expect(before_reachable).to be_empty
+    expect(after_reachable).to include('Caller#run', 'Base#render', 'Live#render', 'Dead#render')
+    expect(before_reachable - after_reachable).to be_empty
+  end
+
+  it 'does not reduce Runner reachability when allocation evidence is added' do
+    without_allocation = rta_source.sub("\nLive.new\n", "\n")
+    config = { entry_points: { extra: ['Caller#run'] } }
+    before = analyze_fixture(files: { 'app/sample.rb' => without_allocation }, config: config)
+    after = analyze_fixture(files: { 'app/sample.rb' => rta_source }, config: config)
+    before_reachable = before.reachability.runtime_alive.to_set
+    after_reachable = after.reachability.runtime_alive.to_set
+
+    expect(before.graph.instantiated_classes).not_to include('Live')
+    expect(after.graph.instantiated_classes).to include('Live')
+    expect(before_reachable - after_reachable).to be_empty
   end
 
   it 'preserves static edges when a factory method is not registered' do
@@ -168,21 +195,28 @@ RSpec.describe Necropsy::Runner do
   end
 
   it 'preserves static edges around reflective and autoloaded construction' do
-    source = <<~RUBY
-      autoload :Reflected, 'reflected'
-      class Reflected
-        def call; end
-      end
+    caller_source = <<~RUBY
+      autoload :AutoloadedService, 'autoloaded_service'
       class Caller
         def build(name) = Object.const_get(name).new
         def run(item) = item.call
       end
     RUBY
+    service_source = <<~RUBY
+      class AutoloadedService
+        def call; end
+      end
+    RUBY
 
-    report = analyze_fixture(files: { 'app/reflective.rb' => source })
+    report = analyze_fixture(
+      files: {
+        'app/caller.rb' => caller_source,
+        'app/autoloaded_service.rb' => service_source
+      }
+    )
 
-    expect(report.graph.instantiated_classes).not_to include('Reflected')
-    expect(render_targets_for(report, 'call')).to include('Reflected#call')
+    expect(report.graph.instantiated_classes).not_to include('AutoloadedService')
+    expect(render_targets_for(report, 'call')).to include('AutoloadedService#call')
   end
 
   it 'does not let test-only instantiation prune other application targets' do
