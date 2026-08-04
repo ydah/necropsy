@@ -113,7 +113,7 @@ module Necropsy
           file: data['file'],
           line: data['line']&.to_i || 1,
           message: data['message'],
-          type: data['type'].to_s
+          type: data['type'].to_sym
         )
       end
 

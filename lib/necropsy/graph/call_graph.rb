@@ -283,20 +283,40 @@ module Necropsy
         errors = source_errors.select { |error| error.file == file }
         first_error = errors.first
         status = file_statuses.fetch(file)
+        domain = source_domain(file)
+        metadata = {
+          'file' => file,
+          'line' => first_error&.line || 1,
+          'status' => status.to_s,
+          'caller_domain' => domain.to_s,
+          'source_errors' => errors.map(&:to_h)
+        }
         add_blocker(Blocker.new(
                       kind: :parse_incomplete,
                       scope_kind: :file,
                       scope_value: file,
                       source: first_error || :ast_scanner,
                       reason: "Source file was #{status}; dead-code conclusions are incomplete",
-                      metadata: {
-                        'file' => file,
-                        'line' => first_error&.line || 1,
-                        'status' => status.to_s,
-                        'source_errors' => errors.map(&:to_h)
-                      }
+                      metadata: metadata
+                    ))
+        next unless domain == :runtime
+
+        add_blocker(Blocker.new(
+                      kind: :parse_incomplete,
+                      scope_kind: :global,
+                      scope_value: '*',
+                      source: first_error || :ast_scanner,
+                      reason: "Runtime source file was #{status}; missing calls can affect any dead-code conclusion",
+                      metadata: metadata.merge('impact' => 'missing_outgoing_calls')
                     ))
       end
+    end
+
+    def source_domain(file)
+      source_nodes = nodes.values.select { |node| node.file == file }
+      return :runtime if source_nodes.empty?
+
+      source_nodes.all?(&:test) ? :test : :runtime
     end
 
     def candidates_for_receiver(site)

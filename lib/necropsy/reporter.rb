@@ -103,15 +103,22 @@ module Necropsy
     end
 
     def render_github_annotations(min_confidence)
-      report.dead_methods(min_confidence: min_confidence).map do |finding|
+      finding_annotations = report.dead_methods(min_confidence: min_confidence).map do |finding|
         message = "#{finding.classification} #{finding.node.id} confidence=#{finding.confidence}"
-        escaped = message.gsub('%', '%25').gsub("\n", '%0A').gsub("\r", '%0D')
-        "::warning file=#{finding.node.file},line=#{finding.node.line},title=Necropsy #{finding.confidence}::#{escaped}"
-      end.join("\n")
+        "::warning file=#{finding.node.file},line=#{finding.node.line},title=Necropsy #{finding.confidence}::" \
+          "#{escape_annotation(message)}"
+      end
+      source_annotations = source_diagnostic_entries.map do |entry|
+        message = "Incomplete source (#{entry['status']}, #{entry['type']}): #{entry['message']}"
+        "::warning file=#{entry['file']},line=#{entry['line']},title=Necropsy incomplete source::" \
+          "#{escape_annotation(message)}"
+      end
+      (finding_annotations + source_annotations).join("\n")
     end
 
     def render_sarif(min_confidence)
       findings = report.dead_methods(min_confidence: min_confidence)
+      source_entries = source_diagnostic_entries
       {
         'version' => '2.1.0',
         '$schema' => 'https://json.schemastore.org/sarif-2.1.0.json',
@@ -121,23 +128,30 @@ module Necropsy
               'driver' => {
                 'name' => 'Necropsy',
                 'informationUri' => 'https://github.com/ydah/necropsy',
-                'rules' => sarif_rules(findings)
+                'rules' => sarif_rules(findings, source_entries)
               }
             },
-            'results' => findings.map { |finding| sarif_result(finding) }
+            'results' => findings.map { |finding| sarif_result(finding) } + source_entries.map { |entry| sarif_source_result(entry) }
           }
         ]
       }.to_json
     end
 
-    def sarif_rules(findings)
-      findings.map(&:classification).uniq.map do |classification|
+    def sarif_rules(findings, source_entries)
+      rules = findings.map(&:classification).uniq.map do |classification|
         {
           'id' => classification.to_s,
           'name' => classification.to_s,
           'shortDescription' => { 'text' => "Necropsy #{classification}" }
         }
       end
+      return rules if source_entries.empty?
+
+      rules << {
+        'id' => 'parse_incomplete',
+        'name' => 'parse_incomplete',
+        'shortDescription' => { 'text' => 'Necropsy incomplete source' }
+      }
     end
 
     def sarif_result(finding)
@@ -162,6 +176,43 @@ module Necropsy
       return 'warning' if finding.confidence == :medium
 
       'note'
+    end
+
+    def sarif_source_result(entry)
+      {
+        'ruleId' => 'parse_incomplete',
+        'level' => 'warning',
+        'message' => {
+          'text' => "Incomplete source (#{entry['status']}, #{entry['type']}): #{entry['message']}"
+        },
+        'locations' => [
+          {
+            'physicalLocation' => {
+              'artifactLocation' => { 'uri' => entry['file'] },
+              'region' => { 'startLine' => entry['line'] }
+            }
+          }
+        ]
+      }
+    end
+
+    def source_diagnostic_entries
+      diagnostic = report.diagnostics['source_incompleteness']
+      return [] unless diagnostic
+
+      diagnostic.fetch('files').flat_map do |file|
+        errors = file.fetch('errors')
+        if errors.empty?
+          next [{ 'file' => file['file'], 'line' => 1, 'type' => file['status'],
+                  'message' => 'No source diagnostic was available', 'status' => file['status'] }]
+        end
+
+        errors.map { |error| error.merge('status' => file['status']) }
+      end
+    end
+
+    def escape_annotation(message)
+      message.gsub('%', '%25').gsub("\n", '%0A').gsub("\r", '%0D')
     end
   end
 end

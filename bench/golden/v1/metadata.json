@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "update_reason": "Cover reflective blocker visibility",
+  "update_reason": "Propagate incomplete source impact",
   "artifacts": {
     "candidate_union.json": "5168a90f8ab65efe2fcd9efc559cb2f11601db27de60c7bae31fd9ad1d26de79",
     "reports/dynamic_evidence.json": "f3c0d56cc4dc89f68fede9b34b551cd9423577f95fea37b17896bf54453ed91d",
     "reports/plain_ruby.json": "0aa08379241266e828fc64a2018c673f7ca2e1a664f9786c44dbac606c5a08d1",
     "reports/rails.json": "7a18e296e2ad72944161bd4c7a528768f6ce2c9fadbd078731ebac5241117d24",
     "reports/rubocop_1_75_0.json": "615e3d9fffac45ec71e301bcd9efe0ddb7f72df6acab218eb8fb5b6461df68dd",
-    "reports/self.json": "d0dea975ef3c823b54a73c81201bdc229d31bb01fceaab9b273b92b39c1269f4"
+    "reports/self.json": "e5a29afdd49ca9901e7c94a3dee3b020a69ef5e91687c52c9829a750c3b222fd"
   }
 }

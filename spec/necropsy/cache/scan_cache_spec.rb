@@ -36,6 +36,23 @@ RSpec.describe Necropsy::Cache::ScanCache do
     end
   end
 
+  it 'round-trips the full scan result including symbolic source error types' do
+    source = "class CachedRecovery\n  def retained; end\n  def broken(\nend\n"
+
+    with_project(files: { 'app/recovered.rb' => source }) do |root|
+      project = project_for(root)
+      first = described_class.new(project: project).fetch(project.ruby_files) do
+        Necropsy::AstScanner.new(project: project, files: project.ruby_files).scan
+      end
+      second = described_class.new(project: project).fetch(project.ruby_files) do
+        raise 'cache miss'
+      end
+
+      expect(first.source_errors.first.type).to be_a(Symbol)
+      expect(second).to eq(first)
+    end
+  end
+
   it 'falls back to a fresh scan when a legacy cache version is present' do
     with_project(files: { 'app/sample.rb' => 'class LegacyCache; def run; end; end' }) do |root|
       project = project_for(root)

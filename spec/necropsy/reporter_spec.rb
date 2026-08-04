@@ -154,6 +154,51 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'with only an incomplete source diagnostic' do
+      let(:source_error) do
+        Necropsy::SourceError.new(
+          file: 'lib/broken.rb', line: 4, message: 'unexpected end-of-input', type: :unexpected_token
+        )
+      end
+      let(:root_node) do
+        node('file:lib/broken.rb', kind: :block_entry, file: 'lib/broken.rb', owner: nil, name: 'lib/broken.rb')
+      end
+      let(:graph) do
+        result = scan_result(nodes: [root_node]).with(
+          file_statuses: { 'lib/broken.rb' => :recovered }, source_errors: [source_error]
+        )
+        Necropsy::CallGraph.new(result)
+      end
+      let(:report) { report_with_findings([], graph: graph) }
+
+      it 'emits a GitHub annotation independently of the finding threshold' do
+        output = described_class.new(report).render(format: :github, min_confidence: :certain)
+
+        expect(report.findings).to eq([])
+        expect(output).to include(
+          'file=lib/broken.rb,line=4,title=Necropsy incomplete source',
+          'Incomplete source (recovered, unexpected_token): unexpected end-of-input'
+        )
+      end
+
+      it 'emits a SARIF result and rule without a dead-code finding' do
+        payload = JSON.parse(described_class.new(report).render(format: :sarif, min_confidence: :certain))
+        run = payload.fetch('runs').first
+
+        expect(run.dig('tool', 'driver', 'rules')).to include(include('id' => 'parse_incomplete'))
+        expect(run.fetch('results')).to contain_exactly(
+          include(
+            'ruleId' => 'parse_incomplete',
+            'level' => 'warning',
+            'locations' => [include('physicalLocation' => include(
+              'artifactLocation' => { 'uri' => 'lib/broken.rb' },
+              'region' => { 'startLine' => 4 }
+            ))]
+          )
+        )
+      end
+    end
+
     context 'with SARIF output' do
       let(:format) { :sarif }
       let(:report) do

@@ -2,10 +2,10 @@
   "schema_version": 1,
   "corpus": "self",
   "metrics": {
-    "nodes": 925,
-    "definitions": 821,
-    "call_sites": 10981,
-    "edges": 4778,
+    "nodes": 929,
+    "definitions": 825,
+    "call_sites": 11176,
+    "edges": 4817,
     "findings": 81
   },
   "states": {

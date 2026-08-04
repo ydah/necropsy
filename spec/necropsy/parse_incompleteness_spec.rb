@@ -41,9 +41,12 @@ RSpec.describe 'parse incompleteness' do
       )
       expect(findings.keys).to include('RecoveredSource#retained', 'RecoveredSource#hidden')
       expect(findings.values).to all(have_attributes(classification: :blocked, confidence: :low))
-      expect(findings.values.flat_map(&:blockers)).to all(
-        have_attributes(kind: :parse_incomplete, scope_kind: :file, scope_value: 'lib/recovered_source.rb')
-      )
+      findings.each_value do |finding|
+        expect(finding.blockers).to include(
+          have_attributes(kind: :parse_incomplete, scope_kind: :file, scope_value: 'lib/recovered_source.rb'),
+          have_attributes(kind: :parse_incomplete, scope_kind: :global, scope_value: '*')
+        )
+      end
       expect(report.summary).to include('incomplete_files' => 1, 'blocked' => findings.length)
       expect(report.to_h(include_graph: true).fetch('graph')).to include(
         'file_statuses' => { 'lib/recovered_source.rb' => 'recovered' },
@@ -109,6 +112,7 @@ RSpec.describe 'parse incompleteness' do
         expect(scan.source_errors.first.to_h).to include(
           'file' => 'lib/unreadable.rb', 'line' => 1, 'type' => failure.class.name
         )
+        expect(scan.source_errors.first.type).to be_a(Symbol)
         expect(scan.uncertainties.fetch('file:lib/unreadable.rb')).to include(match(/spec .* failure/))
       end
     end
@@ -126,8 +130,58 @@ RSpec.describe 'parse incompleteness' do
     graph = Necropsy::CallGraph.new(result)
 
     expect(graph.matching_blockers(failed)).to contain_exactly(
-      have_attributes(kind: :parse_incomplete, scope_kind: :file, scope_value: 'lib/failed_source.rb')
+      have_attributes(kind: :parse_incomplete, scope_kind: :file, scope_value: 'lib/failed_source.rb'),
+      have_attributes(kind: :parse_incomplete, scope_kind: :global, scope_value: '*')
     )
+  end
+
+  it 'blocks a callee in another file when recovery loses its outgoing call' do
+    target = "class Target\n  def used; end\nend\n"
+    valid_caller = "class Caller\n  def run\n    Target.new.used\n  end\nend\n"
+    broken_caller = "class Caller\n  def run\n    Target.new.\n  end\nend\n"
+    config = { cache: { enabled: false }, entry_points: { extra: ['Caller#run'] } }
+    complete_report = nil
+    recovered_report = nil
+
+    with_project(files: { 'lib/caller.rb' => valid_caller, 'lib/target.rb' => target }, config: config) do |root|
+      complete_report = Necropsy.analyze(root: root)
+    end
+    with_project(files: { 'lib/caller.rb' => broken_caller, 'lib/target.rb' => target }, config: config) do |root|
+      recovered_report = Necropsy.analyze(root: root)
+    end
+
+    recovered_target = recovered_report.findings.find { |finding| finding.node.id == 'Target#used' }
+    expect(complete_report.findings.map { |finding| finding.node.id }).not_to include('Target#used')
+    expect(recovered_target).to have_attributes(classification: :blocked, confidence: :low)
+    expect(recovered_target.blockers).to include(
+      have_attributes(kind: :parse_incomplete, scope_kind: :global, scope_value: '*')
+    )
+    expect(candidates(recovered_report)).to be_subset(candidates(complete_report))
+    expect(candidates(recovered_report, min_confidence: :high)).to be_subset(
+      candidates(complete_report, min_confidence: :high)
+    )
+  end
+
+  it 'does not propagate an incomplete test source into production findings' do
+    files = { 'lib/target.rb' => "class TestIsolationTarget\n  def candidate; end\nend\n" }
+    config = { cache: { enabled: false } }
+    baseline = nil
+    with_broken_test = nil
+
+    with_project(files: files, config: config) { |root| baseline = Necropsy.analyze(root: root) }
+    with_project(files: files.merge('spec/broken_spec.rb' => ")\n"), config: config) do |root|
+      with_broken_test = Necropsy.analyze(root: root)
+    end
+
+    baseline_finding = baseline.findings.find { |finding| finding.node.id == 'TestIsolationTarget#candidate' }
+    isolated_finding = with_broken_test.findings.find { |finding| finding.node.id == 'TestIsolationTarget#candidate' }
+    expect(isolated_finding).to have_attributes(
+      classification: baseline_finding.classification,
+      confidence: baseline_finding.confidence,
+      blockers: []
+    )
+    global_blockers = with_broken_test.graph.blockers.select { |blocker| blocker.scope_kind == :global }
+    expect(global_blockers).to eq([])
   end
 
   it 'never adds candidates or high-confidence findings when a parse error is introduced' do

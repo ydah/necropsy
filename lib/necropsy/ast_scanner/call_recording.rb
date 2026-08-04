@@ -113,7 +113,7 @@ module Necropsy
         file: relative,
         line: 1,
         message: error.message,
-        type: error.class.name
+        type: error.class.name.to_sym
       )
     end
 
