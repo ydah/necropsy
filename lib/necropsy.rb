@@ -5,10 +5,12 @@ require 'set' # rubocop:disable Lint/RedundantRequireStatement
 
 require_relative 'necropsy/version'
 require_relative 'necropsy/models'
+require_relative 'necropsy/definition_identity'
 require_relative 'necropsy/configuration'
 require_relative 'necropsy/ast_scanner'
 require_relative 'necropsy/cache/scan_cache'
 require_relative 'necropsy/project'
+require_relative 'necropsy/graph/definition_index'
 require_relative 'necropsy/graph/dynamic_evidence_tracking'
 require_relative 'necropsy/graph/blocker_matching'
 require_relative 'necropsy/graph/call_graph'

@@ -53,6 +53,35 @@ RSpec.describe Necropsy::Cache::ScanCache do
     end
   end
 
+  it 'round-trips physical definition identity fields' do
+    with_project(files: { 'app/sample.rb' => 'class CachedDefinition; end' }) do |root|
+      project = project_for(root)
+      cache = described_class.new(project: project)
+      definition = node(
+        'CachedDefinition#run',
+        file: 'app/sample.rb',
+        definition_id: 'def:v1:physical',
+        body_digest: 'body-digest', ordinal: 2
+      )
+      first = cache.fetch(project.ruby_files) { scan_result(nodes: [definition]) }
+      second = described_class.new(project: project).fetch(project.ruby_files) { raise 'cache miss' }
+      payload = JSON.parse(File.read(File.join(root, '.necropsy_cache/scan.json')))
+
+      expect(second).to eq(first)
+      expect(second.nodes.first).to have_attributes(
+        symbol_id: 'CachedDefinition#run', definition_id: 'def:v1:physical',
+        body_digest: 'body-digest', ordinal: 2
+      )
+      expect(payload.dig('scan_result', 'nodes', 0)).to include(
+        'id' => 'CachedDefinition#run',
+        'symbol_id' => 'CachedDefinition#run',
+        'definition_id' => 'def:v1:physical',
+        'body_digest' => 'body-digest',
+        'ordinal' => 2
+      )
+    end
+  end
+
   it 'falls back to a fresh scan when a legacy cache version is present' do
     with_project(files: { 'app/sample.rb' => 'class LegacyCache; def run; end; end' }) do |root|
       project = project_for(root)

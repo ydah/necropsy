@@ -6,7 +6,7 @@ require 'json'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 5
+      VERSION = 6
 
       def initialize(project:)
         @project = project
@@ -118,8 +118,13 @@ module Necropsy
       end
 
       def deserialize_node(data)
+        id = data.fetch('id')
         Node.new(
-          id: data['id'],
+          id: id,
+          symbol_id: data['symbol_id'] || id,
+          definition_id: data['definition_id'] || id,
+          body_digest: data['body_digest'],
+          ordinal: data['ordinal'].to_i,
           kind: data['kind'].to_sym,
           file: data['file'],
           line: data['line'].to_i,

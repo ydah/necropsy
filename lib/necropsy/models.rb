@@ -10,18 +10,46 @@ module Necropsy
     certain: 3
   }.freeze
 
-  Node = Data.define(:id, :kind, :file, :line, :end_line, :defined_via, :owner, :name, :test, :visibility) do
+  Node = Data.define(
+    :id,
+    :symbol_id,
+    :definition_id,
+    :body_digest,
+    :ordinal,
+    :kind,
+    :file,
+    :line,
+    :end_line,
+    :defined_via,
+    :owner,
+    :name,
+    :test,
+    :visibility
+  ) do
+    def initialize(id:, kind:, file:, line:, end_line:, defined_via:, owner:, name:, test:, visibility:,
+                   symbol_id: id, definition_id: id, body_digest: nil, ordinal: 0)
+      super
+    end
+
     def method?
       kind != :block_entry
     end
 
+    def graph_id
+      definition_id
+    end
+
     def fingerprint(classification)
-      Digest::SHA256.hexdigest("#{classification}:#{id}")
+      Digest::SHA256.hexdigest("#{classification}:#{symbol_id}")
     end
 
     def to_h
       {
         'id' => id,
+        'symbol_id' => symbol_id,
+        'definition_id' => definition_id,
+        'body_digest' => body_digest,
+        'ordinal' => ordinal,
         'kind' => kind.to_s,
         'file' => file,
         'line' => line,

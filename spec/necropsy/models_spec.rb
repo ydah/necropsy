@@ -10,11 +10,32 @@ RSpec.describe 'Necropsy model objects' do
       expect(model.fingerprint(:unreachable)).not_to eq(model.fingerprint(:unused))
       expect(model.to_h).to include(
         'id' => 'Sample#render',
+        'symbol_id' => 'Sample#render',
+        'definition_id' => 'Sample#render',
+        'body_digest' => nil,
+        'ordinal' => 0,
         'kind' => 'instance_method',
         'line' => 10,
         'end_line' => 12,
         'defined_via' => 'define_method'
       )
+    end
+
+    it 'keeps legacy construction and logical fingerprints compatible' do
+      legacy = described_class.new(
+        id: 'Sample#render', kind: :instance_method, file: 'sample.rb', line: 1, end_line: 2,
+        defined_via: :def, owner: 'Sample', name: 'render', test: false, visibility: :public
+      )
+      physical = legacy.with(
+        definition_id: 'def:v1:physical', body_digest: 'body-digest', ordinal: 2
+      )
+
+      expect(legacy).to have_attributes(
+        symbol_id: 'Sample#render', definition_id: 'Sample#render', graph_id: 'Sample#render',
+        body_digest: nil, ordinal: 0
+      )
+      expect(physical.graph_id).to eq('def:v1:physical')
+      expect(physical.fingerprint(:unreachable)).to eq(legacy.fingerprint(:unreachable))
     end
 
     it 'treats block entry nodes as non-method nodes' do

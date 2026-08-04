@@ -2,9 +2,14 @@
 
 module GraphHelpers
   def node(id, kind: :instance_method, file: 'app/models/sample.rb', line: 1, end_line: line, owner: 'Sample',
-           name: id.split(/[.#]/).last, test: false, defined_via: :def, visibility: :public)
+           name: id.split(/[.#]/).last, test: false, defined_via: :def, visibility: :public, symbol_id: id,
+           definition_id: id, body_digest: nil, ordinal: 0)
     Necropsy::Node.new(
       id: id,
+      symbol_id: symbol_id,
+      definition_id: definition_id,
+      body_digest: body_digest,
+      ordinal: ordinal,
       kind: kind,
       file: file,
       line: line,
