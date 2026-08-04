@@ -2,6 +2,15 @@
 
 module Necropsy
   class AstScanner
+    RESPOND_TO_TRUTHY_LITERAL_TYPES = %i[
+      array_node float_node hash_node imaginary_node integer_node
+      interpolated_match_last_line_node interpolated_regular_expression_node
+      interpolated_string_node interpolated_symbol_node interpolated_x_string_node
+      keyword_hash_node match_last_line_node range_node rational_node
+      regular_expression_node source_encoding_node source_file_node source_line_node
+      string_node symbol_node true_node x_string_node
+    ].freeze
+
     private
 
     def callback_names(node)
@@ -84,9 +93,18 @@ module Necropsy
       metadata = { 'original_message' => node.name.to_s }
       return metadata unless node.name == :respond_to?
 
-      include_private = literal_value(arguments(node)[1])
-      metadata['include_private'] = include_private unless include_private.nil?
+      metadata['include_private'] = respond_to_include_private(arguments(node))
       metadata
+    end
+
+    def respond_to_include_private(call_arguments)
+      return false unless call_arguments.length > 1
+
+      argument = call_arguments[1]
+      return false if %i[false_node nil_node].include?(argument.type)
+      return true if RESPOND_TO_TRUTHY_LITERAL_TYPES.include?(argument.type)
+
+      'unknown'
     end
   end
 end

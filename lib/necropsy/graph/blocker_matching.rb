@@ -89,10 +89,17 @@ module Necropsy
       original_message = (metadata['original_message'] || metadata[:original_message])&.to_s
       return node.visibility == :public if original_message == 'public_send'
       return true if %w[send __send__ method].include?(original_message)
-      return true if original_message == 'respond_to?' && (metadata['include_private'] || metadata[:include_private]) == true
+      return respond_to_include_private(metadata) != false if original_message == 'respond_to?'
       return true if %i[implicit self super].include?(receiver_kind)
 
       node.visibility != :private
+    end
+
+    def respond_to_include_private(metadata)
+      return metadata['include_private'] if metadata.key?('include_private')
+      return metadata[:include_private] if metadata.key?(:include_private)
+
+      false
     end
 
     def blocker_owner_matches?(blocker, node, owner)
