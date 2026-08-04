@@ -9,8 +9,9 @@
     "findings": 5797
   },
   "states": {
-    "test_only_reachable": 363,
-    "unreachable": 5434
+    "blocked": 119,
+    "test_only_reachable": 359,
+    "unreachable": 5319
   },
   "findings": [
     {
@@ -457,9 +458,11 @@
       "id": "RuboCop::CLI::Command::AutoGenerateConfig#run",
       "path": "lib/rubocop/cli/command/auto_generate_config.rb",
       "line": 25,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::CLI::Command::AutoGenerateConfig#run_all_cops",
@@ -614,9 +617,11 @@
       "id": "RuboCop::CLI::Command::ExecuteRunner#run",
       "path": "lib/rubocop/cli/command/execute_runner.rb",
       "line": 16,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::CLI::Command::ExecuteRunner#with_redirect",
@@ -630,17 +635,21 @@
       "id": "RuboCop::CLI::Command::InitDotfile#run",
       "path": "lib/rubocop/cli/command/init_dotfile.rb",
       "line": 13,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::CLI::Command::LSP#run",
       "path": "lib/rubocop/cli/command/lsp.rb",
       "line": 11,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::CLI::Command::ShowCops#config_lines",
@@ -700,9 +709,11 @@
       "id": "RuboCop::CLI::Command::ShowCops#run",
       "path": "lib/rubocop/cli/command/show_cops.rb",
       "line": 39,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::CLI::Command::ShowCops#selected_cops_of_department",
@@ -772,9 +783,11 @@
       "id": "RuboCop::CLI::Command::ShowDocsUrl#run",
       "path": "lib/rubocop/cli/command/show_docs_url.rb",
       "line": 18,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::CLI::Command::SuggestExtensions#all_extensions",
@@ -904,9 +917,10 @@
       "id": "RuboCop::CLI::Command::SuggestExtensions#run",
       "path": "lib/rubocop/cli/command/suggest_extensions.rb",
       "line": 17,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 14 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -924,9 +938,11 @@
       "id": "RuboCop::CLI::Command::Version#run",
       "path": "lib/rubocop/cli/command/version.rb",
       "line": 11,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::CLI::Environment#paths",
@@ -1125,9 +1141,10 @@
       "id": "RuboCop::ConfigObsoletion::ChangedEnforcedStyles#message",
       "path": "lib/rubocop/config_obsoletion/changed_enforced_styles.rb",
       "line": 14,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -1135,9 +1152,10 @@
       "id": "RuboCop::ConfigObsoletion::ChangedEnforcedStyles#violated?",
       "path": "lib/rubocop/config_obsoletion/changed_enforced_styles.rb",
       "line": 10,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -1145,9 +1163,10 @@
       "id": "RuboCop::ConfigObsoletion::ChangedParameter#message",
       "path": "lib/rubocop/config_obsoletion/changed_parameter.rb",
       "line": 10,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -1163,9 +1182,10 @@
       "id": "RuboCop::ConfigObsoletion::CopRule#message",
       "path": "lib/rubocop/config_obsoletion/cop_rule.rb",
       "line": 19,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -1173,9 +1193,10 @@
       "id": "RuboCop::ConfigObsoletion::CopRule#violated?",
       "path": "lib/rubocop/config_obsoletion/cop_rule.rb",
       "line": 28,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -1223,9 +1244,11 @@
       "id": "RuboCop::ConfigObsoletion::ExtractedCop#violated?",
       "path": "lib/rubocop/config_obsoletion/extracted_cop.rb",
       "line": 17,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::ConfigObsoletion::ParameterRule#alternative",
@@ -1257,9 +1280,10 @@
       "id": "RuboCop::ConfigObsoletion::ParameterRule#cop",
       "path": "lib/rubocop/config_obsoletion/parameter_rule.rb",
       "line": 8,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 14 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
@@ -1303,9 +1327,10 @@
       "id": "RuboCop::ConfigObsoletion::ParameterRule#violated?",
       "path": "lib/rubocop/config_obsoletion/parameter_rule.rb",
       "line": 21,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -1331,9 +1356,10 @@
       "id": "RuboCop::ConfigObsoletion::RemovedCop#metadata",
       "path": "lib/rubocop/config_obsoletion/removed_cop.rb",
       "line": 9,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 7 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Lint::AmbiguousOperator#on_new_investigation.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
@@ -1424,9 +1450,11 @@
       "id": "RuboCop::ConfigObsoletion::Rule#violated?",
       "path": "lib/rubocop/config_obsoletion/rule.rb",
       "line": 22,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::ConfigObsoletion::SplitCop#alternatives",
@@ -1448,9 +1476,10 @@
       "id": "RuboCop::ConfigObsoletion::SplitCop#metadata",
       "path": "lib/rubocop/config_obsoletion/split_cop.rb",
       "line": 9,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 7 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
@@ -3744,9 +3773,10 @@
       "id": "RuboCop::Cop::EmptyParameter#check",
       "path": "lib/rubocop/cop/mixin/empty_parameter.rb",
       "line": 16,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::EmptyBlockParameter#on_block.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -3998,9 +4028,10 @@
       "id": "RuboCop::Cop::Force#cops",
       "path": "lib/rubocop/cop/force.rb",
       "line": 17,
-      "state": "test_only_reachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 5 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
@@ -4016,17 +4047,21 @@
       "id": "RuboCop::Cop::Force#investigate",
       "path": "lib/rubocop/cop/force.rb",
       "line": 50,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Cop::Force#name",
       "path": "lib/rubocop/cop/force.rb",
       "line": 36,
-      "state": "test_only_reachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Cop::Force#run_hook",
@@ -6728,9 +6763,10 @@
       "id": "RuboCop::Cop::InternalAffairs::NodePatternGroups::ASTWalker::NodeGroup#offense_range",
       "path": "lib/rubocop/cop/internal_affairs/node_pattern_groups/ast_walker.rb",
       "line": 17,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::InternalAffairs::NodePatternGroups#on_send.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
@@ -10707,9 +10743,10 @@
       "id": "RuboCop::Cop::Layout::EmptyLinesAroundBody#check",
       "path": "lib/rubocop/cop/mixin/empty_lines_around_body.rb",
       "line": 26,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 6 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Layout::EmptyLinesAroundBeginBody#on_kwbegin.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -10835,9 +10872,10 @@
       "id": "RuboCop::Cop::Layout::EmptyLinesAroundBody#message",
       "path": "lib/rubocop/cop/mixin/empty_lines_around_body.rb",
       "line": 155,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Layout::EmptyLinesAroundExceptionHandlingKeywords#on_def."
       ]
     },
@@ -21600,9 +21638,10 @@
       "id": "RuboCop::Cop::Lint::LiteralAsCondition#message",
       "path": "lib/rubocop/cop/lint/literal_as_condition.rb",
       "line": 164,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Lint::LiteralAsCondition#on_case."
       ]
     },
@@ -26696,9 +26735,10 @@
       "id": "RuboCop::Cop::Lint::UselessAssignment#offense_range",
       "path": "lib/rubocop/cop/lint/useless_assignment.rb",
       "line": 88,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -27595,9 +27635,10 @@
       "id": "RuboCop::Cop::MethodPreference#preferred_method",
       "path": "lib/rubocop/cop/mixin/method_preference.rb",
       "line": 9,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 4 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::StringMethods#on_send.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -28801,9 +28842,10 @@
       "id": "RuboCop::Cop::MultilineExpressionIndentation#check",
       "path": "lib/rubocop/cop/mixin/multiline_expression_indentation.rb",
       "line": 65,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::MultilineExpressionIndentation#on_send."
       ]
     },
@@ -30851,9 +30893,10 @@
       "id": "RuboCop::Cop::OrderedGemNode#register_offense",
       "path": "lib/rubocop/cop/mixin/ordered_gem_node.rb",
       "line": 32,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Bundler::OrderedGems#on_new_investigation.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -31012,9 +31055,10 @@
       "id": "RuboCop::Cop::PercentLiteral#type",
       "path": "lib/rubocop/cop/mixin/percent_literal.rb",
       "line": 27,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::PercentLiteralDelimiters#on_percent_literal."
       ]
     },
@@ -31897,9 +31941,10 @@
       "id": "RuboCop::Cop::StatementModifier#max_line_length",
       "path": "lib/rubocop/cop/mixin/statement_modifier.rb",
       "line": 103,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 5 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::GuardClause#on_if.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -34945,9 +34990,10 @@
       "id": "RuboCop::Cop::Style::ClassCheck#message",
       "path": "lib/rubocop/cop/style/class_check.rb",
       "line": 45,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ClassCheck#on_send.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -39292,9 +39338,10 @@
       "id": "RuboCop::Cop::Style::GlobalVars#check",
       "path": "lib/rubocop/cop/style/global_vars.rb",
       "line": 72,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::GlobalVars#on_gvar.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -43853,9 +43900,10 @@
       "id": "RuboCop::Cop::Style::MultilineMemoization#message",
       "path": "lib/rubocop/cop/style/multiline_memoization.rb",
       "line": 56,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -46359,9 +46407,10 @@
       "id": "RuboCop::Cop::Style::ParallelAssignment::GenericCorrector#correction",
       "path": "lib/rubocop/cop/style/parallel_assignment.rb",
       "line": 194,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ParallelAssignment#on_masgn.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -46370,9 +46419,10 @@
       "id": "RuboCop::Cop::Style::ParallelAssignment::GenericCorrector#correction_range",
       "path": "lib/rubocop/cop/style/parallel_assignment.rb",
       "line": 198,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ParallelAssignment#on_masgn."
       ]
     },
@@ -46388,9 +46438,10 @@
       "id": "RuboCop::Cop::Style::ParallelAssignment::GenericCorrector#initialize",
       "path": "lib/rubocop/cop/style/parallel_assignment.rb",
       "line": 186,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ParallelAssignment#on_masgn."
       ]
     },
@@ -46420,9 +46471,10 @@
       "id": "RuboCop::Cop::Style::ParallelAssignment::ModifierCorrector#correction",
       "path": "lib/rubocop/cop/style/parallel_assignment.rb",
       "line": 268,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ParallelAssignment#on_masgn.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -46431,9 +46483,10 @@
       "id": "RuboCop::Cop::Style::ParallelAssignment::ModifierCorrector#correction_range",
       "path": "lib/rubocop/cop/style/parallel_assignment.rb",
       "line": 277,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ParallelAssignment#on_masgn.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -46464,9 +46517,10 @@
       "id": "RuboCop::Cop::Style::ParallelAssignment::RescueCorrector#correction",
       "path": "lib/rubocop/cop/style/parallel_assignment.rb",
       "line": 233,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ParallelAssignment#on_masgn.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -46475,9 +46529,10 @@
       "id": "RuboCop::Cop::Style::ParallelAssignment::RescueCorrector#correction_range",
       "path": "lib/rubocop/cop/style/parallel_assignment.rb",
       "line": 244,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::ParallelAssignment#on_masgn."
       ]
     },
@@ -52929,9 +52984,10 @@
       "id": "RuboCop::Cop::Style::SpecialGlobalVars#message",
       "path": "lib/rubocop/cop/style/special_global_vars.rb",
       "line": 167,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::SpecialGlobalVars#on_gvar.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -55904,9 +55960,10 @@
       "id": "RuboCop::Cop::TrailingComma#check",
       "path": "lib/rubocop/cop/mixin/trailing_comma.rb",
       "line": 20,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::TrailingCommaInArguments#on_send.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -56107,9 +56164,10 @@
       "id": "RuboCop::Cop::UncommunicativeName#check",
       "path": "lib/rubocop/cop/mixin/uncommunicative_name.rb",
       "line": 12,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Naming::BlockParameterName#on_block.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -56563,9 +56621,10 @@
       "id": "RuboCop::Cop::Utils::FormatString::FormatSequence#style",
       "path": "lib/rubocop/cop/utils/format_string.rb",
       "line": 83,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 6 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Style::FormatStringToken#on_str."
       ]
     },
@@ -56632,9 +56691,10 @@
       "id": "RuboCop::Cop::VariableForce#investigate",
       "path": "lib/rubocop/cop/variable_force.rb",
       "line": 79,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -57715,9 +57775,10 @@
       "id": "RuboCop::DirectiveComment#range",
       "path": "lib/rubocop/directive_comment.rb",
       "line": 81,
-      "state": "test_only_reachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because it is reachable from implicitly invoked RuboCop::Cop::Lint::RedundantCopEnableDirective#on_new_investigation.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -57766,9 +57827,10 @@
       "id": "RuboCop::Ext::ProcessedSource#config",
       "path": "lib/rubocop/ext/processed_source.rb",
       "line": 7,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 4 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
@@ -57859,33 +57921,41 @@
       "id": "RuboCop::Formatter::AutoGenConfigFormatter#finished",
       "path": "lib/rubocop/formatter/auto_gen_config_formatter.rb",
       "line": 7,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::BaseFormatter#file_finished",
       "path": "lib/rubocop/formatter/base_formatter.rb",
       "line": 104,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::BaseFormatter#file_started",
       "path": "lib/rubocop/formatter/base_formatter.rb",
       "line": 89,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::BaseFormatter#finished",
       "path": "lib/rubocop/formatter/base_formatter.rb",
       "line": 116,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::BaseFormatter#initialize",
@@ -57899,9 +57969,10 @@
       "id": "RuboCop::Formatter::BaseFormatter#options",
       "path": "lib/rubocop/formatter/base_formatter.rb",
       "line": 57,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 6 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
@@ -57909,9 +57980,11 @@
       "id": "RuboCop::Formatter::BaseFormatter#started",
       "path": "lib/rubocop/formatter/base_formatter.rb",
       "line": 76,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::ClangStyleFormatter#report_file",
@@ -57991,9 +58064,10 @@
       "id": "RuboCop::Formatter::DisabledConfigFormatter#file_finished",
       "path": "lib/rubocop/formatter/disabled_config_formatter.rb",
       "line": 40,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58001,9 +58075,11 @@
       "id": "RuboCop::Formatter::DisabledConfigFormatter#file_started",
       "path": "lib/rubocop/formatter/disabled_config_formatter.rb",
       "line": 33,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::DisabledConfigFormatter#filtered_config",
@@ -58019,9 +58095,11 @@
       "id": "RuboCop::Formatter::DisabledConfigFormatter#finished",
       "path": "lib/rubocop/formatter/disabled_config_formatter.rb",
       "line": 48,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::DisabledConfigFormatter#include_or_match?",
@@ -58234,9 +58312,10 @@
       "id": "RuboCop::Formatter::EmacsStyleFormatter#file_finished",
       "path": "lib/rubocop/formatter/emacs_style_formatter.rb",
       "line": 9,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58254,9 +58333,10 @@
       "id": "RuboCop::Formatter::FileListFormatter#file_finished",
       "path": "lib/rubocop/formatter/file_list_formatter.rb",
       "line": 13,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58274,9 +58354,10 @@
       "id": "RuboCop::Formatter::FuubarStyleFormatter#file_finished",
       "path": "lib/rubocop/formatter/fuubar_style_formatter.rb",
       "line": 40,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58302,9 +58383,10 @@
       "id": "RuboCop::Formatter::FuubarStyleFormatter#started",
       "path": "lib/rubocop/formatter/fuubar_style_formatter.rb",
       "line": 20,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58322,17 +58404,21 @@
       "id": "RuboCop::Formatter::GitHubActionsFormatter#file_finished",
       "path": "lib/rubocop/formatter/github_actions_formatter.rb",
       "line": 14,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::GitHubActionsFormatter#finished",
       "path": "lib/rubocop/formatter/github_actions_formatter.rb",
       "line": 18,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::GitHubActionsFormatter#github_escape",
@@ -58378,17 +58464,20 @@
       "id": "RuboCop::Formatter::GitHubActionsFormatter#started",
       "path": "lib/rubocop/formatter/github_actions_formatter.rb",
       "line": 10,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::HTMLFormatter#file_finished",
       "path": "lib/rubocop/formatter/html_formatter.rb",
       "line": 39,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58396,9 +58485,10 @@
       "id": "RuboCop::Formatter::HTMLFormatter#files",
       "path": "lib/rubocop/formatter/html_formatter.rb",
       "line": 27,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
@@ -58406,9 +58496,11 @@
       "id": "RuboCop::Formatter::HTMLFormatter#finished",
       "path": "lib/rubocop/formatter/html_formatter.rb",
       "line": 44,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::HTMLFormatter#initialize",
@@ -58434,9 +58526,11 @@
       "id": "RuboCop::Formatter::HTMLFormatter#started",
       "path": "lib/rubocop/formatter/html_formatter.rb",
       "line": 35,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::HTMLFormatter#summary",
@@ -58734,9 +58828,10 @@
       "id": "RuboCop::Formatter::JSONFormatter#file_finished",
       "path": "lib/rubocop/formatter/json_formatter.rb",
       "line": 22,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58744,9 +58839,10 @@
       "id": "RuboCop::Formatter::JSONFormatter#finished",
       "path": "lib/rubocop/formatter/json_formatter.rb",
       "line": 27,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58810,9 +58906,10 @@
       "id": "RuboCop::Formatter::JSONFormatter#started",
       "path": "lib/rubocop/formatter/json_formatter.rb",
       "line": 18,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58850,9 +58947,10 @@
       "id": "RuboCop::Formatter::JUnitFormatter#file_finished",
       "path": "lib/rubocop/formatter/junit_formatter.rb",
       "line": 32,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58860,9 +58958,10 @@
       "id": "RuboCop::Formatter::JUnitFormatter#finished",
       "path": "lib/rubocop/formatter/junit_formatter.rb",
       "line": 51,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58952,9 +59051,10 @@
       "id": "RuboCop::Formatter::MarkdownFormatter#file_finished",
       "path": "lib/rubocop/formatter/markdown_formatter.rb",
       "line": 21,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -58962,9 +59062,10 @@
       "id": "RuboCop::Formatter::MarkdownFormatter#files",
       "path": "lib/rubocop/formatter/markdown_formatter.rb",
       "line": 9,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
@@ -58972,9 +59073,11 @@
       "id": "RuboCop::Formatter::MarkdownFormatter#finished",
       "path": "lib/rubocop/formatter/markdown_formatter.rb",
       "line": 26,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::MarkdownFormatter#initialize",
@@ -59008,9 +59111,11 @@
       "id": "RuboCop::Formatter::MarkdownFormatter#started",
       "path": "lib/rubocop/formatter/markdown_formatter.rb",
       "line": 17,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::MarkdownFormatter#summary",
@@ -59076,9 +59181,10 @@
       "id": "RuboCop::Formatter::OffenseCountFormatter#file_finished",
       "path": "lib/rubocop/formatter/offense_count_formatter.rb",
       "line": 42,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -59086,9 +59192,11 @@
       "id": "RuboCop::Formatter::OffenseCountFormatter#finished",
       "path": "lib/rubocop/formatter/offense_count_formatter.rb",
       "line": 51,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::OffenseCountFormatter#offense_counts",
@@ -59124,9 +59232,10 @@
       "id": "RuboCop::Formatter::OffenseCountFormatter#started",
       "path": "lib/rubocop/formatter/offense_count_formatter.rb",
       "line": 19,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -59154,17 +59263,21 @@
       "id": "RuboCop::Formatter::PacmanFormatter#file_finished",
       "path": "lib/rubocop/formatter/pacman_formatter.rb",
       "line": 37,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::PacmanFormatter#file_started",
       "path": "lib/rubocop/formatter/pacman_formatter.rb",
       "line": 33,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::PacmanFormatter#initialize",
@@ -59216,9 +59329,11 @@
       "id": "RuboCop::Formatter::PacmanFormatter#started",
       "path": "lib/rubocop/formatter/pacman_formatter.rb",
       "line": 26,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::PacmanFormatter#step",
@@ -59244,17 +59359,21 @@
       "id": "RuboCop::Formatter::ProgressFormatter#file_finished",
       "path": "lib/rubocop/formatter/progress_formatter.rb",
       "line": 24,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::ProgressFormatter#finished",
       "path": "lib/rubocop/formatter/progress_formatter.rb",
       "line": 33,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::ProgressFormatter#initialize",
@@ -59278,9 +59397,11 @@
       "id": "RuboCop::Formatter::ProgressFormatter#started",
       "path": "lib/rubocop/formatter/progress_formatter.rb",
       "line": 18,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::QuietFormatter#report_summary",
@@ -59326,17 +59447,20 @@
       "id": "RuboCop::Formatter::SimpleTextFormatter#file_finished",
       "path": "lib/rubocop/formatter/simple_text_formatter.rb",
       "line": 29,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::SimpleTextFormatter#finished",
       "path": "lib/rubocop/formatter/simple_text_formatter.rb",
       "line": 36,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -59344,9 +59468,10 @@
       "id": "RuboCop::Formatter::SimpleTextFormatter#message",
       "path": "lib/rubocop/formatter/simple_text_formatter.rb",
       "line": 89,
-      "state": "test_only_reachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -59372,9 +59497,11 @@
       "id": "RuboCop::Formatter::SimpleTextFormatter#started",
       "path": "lib/rubocop/formatter/simple_text_formatter.rb",
       "line": 23,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::SimpleTextFormatter::Report#correctable",
@@ -59436,17 +59563,20 @@
       "id": "RuboCop::Formatter::TapFormatter#file_finished",
       "path": "lib/rubocop/formatter/tap_formatter.rb",
       "line": 14,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Formatter::TapFormatter#message",
       "path": "lib/rubocop/formatter/tap_formatter.rb",
       "line": 66,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -59482,17 +59612,20 @@
       "id": "RuboCop::Formatter::TapFormatter#started",
       "path": "lib/rubocop/formatter/tap_formatter.rb",
       "line": 8,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::WorstOffendersFormatter#file_finished",
       "path": "lib/rubocop/formatter/worst_offenders_formatter.rb",
       "line": 24,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -59500,9 +59633,11 @@
       "id": "RuboCop::Formatter::WorstOffendersFormatter#finished",
       "path": "lib/rubocop/formatter/worst_offenders_formatter.rb",
       "line": 31,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::WorstOffendersFormatter#offense_counts",
@@ -59538,9 +59673,11 @@
       "id": "RuboCop::Formatter::WorstOffendersFormatter#started",
       "path": "lib/rubocop/formatter/worst_offenders_formatter.rb",
       "line": 19,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::Formatter::WorstOffendersFormatter#total_offense_count",
@@ -59843,9 +59980,11 @@
       "id": "RuboCop::Plugin::LoadError#message",
       "path": "lib/rubocop/plugin/load_error.rb",
       "line": 14,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 41 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Plugin::NotSupportedError#initialize",
@@ -59861,9 +60000,10 @@
       "id": "RuboCop::Plugin::NotSupportedError#message",
       "path": "lib/rubocop/plugin/not_supported_error.rb",
       "line": 14,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 41 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60183,9 +60323,11 @@
       "id": "RuboCop::Server::ServerCommand::Base#run",
       "path": "lib/rubocop/server/server_command/base.rb",
       "line": 40,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Server::ServerCommand::Base#validate_token!",
@@ -60212,9 +60354,10 @@
       "id": "RuboCop::Server::ServerCommand::Base::Runner#run",
       "path": "lib/rubocop/server/server_command/base.rb",
       "line": 21,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 14 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60222,9 +60365,10 @@
       "id": "RuboCop::Server::ServerCommand::Exec#run",
       "path": "lib/rubocop/server/server_command/exec.rb",
       "line": 18,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 14 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60232,9 +60376,11 @@
       "id": "RuboCop::Server::ServerCommand::Stop#run",
       "path": "lib/rubocop/server/server_command/stop.rb",
       "line": 18,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 14 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::Server::SocketReader::Header#args=",
@@ -60460,9 +60606,10 @@
       "id": "RuboCop::TargetRuby::BundlerLockFile#find_version",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 212,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60470,25 +60617,31 @@
       "id": "RuboCop::TargetRuby::BundlerLockFile#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 206,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::Default#find_version",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 253,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::Default#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 247,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::GemspecFile#find_minimal_known_ruby",
@@ -60504,9 +60657,10 @@
       "id": "RuboCop::TargetRuby::GemspecFile#find_version",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 88,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60524,9 +60678,11 @@
       "id": "RuboCop::TargetRuby::GemspecFile#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 82,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::GemspecFile#version_from_array",
@@ -60560,9 +60716,10 @@
       "id": "RuboCop::TargetRuby::RuboCopConfig#find_version",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 60,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60570,17 +60727,20 @@
       "id": "RuboCop::TargetRuby::RuboCopConfig#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 54,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::RuboCopEnvVar#find_version",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 46,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60588,9 +60748,11 @@
       "id": "RuboCop::TargetRuby::RuboCopEnvVar#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 40,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::RubyVersionFile#filename",
@@ -60604,9 +60766,10 @@
       "id": "RuboCop::TargetRuby::RubyVersionFile#find_version",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 169,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -60614,9 +60777,11 @@
       "id": "RuboCop::TargetRuby::RubyVersionFile#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 155,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::RubyVersionFile#pattern",
@@ -60650,9 +60815,10 @@
       "id": "RuboCop::TargetRuby::Source#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 25,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 188 unresolved runtime dispatches.",
         "Lowered because it is reachable from implicitly invoked RuboCop::TargetRuby::Source#to_s.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
@@ -60661,9 +60827,10 @@
       "id": "RuboCop::TargetRuby::Source#to_s",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 32,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 188 unresolved runtime dispatches.",
         "Lowered because to_s is a Ruby protocol method invoked implicitly."
       ]
     },
@@ -60679,9 +60846,11 @@
       "id": "RuboCop::TargetRuby::ToolVersionsFile#name",
       "path": "lib/rubocop/target_ruby.rb",
       "line": 188,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 188 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "RuboCop::TargetRuby::ToolVersionsFile#pattern",

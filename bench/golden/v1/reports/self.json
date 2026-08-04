@@ -2,14 +2,15 @@
   "schema_version": 1,
   "corpus": "self",
   "metrics": {
-    "nodes": 860,
-    "definitions": 758,
-    "call_sites": 9451,
-    "edges": 4041,
-    "findings": 80
+    "nodes": 903,
+    "definitions": 800,
+    "call_sites": 10430,
+    "edges": 4447,
+    "findings": 81
   },
   "states": {
-    "test_only_reachable": 59,
+    "blocked": 5,
+    "test_only_reachable": 55,
     "unreachable": 21
   },
   "findings": [
@@ -17,17 +18,21 @@
       "id": "Necropsy::Analyzer#analyze",
       "path": "lib/necropsy/analyzer.rb",
       "line": 5,
-      "state": "test_only_reachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "Necropsy::Analyzer#profile",
       "path": "lib/necropsy/analyzer.rb",
       "line": 9,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "state": "blocked",
+      "confidence": "low",
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#coverage_result",
@@ -72,6 +77,16 @@
       "state": "unreachable",
       "confidence": "medium",
       "reasons": []
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::ObservationPolicy#metadata",
+      "path": "lib/necropsy/analyzers/dynamic/observation_policy.rb",
+      "line": 9,
+      "state": "unreachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::TracePointCollector#install_at_exit",
@@ -156,9 +171,10 @@
       "id": "Necropsy::Bench::CandidateUnion#call",
       "path": "lib/necropsy/bench/candidate_union.rb",
       "line": 18,
-      "state": "test_only_reachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 7 unresolved runtime dispatches.",
         "Lowered because call is a Ruby protocol method invoked implicitly.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -331,9 +347,10 @@
       "id": "Necropsy::Bench::ReportNormalizer#call",
       "path": "lib/necropsy/bench/report_normalizer.rb",
       "line": 15,
-      "state": "test_only_reachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 7 unresolved runtime dispatches.",
         "Lowered because call is a Ruby protocol method invoked implicitly."
       ]
     },
@@ -447,9 +464,10 @@
       "id": "Necropsy::Bench::SeedRunner#call",
       "path": "lib/necropsy/bench/seed_runner.rb",
       "line": 35,
-      "state": "test_only_reachable",
+      "state": "blocked",
       "confidence": "low",
       "reasons": [
+        "Blocked by 7 unresolved runtime dispatches.",
         "Lowered because call is a Ruby protocol method invoked implicitly.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
@@ -777,7 +795,7 @@
     {
       "id": "Necropsy::CallGraph#dynamic_enabled?",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 102,
+      "line": 107,
       "state": "unreachable",
       "confidence": "low",
       "reasons": [
@@ -787,7 +805,7 @@
     {
       "id": "Necropsy::CallGraph#modules_for",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 148,
+      "line": 153,
       "state": "unreachable",
       "confidence": "low",
       "reasons": [

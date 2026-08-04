@@ -41,7 +41,7 @@
     }
   },
   "summary": {
-    "candidates": 5911,
+    "candidates": 5912,
     "reviewed": 34,
     "by_label": {
       "alive": 24,
@@ -1989,8 +1989,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -2341,8 +2341,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -2385,8 +2385,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -2407,8 +2407,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -2561,8 +2561,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -2737,8 +2737,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -3045,7 +3045,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -3089,8 +3089,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -3529,7 +3529,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -3551,7 +3551,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -3573,7 +3573,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -3617,7 +3617,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -3639,7 +3639,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -3749,8 +3749,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -3837,7 +3837,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -3947,7 +3947,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -4013,7 +4013,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -4233,8 +4233,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -4299,7 +4299,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -9117,7 +9117,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -9645,7 +9645,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -9689,8 +9689,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -9711,8 +9711,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -15365,7 +15365,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -23571,7 +23571,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -23835,7 +23835,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -46143,7 +46143,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -56747,7 +56747,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -58617,7 +58617,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -61125,7 +61125,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -65437,7 +65437,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -65767,7 +65767,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -67615,7 +67615,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -73907,7 +73907,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -82839,7 +82839,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -92365,7 +92365,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -97557,7 +97557,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -97579,7 +97579,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -97623,7 +97623,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -97689,7 +97689,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -97711,7 +97711,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -97777,7 +97777,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -97799,7 +97799,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -111131,7 +111131,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -117291,7 +117291,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -117709,7 +117709,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -118655,7 +118655,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -118809,7 +118809,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -121273,7 +121273,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -121383,7 +121383,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -121581,8 +121581,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -121603,8 +121603,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -121625,8 +121625,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -121647,8 +121647,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -121691,7 +121691,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -121713,8 +121713,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -121911,7 +121911,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -121933,8 +121933,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -121977,8 +121977,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -122461,7 +122461,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -122505,7 +122505,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -122549,7 +122549,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -122615,7 +122615,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -122659,8 +122659,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -122681,8 +122681,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -122791,8 +122791,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -122813,7 +122813,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -122835,7 +122835,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -122857,8 +122857,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -122923,8 +122923,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -123605,7 +123605,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -123627,7 +123627,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -123781,7 +123781,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -123869,7 +123869,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -123891,7 +123891,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -124111,7 +124111,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -124133,7 +124133,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -124155,8 +124155,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124243,8 +124243,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124397,7 +124397,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -124419,8 +124419,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124507,7 +124507,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -124573,8 +124573,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124595,8 +124595,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124727,8 +124727,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124793,8 +124793,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124815,8 +124815,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124881,8 +124881,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -124991,8 +124991,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -125013,7 +125013,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -125035,7 +125035,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -125101,8 +125101,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -125255,8 +125255,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -125277,7 +125277,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -125365,8 +125365,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -125387,7 +125387,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -125409,8 +125409,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -125497,8 +125497,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -126201,8 +126201,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -126245,7 +126245,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -126993,8 +126993,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127059,7 +127059,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -127081,7 +127081,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -127103,8 +127103,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127631,7 +127631,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -127653,8 +127653,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127675,8 +127675,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127697,8 +127697,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127741,7 +127741,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -127785,8 +127785,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127873,7 +127873,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -127895,8 +127895,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127917,7 +127917,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -127939,8 +127939,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -127983,7 +127983,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -128005,8 +128005,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -128093,7 +128093,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -128115,7 +128115,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -128159,8 +128159,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -128511,8 +128511,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -128533,8 +128533,8 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "unreachable",
-          "confidence": "medium"
+          "state": "blocked",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -128645,6 +128645,28 @@
           "candidate": true,
           "state": "unreachable",
           "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::ObservationPolicy#metadata",
+      "path": "lib/necropsy/analyzers/dynamic/observation_policy.rb",
+      "line": 9,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
         },
         "spoom": {
           "candidate": false
@@ -128841,7 +128863,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -129193,7 +129215,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -129435,7 +129457,7 @@
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
+          "state": "blocked",
           "confidence": "low"
         },
         "spoom": {
@@ -130110,7 +130132,7 @@
       "corpus": "self",
       "id": "Necropsy::CallGraph#dynamic_enabled?",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 102,
+      "line": 107,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130132,7 +130154,7 @@
       "corpus": "self",
       "id": "Necropsy::CallGraph#modules_for",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 148,
+      "line": 153,
       "tool_results": {
         "debride": {
           "candidate": false

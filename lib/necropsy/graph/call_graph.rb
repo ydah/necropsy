@@ -3,9 +3,10 @@
 module Necropsy
   class CallGraph
     include DynamicEvidenceTracking
+    include BlockerMatching
 
     attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
-                :entrypoint_hints
+                :entrypoint_hints, :ambiguity_limit
 
     def initialize(scan_result, ambiguity_limit: 4)
       @nodes = {}
@@ -16,6 +17,9 @@ module Necropsy
       @class_infos = scan_result.class_infos.to_h { |info| [info.id, info] }
       @entrypoint_hints = scan_result.entrypoint_hints
       @ambiguity_limit = ambiguity_limit
+      @blockers = []
+      @blocker_keys = Set.new
+      @blockers_by_message = Hash.new { |hash, key| hash[key] = [] }
       @entry_points = []
       @profiles = []
       @uncertainties = scan_result.uncertainties.to_h do |node_id, messages|
@@ -64,6 +68,7 @@ module Necropsy
         @uncertainties[node_id] ||= []
         @uncertainties[node_id].concat(Array(messages))
       end
+      Array(result.respond_to?(:blockers) ? result.blockers : []).each { |blocker| add_blocker(blocker) }
       observation.merge!(result.observation) { |_key, left, right| merge_observation(left, right) }
       record_dynamic_evidence(result, alive_matches, edge_matches) if dynamic_result
     end
@@ -164,6 +169,10 @@ module Necropsy
       candidates
     end
 
+    def ambiguity_exceeded?(message)
+      candidate_nodes(message).size > ambiguity_limit
+    end
+
     def ambiguous_resolution?
       @ambiguity_limit > 1
     end
@@ -238,6 +247,7 @@ module Necropsy
         'class_infos' => class_infos.values.map(&:to_h),
         'instantiated_classes' => instantiated_classes.to_a.sort,
         'profiles' => profiles.map(&:to_h),
+        'blockers' => blockers.map(&:to_h),
         'observation' => observation
       }
     end

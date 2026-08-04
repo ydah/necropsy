@@ -79,6 +79,49 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'with a blocked finding' do
+      let(:format) { :human }
+      let(:min_confidence) { :high }
+      let(:blocker) do
+        Necropsy::Blocker.new(
+          kind: :unknown_dispatch,
+          scope_kind: :message,
+          scope_value: 'call',
+          source: :name_resolution,
+          reason: 'receiver is unknown',
+          suggested_action: :review_receiver_flow,
+          metadata: {
+            'caller_id' => 'Router#route', 'caller_domain' => 'runtime', 'message' => 'call',
+            'file' => 'app/router.rb', 'line' => 12
+          }
+        )
+      end
+      let(:report) do
+        report_with_findings([
+                               finding(id: 'Handler#call', classification: :blocked, confidence: :low,
+                                       file: 'app/handler.rb', line: 4, blockers: [blocker])
+                             ])
+      end
+
+      it 'keeps blocker diagnostics visible independently of candidate confidence filtering' do
+        expect(rendered).to include(
+          'blocked (1)',
+          '[low] Handler#call app/handler.rb:4',
+          'blocker unknown_dispatch at app/router.rb:12 caller=Router#route',
+          'scope message="call" message=call',
+          'reason receiver is unknown'
+        )
+      end
+
+      it 'serializes blockers in JSON findings' do
+        payload = JSON.parse(described_class.new(report).render(format: :json))
+
+        expect(payload.dig('findings', 0, 'blockers', 0)).to include(
+          'kind' => 'unknown_dispatch', 'scope_kind' => 'message', 'reason' => 'receiver is unknown'
+        )
+      end
+    end
+
     context 'without an explicit confidence threshold' do
       let(:report) do
         report_with_findings([

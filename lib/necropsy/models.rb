@@ -135,19 +135,53 @@ module Necropsy
   EdgeEvidence = Data.define(:caller_id, :callee_id, :evidence)
   AliveEvidence = Data.define(:node_id, :evidence)
 
+  Blocker = Data.define(:kind, :scope_kind, :scope_value, :source, :reason, :suggested_action, :metadata) do
+    def initialize(kind:, scope_kind:, scope_value:, source:, reason:, suggested_action: :review, metadata: {})
+      super
+    end
+
+    def message
+      metadata['message'] || metadata[:message] || (scope_value if %i[message symbol].include?(scope_kind.to_sym))
+    end
+
+    def caller_domain
+      (metadata['caller_domain'] || metadata[:caller_domain] || :runtime).to_sym
+    end
+
+    def to_h
+      {
+        'kind' => kind.to_s,
+        'scope_kind' => scope_kind.to_s,
+        'scope_value' => scope_value,
+        'source' => source.respond_to?(:to_h) ? source.to_h : source.to_s,
+        'reason' => reason,
+        'suggested_action' => suggested_action.to_s,
+        'metadata' => metadata
+      }
+    end
+  end
+
   ScoreComponent = Data.define(:name, :value, :details) do
     def to_h
       { 'name' => name, 'value' => value, 'details' => details }
     end
   end
 
-  AnalyzerResult = Data.define(:edge_evidences, :alive_evidences, :uncertainties, :observation) do
+  AnalyzerResult = Data.define(:edge_evidences, :alive_evidences, :uncertainties, :observation, :blockers) do
+    def initialize(edge_evidences:, alive_evidences:, uncertainties:, observation:, blockers: [])
+      super
+    end
+
     def self.empty
-      new(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {})
+      new(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [])
     end
   end
 
-  Finding = Data.define(:node, :classification, :confidence, :score, :score_components, :reasons, :evidences) do
+  Finding = Data.define(:node, :classification, :confidence, :score, :score_components, :reasons, :evidences, :blockers) do
+    def initialize(node:, classification:, confidence:, score:, score_components:, reasons:, evidences:, blockers: [])
+      super
+    end
+
     def at_least?(level)
       CONFIDENCE_LEVELS.fetch(confidence) >= CONFIDENCE_LEVELS.fetch(level)
     end
@@ -165,7 +199,8 @@ module Necropsy
         'score_components' => score_components.map(&:to_h),
         'node' => node.to_h,
         'reasons' => reasons,
-        'evidences' => evidences.map(&:to_h)
+        'evidences' => evidences.map(&:to_h),
+        'blockers' => blockers.map(&:to_h)
       }
     end
   end

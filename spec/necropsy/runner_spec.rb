@@ -290,6 +290,37 @@ RSpec.describe Necropsy::Runner do
     expect(with_rta_high - without_rta_high).to be_empty
   end
 
+  it 'turns ambiguity-limit truncation into blocked findings instead of unreachable candidates' do
+    handlers = 5.times.map do |index|
+      "class Handler#{index}; def call; end; end"
+    end.join("\n")
+    source = <<~RUBY
+      #{handlers}
+      class Caller
+        def run(handler) = handler.call
+      end
+    RUBY
+    common = { cache: { enabled: false }, entry_points: { extra: ['Caller#run'] } }
+    limited = analyze_fixture(
+      files: { 'app/dispatch.rb' => source },
+      config: common.merge(resolution: { ambiguity_limit: 4 })
+    )
+    unlimited = analyze_fixture(
+      files: { 'app/dispatch.rb' => source },
+      config: common.merge(resolution: { ambiguity_limit: 'unlimited' })
+    )
+
+    limited_handlers = limited.findings.select { |finding| finding.node.name == 'call' }
+    unlimited_handlers = unlimited.findings.select { |finding| finding.node.name == 'call' }
+
+    expect(limited_handlers.length).to eq(5)
+    expect(limited_handlers).to all(have_attributes(classification: :blocked, confidence: :low))
+    expect(limited_handlers).to all(satisfy { |finding| !finding.at_least?(:high) })
+    expect(unlimited_handlers).to eq([])
+    expect(limited.graph.blockers.one?).to eq(true)
+    expect(limited.graph.blockers.first.metadata).to include('candidate_count' => 5, 'ambiguity_limit' => 4)
+  end
+
   def render_targets_for(report, message)
     report.graph.edges.filter_map do |edge|
       edge.callee_id if report.graph.nodes.fetch(edge.callee_id).name == message

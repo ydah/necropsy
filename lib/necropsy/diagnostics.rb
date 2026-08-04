@@ -19,17 +19,20 @@ module Necropsy
       runtime_path = reachability.witness(node_id)
       return alive_payload(node, runtime_path, :runtime) if runtime_path
 
+      finding = finding_for(node_id)
+      return dead_payload(node, finding) if finding&.classification == :blocked
+
       test_path = reachability.witness(node_id, kind: :test)
       return alive_payload(node, test_path, :test) if test_path
 
-      dead_payload(node)
+      dead_payload(node, finding)
     end
 
     def explain(node_id)
       node = graph.nodes[node_id]
       return missing_payload(node_id) unless node
 
-      finding = report.findings.find { |candidate| candidate.node.id == node_id }
+      finding = finding_for(node_id)
       return { 'status' => 'alive', 'node' => node.to_h } unless finding
 
       {
@@ -39,7 +42,8 @@ module Necropsy
         'confidence' => finding.confidence.to_s,
         'score' => finding.score,
         'components' => finding.score_components.map(&:to_h),
-        'reasons' => finding.reasons
+        'reasons' => finding.reasons,
+        'blockers' => finding.blockers.map(&:to_h)
       }
     end
 
@@ -91,15 +95,20 @@ module Necropsy
       step
     end
 
-    def dead_payload(node)
-      finding = report.findings.find { |candidate| candidate.node.id == node.id }
+    def dead_payload(node, finding = finding_for(node.id))
+      blockers = finding ? finding.blockers : graph.matching_blockers(node)
       {
-        'status' => 'dead',
+        'status' => finding&.classification == :blocked ? 'blocked' : 'dead',
         'node' => node.to_h,
         'classification' => finding&.classification&.to_s,
         'nearest_alive' => nearest_alive(node.id),
-        'uncertainties' => graph.uncertainties(node.id)
+        'uncertainties' => graph.uncertainties(node.id),
+        'blockers' => blockers.map(&:to_h)
       }
+    end
+
+    def finding_for(node_id)
+      report.findings.find { |candidate| candidate.node.id == node_id }
     end
 
     def nearest_alive(node_id)
@@ -140,7 +149,7 @@ module Necropsy
     def render_human(payload)
       case payload.fetch('status')
       when 'alive' then render_alive(payload)
-      when 'dead' then render_dead(payload)
+      when 'dead', 'blocked' then render_dead(payload)
       when 'finding' then render_explanation(payload)
       when 'not_found' then render_missing(payload)
       else "#{payload.dig('node', 'id')} is alive and has no dead-code finding."
@@ -175,6 +184,7 @@ module Necropsy
                end
       lines << 'Uncertainties: none' if payload.fetch('uncertainties').empty?
       payload.fetch('uncertainties').each { |message| lines << "Uncertainty: #{message}" }
+      append_blockers(lines, payload.fetch('blockers', []))
       lines.join("\n")
     end
 
@@ -190,7 +200,19 @@ module Necropsy
         )
       end
       lines << format('  %<name>-28s  %<value>0.2f', name: 'total', value: payload['score'])
+      append_blockers(lines, payload.fetch('blockers', []))
       lines.join("\n")
+    end
+
+    def append_blockers(lines, blockers)
+      blockers.each do |blocker|
+        metadata = blocker.fetch('metadata', {})
+        location = [metadata['file'], metadata['line']].compact.join(':')
+        caller = metadata['caller_id'] ? " caller=#{metadata['caller_id']}" : ''
+        lines << "Blocker: #{blocker['kind']} at #{location}#{caller}"
+        lines << "  Scope: #{blocker['scope_kind']}=#{blocker['scope_value'].inspect} message=#{metadata['message']}"
+        lines << "  Reason: #{blocker['reason']}"
+      end
     end
 
     def render_missing(payload)

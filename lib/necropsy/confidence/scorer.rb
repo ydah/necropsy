@@ -32,10 +32,11 @@ module Necropsy
         graph.method_nodes.filter_map do |node|
           next if node.test
 
-          classification = classification_for(node)
+          blockers = graph.matching_blockers(node)
+          classification = classification_for(node, blockers)
           next unless classification
 
-          score, level, reasons, score_components = score_for(node, classification)
+          score, level, reasons, score_components = score_for(node, classification, blockers)
           Finding.new(
             node: node,
             classification: classification,
@@ -43,7 +44,8 @@ module Necropsy
             score: score,
             score_components: score_components,
             reasons: reasons,
-            evidences: graph.incoming_edges(node.id).flat_map(&:evidences) + graph.alive_evidences(node.id)
+            evidences: graph.incoming_edges(node.id).flat_map(&:evidences) + graph.alive_evidences(node.id),
+            blockers: blockers
           )
         end
       end
@@ -52,11 +54,13 @@ module Necropsy
 
       attr_reader :graph, :reachability, :project
 
-      def classification_for(node)
+      def classification_for(node, blockers)
         return nil if graph.dynamic_alive?(node.id)
 
         if reachability.runtime_paths.key?(node.id)
           nil
+        elsif blockers.any?
+          :blocked
         elsif reachability.test_paths.key?(node.id)
           :test_only_reachable
         else
@@ -64,10 +68,15 @@ module Necropsy
         end
       end
 
-      def score_for(node, classification)
+      def score_for(node, classification, blockers)
         reasons = []
         score = base_score(classification)
         components = [score_component("base(#{classification})", score, 'Base classification score')]
+
+        if blockers.any?
+          components << score_component('matching_blocker', 0.0, 'Incomplete runtime dispatch matches this definition')
+          reasons << "Blocked by #{blockers.length} unresolved runtime dispatch#{'es' unless blockers.one?}."
+        end
 
         if graph.uncertainties(node.id).any?
           score -= 0.35
@@ -115,6 +124,8 @@ module Necropsy
       end
 
       def base_score(classification)
+        return 0.25 if classification == :blocked
+
         case classification
         when :unreachable
           0.62

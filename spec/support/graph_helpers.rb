@@ -85,17 +85,18 @@ module GraphHelpers
     )
   end
 
-  def analyzer_result(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {})
+  def analyzer_result(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [])
     Necropsy::AnalyzerResult.new(
       edge_evidences: edge_evidences,
       alive_evidences: alive_evidences,
       uncertainties: Hash.new { |hash, key| hash[key] = [] }.merge(uncertainties),
-      observation: observation
+      observation: observation,
+      blockers: blockers
     )
   end
 
   def finding(id: 'Sample#dead', classification: :unreachable, confidence: :high, score: 0.8, file: 'sample.rb',
-              line: 1)
+              line: 1, blockers: [])
     Necropsy::Finding.new(
       node: node(id, file: file, line: line),
       classification: classification,
@@ -105,7 +106,8 @@ module GraphHelpers
         Necropsy::ScoreComponent.new(name: "base(#{classification})", value: score, details: 'spec component')
       ],
       reasons: ['spec reason'],
-      evidences: [evidence]
+      evidences: [evidence],
+      blockers: blockers
     )
   end
 

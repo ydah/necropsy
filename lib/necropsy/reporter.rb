@@ -32,7 +32,7 @@ module Necropsy
     attr_reader :report
 
     def render_human(min_confidence)
-      findings = report.dead_methods(min_confidence: min_confidence)
+      findings = (report.dead_methods(min_confidence: min_confidence) + report.blocked_methods).uniq
       lines = [
         'Necropsy report',
         "Root: #{report.root}",
@@ -48,10 +48,23 @@ module Necropsy
         lines << "#{classification} (#{group.length})"
         group.sort_by { |finding| [finding.node.file, finding.node.line, finding.node.id] }.each do |finding|
           lines << "  [#{finding.confidence}] #{finding.node.id} #{finding.node.file}:#{finding.node.line}"
+          append_finding_blockers(lines, finding)
         end
       end
 
       lines.join("\n")
+    end
+
+    def append_finding_blockers(lines, finding)
+      finding.blockers.each do |blocker|
+        metadata = blocker.metadata
+        location = [metadata['file'] || metadata[:file], metadata['line'] || metadata[:line]].compact.join(':')
+        caller = metadata['caller_id'] || metadata[:caller_id]
+        message = metadata['message'] || metadata[:message] || blocker.message
+        lines << "    blocker #{blocker.kind} at #{location} caller=#{caller}"
+        lines << "      scope #{blocker.scope_kind}=#{blocker.scope_value.inspect} message=#{message}"
+        lines << "      reason #{blocker.reason}"
+      end
     end
 
     def append_dynamic_diagnostic(lines)

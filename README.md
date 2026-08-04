@@ -10,7 +10,7 @@ Necropsy includes:
 - Prism-based method collection for ordinary, singleton, delegated, aliased, forwarded, and dynamically defined methods
 - static name resolution and CHA, with rank-only RTA hints from classes instantiated in the scanned program
 - Prism-backed Rails route parsing plus callback, view, component, migration, plain Ruby, and test-suite entry points
-- `unreachable`, `unused`, and `test_only_reachable` classifications
+- `unreachable`, `unused`, `blocked`, and `test_only_reachable` classifications
 - confidence levels, compact JSON/YAML reports, SARIF/GitHub output, CI guardrails, dynamic collectors, and benchmarking
 
 ## Installation
@@ -135,7 +135,12 @@ change.
 
 When a call receiver cannot be resolved exactly, Necropsy conservatively keeps
 up to `resolution.ambiguity_limit` same-name candidates alive. The default of
-four is based on the RuboCop 1.75.0 measurements in `MEASUREMENTS.md`.
+four is based on the RuboCop 1.75.0 measurements in `MEASUREMENTS.md`. If a
+runtime call has more candidates, Necropsy records a message- and owner-scoped
+blocker instead of treating the empty target set as proof of deadness. Matching
+definitions are reported as `blocked` with the call site, scope, and reason;
+they never receive `high` or `certain` confidence. Unresolved calls found only
+in test files remain diagnostic evidence and do not block production candidates.
 
 Ruby VM hooks and common protocol methods receive lower confidence because
 their callers may not appear in source. Add `implicit_callers` rules for

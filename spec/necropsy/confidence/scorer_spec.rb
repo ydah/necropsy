@@ -84,6 +84,99 @@ RSpec.describe Necropsy::Confidence::Scorer do
       end
     end
 
+    context 'with matching unresolved dispatch blockers' do
+      let(:unreachable) { node('First#call', owner: 'First', name: 'call') }
+      let(:test_only) { node('Second#call', owner: 'Second', name: 'call') }
+      let(:blocker) do
+        Necropsy::Blocker.new(
+          kind: :unknown_dispatch,
+          scope_kind: :message,
+          scope_value: 'call',
+          source: :name_resolution,
+          reason: 'receiver is unknown',
+          suggested_action: :review_receiver_flow,
+          metadata: {
+            'caller_id' => 'Router#route', 'caller_domain' => 'runtime', 'message' => 'call',
+            'receiver_kind' => 'unknown', 'file' => 'app/router.rb', 'line' => 9
+          }
+        )
+      end
+      let(:graph) do
+        graph_with(nodes: [unreachable, test_only]).tap do |result|
+          result.apply_result(analyzer_result(blockers: [blocker]))
+        end
+      end
+      let(:reachability) do
+        Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: { test_only.id => nil })
+      end
+
+      it 'prioritizes blocked over unreachable and test-only without producing high confidence' do
+        expect(findings_by_id.fetch(unreachable.id)).to have_attributes(classification: :blocked, confidence: :low)
+        expect(findings_by_id.fetch(test_only.id)).to have_attributes(classification: :blocked, confidence: :low)
+        expect(findings).to all(have_attributes(blockers: [blocker]))
+        expect(findings).to all(satisfy { |finding| !finding.at_least?(:high) })
+        expect(findings.first.score_components.map(&:name)).to include('base(blocked)', 'matching_blocker')
+      end
+    end
+
+    context 'with unresolved dispatch only in tests' do
+      let(:target) { node('Target#call', owner: 'Target', name: 'call') }
+      let(:test_blocker) do
+        Necropsy::Blocker.new(
+          kind: :unknown_dispatch,
+          scope_kind: :message,
+          scope_value: 'call',
+          source: :name_resolution,
+          reason: 'test receiver is unknown',
+          suggested_action: :review_receiver_flow,
+          metadata: { 'caller_domain' => 'test', 'message' => 'call', 'receiver_kind' => 'unknown' }
+        )
+      end
+      let(:graph) do
+        graph_with(nodes: [target]).tap { |result| result.apply_result(analyzer_result(blockers: [test_blocker])) }
+      end
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
+
+      it 'does not overblock a production candidate' do
+        expect(findings.first).to have_attributes(classification: :unreachable, blockers: [])
+      end
+    end
+
+    context 'when the ambiguity limit shrinks' do
+      let(:graph) { graph_with(nodes: []) }
+      let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
+
+      it 'does not increase candidate or high-confidence sets' do
+        caller = node('Router#route', owner: 'Router', name: 'route')
+        targets = 5.times.map { |index| node("Handler#{index}#call", owner: "Handler#{index}", name: 'call') }
+        site = call_site(caller_id: caller.id, message: 'call', receiver_kind: :unknown)
+
+        findings_by_limit = [Float::INFINITY, 4].to_h do |limit|
+          scoped_graph = graph_with(nodes: [caller, *targets], call_sites: [site], ambiguity_limit: limit)
+          scoped_graph.apply_result(Necropsy::Analyzers::Static::NameResolution.new.analyze(scoped_graph, nil))
+          scoped_findings = described_class.new(
+            graph: scoped_graph,
+            reachability: Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}),
+            project: project_for(project_root)
+          ).findings
+          [limit, scoped_findings]
+        end
+
+        unlimited_candidates = findings_by_limit.fetch(Float::INFINITY).select do |finding|
+          finding.classification == :unreachable
+        end.to_set { |finding| finding.node.id }
+        limited_candidates = findings_by_limit.fetch(4).select do |finding|
+          finding.classification == :unreachable
+        end.to_set { |finding| finding.node.id }
+        unlimited_high = findings_by_limit.fetch(Float::INFINITY).select { |finding| finding.at_least?(:high) }.to_set
+        limited_high = findings_by_limit.fetch(4).select { |finding| finding.at_least?(:high) }.to_set
+
+        expect(limited_candidates).to be_subset(unlimited_candidates)
+        expect(limited_high).to be_subset(unlimited_high)
+        expect(findings_by_limit.fetch(4).count { |finding| finding.classification == :blocked }).to eq(5)
+      end
+    end
+
     context 'near metaprogramming and generated accessors' do
       let(:generated) { node('Sample#name', name: 'name', defined_via: :attr_reader) }
       let(:graph) do

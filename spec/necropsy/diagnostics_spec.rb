@@ -62,4 +62,55 @@ RSpec.describe Necropsy::Diagnostics do
     expect(diagnostics.render(payload)).to include('base(unreachable)', '+0.62', 'total')
     expect(JSON.parse(diagnostics.render(payload, format: :json))).to include('status' => 'finding')
   end
+
+  context 'with a blocker matching a test-reachable definition' do
+    let(:blocker) do
+      Necropsy::Blocker.new(
+        kind: :unknown_dispatch,
+        scope_kind: :owner,
+        scope_value: ['Sample'],
+        source: :name_resolution,
+        reason: 'Dispatch call has 5 candidates, exceeding the configured ambiguity limit',
+        suggested_action: :review_receiver_flow,
+        metadata: {
+          'caller_id' => 'Sample::Router#route', 'caller_domain' => 'runtime', 'message' => 'call',
+          'receiver_kind' => 'instance', 'file' => 'app/router.rb', 'line' => 31, 'candidate_count' => 5
+        }
+      )
+    end
+    let(:blocked_node) { node('Sample#call', owner: 'Sample', name: 'call') }
+    let(:graph) do
+      graph_with(nodes: [blocked_node], class_infos: [class_info('Sample')]).tap do |result|
+        result.add_blocker(blocker)
+      end
+    end
+    let(:reachability) do
+      Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: { blocked_node.id => nil })
+    end
+    let(:blocked_finding) do
+      finding(id: blocked_node.id, classification: :blocked, confidence: :low, score: 0.25, blockers: [blocker])
+    end
+    let(:report) do
+      Necropsy::Report.new(root: '/repo', graph: graph, findings: [blocked_finding], reachability: reachability)
+    end
+
+    it 'shows call site, scope, and reason in why and explain output' do
+      why_payload = diagnostics.why(blocked_node.id)
+      explain_payload = diagnostics.explain(blocked_node.id)
+
+      expect(why_payload).to include('status' => 'blocked', 'classification' => 'blocked')
+      expect(why_payload.dig('blockers', 0)).to include(
+        'scope_kind' => 'owner', 'reason' => match(/exceeding the configured ambiguity limit/)
+      )
+      expect(diagnostics.render(why_payload)).to include(
+        'Blocker: unknown_dispatch at app/router.rb:31 caller=Sample::Router#route',
+        'Scope: owner=["Sample"] message=call',
+        'Reason: Dispatch call has 5 candidates'
+      )
+      expect(explain_payload.fetch('blockers')).to eq(why_payload.fetch('blockers'))
+      expect(JSON.parse(diagnostics.render(explain_payload, format: :json)).dig('blockers', 0, 'metadata')).to include(
+        'file' => 'app/router.rb', 'line' => 31
+      )
+    end
+  end
 end

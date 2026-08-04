@@ -1,6 +1,27 @@
 # frozen_string_literal: true
 
 RSpec.describe Necropsy::CallGraph do
+  def unresolved_blocker(message:, scope_kind: :message, scope_value: message, domain: :runtime,
+                         receiver_kind: :unknown, caller_kind: :instance_method, original_message: nil)
+    Necropsy::Blocker.new(
+      kind: :unknown_dispatch,
+      scope_kind: scope_kind,
+      scope_value: scope_value,
+      source: :name_resolution,
+      reason: 'target set is incomplete',
+      suggested_action: :review_receiver_flow,
+      metadata: {
+        'message' => message,
+        'caller_domain' => domain.to_s,
+        'receiver_kind' => receiver_kind.to_s,
+        'caller_kind' => caller_kind.to_s,
+        'original_message' => original_message,
+        'file' => 'app/router.rb',
+        'line' => 8
+      }
+    )
+  end
+
   it 'deduplicates entry points and ignores unknown nodes' do
     graph = graph_with(nodes: [node('Sample#run')])
 
@@ -254,6 +275,122 @@ RSpec.describe Necropsy::CallGraph do
 
     expect(graph.edges.map(&:callee_id)).to eq(['Live#render'])
     expect(graph.incoming_edges(live.id).flat_map(&:evidences).map(&:analyzer)).to contain_exactly(:cha, :rta)
+  end
+
+  it 'matches unknown dispatch blockers through the message index' do
+    target = node('Target#call', owner: 'Target', name: 'call')
+    graph = graph_with(nodes: [target])
+    unrelated = 100.times.map do |index|
+      unresolved_blocker(message: "other_#{index}")
+    end
+    matching = unresolved_blocker(message: 'call')
+    graph.apply_result(analyzer_result(blockers: [*unrelated, matching]))
+    allow(graph).to receive(:blocker_matches_node?).and_call_original
+
+    expect(graph.matching_blockers(target)).to eq([matching])
+    expect(graph).to have_received(:blocker_matches_node?).once
+  end
+
+  it 'deduplicates the same producer and call site with a constant-time key index' do
+    target = node('Target#call', owner: 'Target', name: 'call')
+    graph = graph_with(nodes: [target])
+    first = unresolved_blocker(message: 'call')
+    duplicate = first.with(metadata: first.metadata.merge('candidate_count' => 100))
+    other_site = first.with(metadata: first.metadata.merge('line' => 9))
+
+    [first, duplicate, other_site].each { |blocker| graph.add_blocker(blocker) }
+
+    expect(graph.blockers).to eq([first, other_site])
+    expect(graph.matching_blockers(target)).to eq([first, other_site])
+  end
+
+  it 'matches instance, constant, implicit, and unknown receiver scopes without crossing unrelated owners' do
+    parent_instance = node('BaseParent#call', owner: 'BaseParent', name: 'call')
+    child_instance = node('BaseChild#call', owner: 'BaseChild', name: 'call')
+    private_child = node('PrivateChild#call', owner: 'PrivateChild', name: 'call', visibility: :private)
+    parent_singleton = node('BaseParent.call', kind: :singleton_method, owner: 'BaseParent', name: 'call')
+    unrelated = node('Other::Target#call', owner: 'Other::Target', name: 'call')
+    graph = graph_with(
+      nodes: [parent_instance, child_instance, private_child, parent_singleton, unrelated],
+      class_infos: [
+        class_info('BaseParent'),
+        class_info('Base', superclass: 'BaseParent'),
+        class_info('BaseChild', superclass: 'Base'),
+        class_info('PrivateChild', superclass: 'Base'),
+        class_info('Other::Target')
+      ]
+    )
+    instance = unresolved_blocker(message: 'call', scope_kind: :owner, scope_value: ['Base'],
+                                  receiver_kind: :instance)
+    constant = unresolved_blocker(message: 'call', scope_kind: :owner, scope_value: ['Base'],
+                                  receiver_kind: :constant)
+    implicit = unresolved_blocker(message: 'call', scope_kind: :owner, scope_value: ['Base'],
+                                  receiver_kind: :implicit)
+    unknown = unresolved_blocker(message: 'call')
+
+    graph.add_blocker(instance)
+    expect(graph.matching_blockers(parent_instance)).to eq([instance])
+    expect(graph.matching_blockers(child_instance)).to eq([instance])
+    expect(graph.matching_blockers(private_child)).to eq([])
+    expect(graph.matching_blockers(unrelated)).to eq([])
+
+    graph = graph_with(nodes: graph.nodes.values, class_infos: graph.class_infos.values)
+    graph.add_blocker(constant)
+    expect(graph.matching_blockers(parent_singleton)).to eq([constant])
+    expect(graph.matching_blockers(parent_instance)).to eq([])
+
+    graph.add_blocker(implicit)
+    expect(graph.matching_blockers(private_child)).to eq([implicit])
+    expect(graph.matching_blockers(unrelated)).to eq([])
+
+    graph.add_blocker(unknown)
+    expect(graph.matching_blockers(parent_instance)).to include(unknown)
+    expect(graph.matching_blockers(parent_singleton)).to include(unknown)
+    expect(graph.matching_blockers(private_child)).not_to include(unknown)
+  end
+
+  it 'supports namespace scope and public-send visibility' do
+    public_target = node('Billing::Handler#call', owner: 'Billing::Handler', name: 'call')
+    protected_target = node('Billing::Fallback#call', owner: 'Billing::Fallback', name: 'call', visibility: :protected)
+    other_target = node('Shipping::Handler#call', owner: 'Shipping::Handler', name: 'call')
+    graph = graph_with(nodes: [public_target, protected_target, other_target])
+    blocker = unresolved_blocker(
+      message: 'call', scope_kind: :namespace, scope_value: 'Billing', receiver_kind: :unknown,
+      original_message: 'public_send'
+    )
+    graph.add_blocker(blocker)
+
+    expect(graph.matching_blockers(public_target)).to eq([blocker])
+    expect(graph.matching_blockers(protected_target)).to eq([])
+    expect(graph.matching_blockers(other_target)).to eq([])
+  end
+
+  it 'does not apply test-only unresolved dispatch to production definitions' do
+    target = node('Target#call', owner: 'Target', name: 'call')
+    graph = graph_with(nodes: [target])
+    test_blocker = unresolved_blocker(message: 'call', domain: :test)
+    runtime_blocker = unresolved_blocker(message: 'call', domain: :runtime)
+    graph.apply_result(analyzer_result(blockers: [test_blocker, runtime_blocker]))
+
+    expect(graph.matching_blockers(target)).to eq([runtime_blocker])
+    expect(graph.matching_blockers(target, caller_domain: :test)).to eq([test_blocker])
+  end
+
+  it 'does not lose blocked definitions when an unknown scope broadens' do
+    billing = node('Billing::Handler#call', owner: 'Billing::Handler', name: 'call')
+    shipping = node('Shipping::Handler#call', owner: 'Shipping::Handler', name: 'call')
+    nodes = [billing, shipping]
+    scoped_graph = graph_with(nodes: nodes)
+    scoped_graph.add_blocker(
+      unresolved_blocker(message: 'call', scope_kind: :namespace, scope_value: 'Billing')
+    )
+    unknown_graph = graph_with(nodes: nodes)
+    unknown_graph.add_blocker(unresolved_blocker(message: 'call'))
+
+    scoped_matches = nodes.select { |candidate| scoped_graph.matching_blockers(candidate).any? }.to_set(&:id)
+    unknown_matches = nodes.select { |candidate| unknown_graph.matching_blockers(candidate).any? }.to_set(&:id)
+
+    expect(scoped_matches).to be_subset(unknown_matches)
   end
 end
 

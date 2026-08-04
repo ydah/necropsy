@@ -20,6 +20,10 @@ module Necropsy
       reported_findings.select { |finding| finding.at_least?(min_confidence) }
     end
 
+    def blocked_methods
+      reported_findings.select { |finding| finding.classification == :blocked }
+    end
+
     def to_h(include_graph: false)
       payload = {
         'root' => root,
@@ -51,6 +55,7 @@ module Necropsy
         'findings' => reported_findings.length,
         'unreachable' => grouped.fetch(:unreachable, []).length,
         'unused' => grouped.fetch(:unused, []).length,
+        'blocked' => grouped.fetch(:blocked, []).length,
         'test_only_reachable' => grouped.fetch(:test_only_reachable, []).length
       }
     end

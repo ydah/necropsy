@@ -54,6 +54,34 @@ RSpec.describe 'Necropsy model objects' do
       expect(result.alive_evidences).to eq([])
       expect(result.uncertainties).to eq({})
       expect(result.observation).to eq({})
+      expect(result.blockers).to eq([])
+    end
+
+    it 'keeps legacy custom analyzer construction compatible' do
+      result = described_class.new(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {})
+
+      expect(result.blockers).to eq([])
+    end
+  end
+
+  describe Necropsy::Blocker do
+    it 'serializes scope, source, action, and call-site metadata' do
+      blocker = described_class.new(
+        kind: :unknown_dispatch,
+        scope_kind: :message,
+        scope_value: 'render',
+        source: :name_resolution,
+        reason: 'receiver is unknown',
+        metadata: { 'message' => 'render', 'caller_domain' => 'test', 'file' => 'spec/sample_spec.rb', 'line' => 4 }
+      )
+
+      expect(blocker).to have_attributes(message: 'render', caller_domain: :test)
+      expect(blocker.to_h).to include(
+        'kind' => 'unknown_dispatch',
+        'scope_kind' => 'message',
+        'source' => 'name_resolution',
+        'suggested_action' => 'review'
+      )
     end
   end
 end
