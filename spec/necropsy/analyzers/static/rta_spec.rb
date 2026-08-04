@@ -6,8 +6,15 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
   describe '#profile' do
     it 'describes RTA output as rank-only evidence' do
       expect(analyzer.profile.description).to eq(
-        'Marks constructed-class dispatch candidates as ranking and diagnostic evidence.'
+        'RTA pruning mode rank_only records constructed-class hints without removing static edges.'
       )
+    end
+
+    it 'identifies legacy pruning in its diagnostic profile' do
+      legacy = described_class.new(pruning: :legacy)
+
+      expect(legacy.profile.description).to include('mode legacy', 'removes static candidates')
+      expect(legacy.analyze(graph_with(nodes: []), nil).observation.dig('rta', 'pruning')).to eq('legacy')
     end
   end
 
@@ -42,31 +49,5 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
       expect(analyzer.implicit_messages('sort')).to include('<=>', 'each')
       expect(analyzer.implicit_messages('puts')).to eq(['to_s'])
     end
-  end
-
-  it 'keeps reachability monotonic as roots, edges, and allocations are added' do
-    reachable = lambda do |instantiated_classes: Set.new, extra_root: false, extra_edge: false|
-      caller = node('Caller#run', owner: 'Caller', name: 'run')
-      other_root = node('Other#run', owner: 'Other', name: 'run')
-      target = node('Live#render', owner: 'Live', name: 'render')
-      extra = node('Extra#work', owner: 'Extra', name: 'work')
-      site = call_site(caller_id: caller.id, message: 'render', receiver_kind: :unknown)
-      graph = graph_with(
-        nodes: [caller, other_root, target, extra],
-        call_sites: [site],
-        instantiated_classes: instantiated_classes
-      )
-      graph.add_entry_point(caller.id, :main_script)
-      graph.add_entry_point(other_root.id, :main_script) if extra_root
-      graph.add_edge(caller.id, extra.id, evidence) if extra_edge
-      graph.apply_result(analyzer.analyze(graph, nil))
-      Necropsy::Reachability::Engine.new(graph).call.runtime_alive.to_set
-    end
-
-    baseline = reachable.call
-
-    expect(baseline - reachable.call(extra_root: true)).to be_empty
-    expect(baseline - reachable.call(extra_edge: true)).to be_empty
-    expect(baseline - reachable.call(instantiated_classes: Set['Live'])).to be_empty
   end
 end

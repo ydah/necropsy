@@ -12,6 +12,21 @@ module Necropsy
         ].freeze
         COMPARISON_MESSAGES = %w[< <= > >= between? clamp sort sort_by max min].freeze
 
+        attr_reader :pruning
+
+        def initialize(pruning: :rank_only)
+          mode = pruning.to_s
+          unless Configuration::RTA_PRUNING_MODES.include?(mode)
+            raise Error, "RTA pruning must be one of: #{Configuration::RTA_PRUNING_MODES.join(', ')}"
+          end
+
+          @pruning = mode.to_sym
+        end
+
+        def with_pruning(mode)
+          self.class.new(pruning: mode)
+        end
+
         def analyze(graph, _project)
           sites = expanded_call_sites(graph)
           edge_evidences = sites.flat_map do |site|
@@ -32,16 +47,21 @@ module Necropsy
             edge_evidences: edge_evidences,
             alive_evidences: [],
             uncertainties: {},
-            observation: { 'rta' => { 'analyzed_sites' => sites.map(&:to_h) } }
+            observation: { 'rta' => { 'pruning' => pruning.to_s, 'analyzed_sites' => sites.map(&:to_h) } }
           )
         end
 
         def profile
+          description = if pruning == :legacy
+                          'RTA pruning mode legacy removes static candidates without scanned construction evidence.'
+                        else
+                          'RTA pruning mode rank_only records constructed-class hints without removing static edges.'
+                        end
           AnalyzerProfile.new(
             name: :rta,
             kind: :static,
             soundness: :partial,
-            description: 'Marks constructed-class dispatch candidates as ranking and diagnostic evidence.'
+            description: description
           )
         end
 

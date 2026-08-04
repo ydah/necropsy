@@ -119,10 +119,35 @@ module Necropsy
       end
 
       def ablation_metrics
-        ABLATION_ANALYZERS.transform_values do |classes|
+        analyzer_metrics = ABLATION_ANALYZERS.transform_values do |classes|
           analyzers = classes.map(&:new)
           metrics_for(Necropsy.analyze(root: root, config_path: config_path, analyzers: analyzers))
         end
+        analyzer_metrics.merge(rta_pruning_metrics)
+      end
+
+      def rta_pruning_metrics
+        analyzers = ABLATION_ANALYZERS.fetch('all_static').map(&:new)
+        rank_only = metrics_for(
+          Runner.new(root: root, config_path: config_path, analyzers: analyzers).analyze(rta_pruning: :rank_only)
+        )
+        legacy = metrics_for(
+          Runner.new(root: root, config_path: config_path, analyzers: analyzers).analyze(rta_pruning: :legacy)
+        )
+        rank_candidates = candidate_ids(rank_only)
+        legacy_candidates = candidate_ids(legacy)
+        difference = {
+          'only_in_rank_only' => (rank_candidates - legacy_candidates).sort,
+          'only_in_legacy' => (legacy_candidates - rank_candidates).sort
+        }
+        {
+          'rta_rank_only' => rank_only.merge('rta_pruning' => 'rank_only', 'candidate_diff' => difference),
+          'rta_legacy' => legacy.merge('rta_pruning' => 'legacy', 'candidate_diff' => difference)
+        }
+      end
+
+      def candidate_ids(metrics)
+        Set.new(metrics.fetch('true_positive') + metrics.fetch('false_positive'))
       end
 
       def ratio(numerator, denominator)

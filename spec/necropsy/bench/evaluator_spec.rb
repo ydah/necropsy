@@ -37,4 +37,44 @@ RSpec.describe Necropsy::Bench::Evaluator do
       expect(result.fetch('release_criteria')).to include('passed' => true)
     end
   end
+
+  it 'labels rank-only and legacy RTA ablations and reports their candidate difference' do
+    source = <<~RUBY
+      class Base
+        def render; end
+      end
+      class Live < Base
+        def render; end
+      end
+      class Dead < Base
+        def render; end
+      end
+      class Caller
+        def run(receiver) = receiver.render
+      end
+      Live.new
+    RUBY
+    files = {
+      'app/sample.rb' => source,
+      'gold.yml' => { 'dead_methods' => ['Dead#render'] }.to_yaml
+    }
+    config = { cache: { enabled: false }, entry_points: { extra: ['Caller#run'] } }
+
+    with_project(files: files, config: config) do |root|
+      report = Necropsy.analyze(root: root)
+      result = described_class.new(
+        report: report,
+        gold_standard_path: File.join(root, 'gold.yml'),
+        root: root,
+        ablation: true
+      ).call
+      rank_only = result.dig('ablation', 'rta_rank_only')
+      legacy = result.dig('ablation', 'rta_legacy')
+
+      expect(rank_only).to include('rta_pruning' => 'rank_only')
+      expect(legacy).to include('rta_pruning' => 'legacy')
+      expect(rank_only.dig('candidate_diff', 'only_in_legacy')).to contain_exactly('Base#render', 'Dead#render')
+      expect(legacy.fetch('true_positive')).to eq(['Dead#render'])
+    end
+  end
 end

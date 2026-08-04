@@ -44,6 +44,12 @@ RSpec.describe Necropsy::Runner do
     end
   end
 
+  def analyze_fixture(files:, config: {})
+    with_project(files: files, config: { cache: { enabled: false } }.merge(config)) do |root|
+      return described_class.new(root: root).analyze
+    end
+  end
+
   it 'uses explicitly supplied analyzers instead of configured defaults' do
     with_project(files: { 'app/sample.rb' => 'class RunnerSample; def dead; end; end' }) do |root|
       report = described_class.new(root: root, analyzers: [RunnerSpecAnalyzer.new]).analyze
@@ -118,7 +124,105 @@ RSpec.describe Necropsy::Runner do
       report = described_class.new(root: root).analyze
 
       expect(render_targets(report)).to eq(['Live#render'])
+      expect(report.graph.profiles.find { |profile| profile.name == :rta }.description).to include('mode legacy')
+      expect(report.graph.observation.dig('rta', 'pruning')).to eq('legacy')
     end
+  end
+
+  it 'keeps Runner reachability monotonic when an RTA edge is added to a rooted graph with allocation evidence' do
+    common = { cache: { enabled: false }, entry_points: { extra: ['Caller#run'] } }
+    without_rta = nil
+    with_rta = nil
+
+    with_project(
+      files: { 'app/sample.rb' => rta_source },
+      config: common.merge(analyzers: { static: %w[name_resolution cha] })
+    ) do |root|
+      without_rta = described_class.new(root: root).analyze.reachability.runtime_alive.to_set
+    end
+    with_project(files: { 'app/sample.rb' => rta_source }, config: common) do |root|
+      with_rta = described_class.new(root: root).analyze.reachability.runtime_alive.to_set
+    end
+
+    expect(without_rta).to include('Caller#run', 'Base#render', 'Live#render', 'Dead#render')
+    expect(without_rta - with_rta).to be_empty
+  end
+
+  it 'preserves static edges when a factory method is not registered' do
+    source = <<~RUBY
+      class FactoryBuilt
+        def call; end
+      end
+      class Caller
+        def run
+          built = FactoryBuilt.spawn
+          built.call
+        end
+      end
+    RUBY
+
+    report = analyze_fixture(files: { 'app/factory.rb' => source })
+
+    expect(report.graph.instantiated_classes).not_to include('FactoryBuilt')
+    expect(render_targets_for(report, 'call')).to include('FactoryBuilt#call')
+  end
+
+  it 'preserves static edges around reflective and autoloaded construction' do
+    source = <<~RUBY
+      autoload :Reflected, 'reflected'
+      class Reflected
+        def call; end
+      end
+      class Caller
+        def build(name) = Object.const_get(name).new
+        def run(item) = item.call
+      end
+    RUBY
+
+    report = analyze_fixture(files: { 'app/reflective.rb' => source })
+
+    expect(report.graph.instantiated_classes).not_to include('Reflected')
+    expect(render_targets_for(report, 'call')).to include('Reflected#call')
+  end
+
+  it 'does not let test-only instantiation prune other application targets' do
+    source = <<~RUBY
+      class TestBuilt
+        def call; end
+      end
+      class OtherBuilt
+        def call; end
+      end
+      class Caller
+        def run(item) = item.call
+      end
+    RUBY
+    report = analyze_fixture(
+      files: { 'app/services.rb' => source, 'spec/service_spec.rb' => 'TestBuilt.new' }
+    )
+
+    expect(report.graph.instantiated_classes).to include('TestBuilt')
+    expect(render_targets_for(report, 'call')).to contain_exactly('TestBuilt#call', 'OtherBuilt#call')
+  end
+
+  it 'preserves module method lookup when allocation evidence cannot identify the including class' do
+    source = <<~RUBY
+      module Renderable
+        def render; end
+      end
+      class Worker
+        include Renderable
+      end
+      class Caller
+        def run(worker) = worker.render
+      end
+      Worker.new
+    RUBY
+    report = analyze_fixture(files: { 'app/module_lookup.rb' => source })
+    edge = report.graph.edges.find { |candidate| candidate.callee_id == 'Renderable#render' }
+
+    expect(edge).not_to be_nil
+    expect(edge.evidences.map(&:analyzer)).to include(:name_resolution, :cha)
   end
 
   it 'does not add high-confidence candidates when RTA is enabled' do
@@ -145,5 +249,11 @@ RSpec.describe Necropsy::Runner do
     expect(without_rta).to include('Live#render')
     expect(with_rta).not_to include('Live#render')
     expect(with_rta - without_rta).to be_empty
+  end
+
+  def render_targets_for(report, message)
+    report.graph.edges.filter_map do |edge|
+      edge.callee_id if report.graph.nodes.fetch(edge.callee_id).name == message
+    end.uniq
   end
 end

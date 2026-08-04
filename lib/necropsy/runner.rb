@@ -10,19 +10,21 @@ module Necropsy
       @analyzers = analyzers
     end
 
-    def analyze
+    def analyze(rta_pruning: config.rta_pruning)
+      rta_pruning = normalize_rta_pruning(rta_pruning)
       project = Project.new(root: root, config: config)
       graph = CallGraph.new(project.scan_result, ambiguity_limit: config.ambiguity_limit)
       rta_results = []
 
       apply_entry_points(graph, project)
-      configured_analyzers.each do |analyzer|
+      configured_analyzers.each do |configured_analyzer|
+        analyzer = analyzer_for_pruning(configured_analyzer, rta_pruning)
         graph.add_profile(analyzer.profile)
         result = analyzer.analyze(graph, project)
         graph.apply_result(result)
         rta_results << result if analyzer.profile.name == :rta
       end
-      rta_results.each { |result| graph.reconcile_rta_result(result) } if config.rta_pruning == :legacy
+      rta_results.each { |result| graph.reconcile_rta_result(result) } if rta_pruning == :legacy
 
       reachability = Reachability::Engine.new(graph).call
       findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings
@@ -37,6 +39,19 @@ module Necropsy
     end
 
     private
+
+    def normalize_rta_pruning(value)
+      mode = value.to_s
+      return mode.to_sym if Configuration::RTA_PRUNING_MODES.include?(mode)
+
+      raise Error, "RTA pruning must be one of: #{Configuration::RTA_PRUNING_MODES.join(', ')}"
+    end
+
+    def analyzer_for_pruning(analyzer, mode)
+      return analyzer unless analyzer.is_a?(Analyzers::Static::RTA)
+
+      analyzer.with_pruning(mode)
+    end
 
     def apply_entry_points(graph, project)
       EntryPoints::Plain.new.apply(graph, project)
