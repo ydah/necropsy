@@ -29,6 +29,7 @@ module Necropsy
           offset = 0
           expires_at = monotonic_time + limits.read_timeout
           while offset < value.bytesize
+            check_io_deadline!(expires_at, 'Redis write timeout exceeded')
             begin
               written = socket.write_nonblock(value.byteslice(offset, value.bytesize - offset), exception: false)
               if wait_status?(written)
@@ -46,6 +47,7 @@ module Necropsy
                                           label: 'Redis write timeout exceeded')
             end
           end
+          check_io_deadline!(expires_at, 'Redis write timeout exceeded')
         end
 
         def read_nonblock(length)
@@ -65,6 +67,11 @@ module Necropsy
 
         def wait_status?(value)
           %i[wait_readable wait_writable].include?(value)
+        end
+
+        def check_io_deadline!(expires_at, label)
+          deadline.check!
+          domain_error(label) unless (expires_at - monotonic_time).positive?
         end
 
         def wait_for_io(status, io:, expires_at:, label:)

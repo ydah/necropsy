@@ -2,6 +2,7 @@
 
 require 'openssl'
 require 'socket'
+require 'timeout'
 
 require_relative 'redis_nonblocking_io'
 
@@ -66,7 +67,7 @@ module Necropsy
         def connect_tcp
           expires_at = monotonic_time + limits.connect_timeout
           last_error = nil
-          addresses.each do |address|
+          addresses(expires_at).each do |address|
             candidate = Socket.new(address.afamily, address.socktype, address.protocol)
             begin
               finish_tcp_connect(candidate, address, expires_at)
@@ -82,8 +83,20 @@ module Necropsy
           raise(last_error || SocketError.new("No Redis address found for #{uri.host}"))
         end
 
-        def addresses
-          Addrinfo.getaddrinfo(uri.host, uri.port || 6379, nil, :STREAM)
+        def addresses(expires_at)
+          timeout = [expires_at - monotonic_time, deadline.remaining].min
+          domain_error('Redis address resolution timeout exceeded') unless timeout.positive?
+
+          # Limit asynchronous interruption to pure resolution, before any socket resource exists.
+          resolved = Timeout.timeout(timeout) do
+            Addrinfo.getaddrinfo(uri.host, uri.port || 6379, nil, :STREAM)
+          end
+          deadline.check!
+          domain_error('Redis address resolution timeout exceeded') unless (expires_at - monotonic_time).positive?
+          resolved
+        rescue Timeout::Error
+          deadline.check!
+          domain_error('Redis address resolution timeout exceeded')
         end
 
         def finish_tcp_connect(candidate, address, expires_at)

@@ -340,5 +340,57 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
       tcp_socket&.close
       peer&.close
     end
+
+    it 'bounds stalled address resolution by the connect and total deadlines' do
+      [
+        [{ 'connect_timeout' => 0.03, 'total_timeout' => 1.0 }, /resolution timeout/],
+        [{ 'connect_timeout' => 1.0, 'total_timeout' => 0.03 }, /total timeout/]
+      ].each do |config, message|
+        stalled_limits = Necropsy::Analyzers::Dynamic::RedisInputLimits.new(config)
+        stalled = described_class.new(
+          uri: uri,
+          limits: stalled_limits,
+          deadline: Necropsy::Analyzers::Dynamic::RedisDeadline.new(stalled_limits.total_timeout),
+          redactor: redactor
+        )
+        allow(Addrinfo).to receive(:getaddrinfo) { sleep 1 }
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        expect { stalled.connect }.to raise_error(Necropsy::Error, message)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+        expect(elapsed).to be_between(0.01, 0.5)
+      end
+    end
+
+    it 'checks write and total deadlines between positive partial writes' do
+      [
+        [{ 'read_timeout' => 0.03, 'total_timeout' => 1.0 }, /write timeout/],
+        [{ 'read_timeout' => 1.0, 'total_timeout' => 0.03 }, /total timeout/]
+      ].each do |config, message|
+        attempts = 0
+        partial_writer = instance_double(Socket)
+        allow(partial_writer).to receive(:write_nonblock) do |_value, exception:|
+          expect(exception).to eq(false)
+          attempts += 1
+          sleep 0.012
+          1
+        end
+        stalled_limits = Necropsy::Analyzers::Dynamic::RedisInputLimits.new(config)
+        stalled = described_class.new(
+          uri: uri,
+          limits: stalled_limits,
+          deadline: Necropsy::Analyzers::Dynamic::RedisDeadline.new(stalled_limits.total_timeout),
+          redactor: redactor
+        )
+        stalled.instance_variable_set(:@socket, partial_writer)
+        stalled.instance_variable_set(:@tcp_socket, partial_writer)
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        expect { stalled.send(:write_all, 'partial') }.to raise_error(Necropsy::Error, message)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+        expect(elapsed).to be_between(0.01, 0.5)
+        expect(attempts).to be_between(1, 6)
+      end
+    end
   end
 end
