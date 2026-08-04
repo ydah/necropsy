@@ -93,7 +93,16 @@ analyzers:
       source: tmp/necropsy_coverage.yml
       min_observation_days: 30
     coverband:
-      source: redis://prod-redis:6379/2?key=coverband
+      source: rediss://prod-redis:6379/2?key=coverband
+      connect_timeout: 5
+      read_timeout: 5
+      total_timeout: 15
+      max_response_bytes: 16777216
+      max_bulk_bytes: 8388608
+      max_array_elements: 100000
+      max_resp_depth: 16
+      max_keys: 1000
+      max_payload_depth: 64
     trace_point:
       source: tmp/necropsy_trace_point.yml
   custom:
@@ -174,8 +183,12 @@ unobserved code is dead. Use evidence recorded from the same checkout; revision
 matching will require a revision-bearing payload schema.
 
 Coverband file, Redis string, and Redis hash exports are supported. Redis URLs
-may include an ACL username and password; `connect_timeout` and `read_timeout`
-can be set in the Coverband analyzer configuration. Rails route
+may include an ACL username and password. `rediss://` uses the system CA store,
+TLS peer verification, SNI, and post-connect hostname verification; URI
+credentials are redacted from loader errors. Connect, read, and total timeouts,
+response and bulk bytes, RESP array size/depth, key count, and payload depth all
+have the bounded defaults shown above and can be set in the Coverband analyzer
+configuration. Rails route
 entry point detection covers common `resources`, `resource`, `namespace`,
 `scope`, `controller`, `concerns`, `draw`, `mount`, `root`, and verb route
 forms.

@@ -89,6 +89,12 @@ module Necropsy
       (coverage_days || coverband_days || 30).to_i
     end
 
+    REMOTE_DYNAMIC_KEYS = %w[
+      total_timeout max_response_bytes max_bulk_bytes max_array_elements max_resp_depth max_keys max_payload_depth
+    ].freeze
+    DYNAMIC_TIMEOUT_KEYS = %w[connect_timeout read_timeout total_timeout].freeze
+    DYNAMIC_LIMIT_KEYS = (REMOTE_DYNAMIC_KEYS - %w[total_timeout]).freeze
+
     def quarantine_days
       (fetch('quarantine', 'days') || 30).to_i
     end
@@ -209,7 +215,10 @@ module Necropsy
       end
       %w[coverage coverband trace_point].each do |name|
         value = fetch('analyzers', 'dynamic', name)
-        validate_hash_keys(value, DYNAMIC_KEYS, "analyzers.dynamic.#{name}") if value
+        next unless value
+
+        validate_hash_keys(value, DYNAMIC_KEYS + REMOTE_DYNAMIC_KEYS, "analyzers.dynamic.#{name}")
+        validate_dynamic_limits!(value, name)
       end
       validate_custom_analyzers!
       validate_implicit_callers!
@@ -225,6 +234,28 @@ module Necropsy
       return if unknown.empty?
 
       raise Error, "Unknown #{location} option#{'s' if unknown.length > 1}: #{unknown.join(', ')}"
+    end
+
+    def validate_dynamic_limits!(value, name)
+      DYNAMIC_TIMEOUT_KEYS.each do |key|
+        next unless value.key?(key)
+
+        parsed = Float(value[key])
+        dynamic_limit_error!(name, key) unless parsed.positive? && parsed.finite?
+      rescue ArgumentError, TypeError
+        dynamic_limit_error!(name, key)
+      end
+      DYNAMIC_LIMIT_KEYS.each do |key|
+        next unless value.key?(key)
+
+        dynamic_limit_error!(name, key) unless Integer(value[key]).positive?
+      rescue ArgumentError, TypeError
+        dynamic_limit_error!(name, key)
+      end
+    end
+
+    def dynamic_limit_error!(name, key)
+      raise Error, "analyzers.dynamic.#{name}.#{key} must be a finite positive number"
     end
 
     def validate_custom_analyzers!

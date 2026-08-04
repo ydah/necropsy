@@ -93,6 +93,57 @@ RSpec.describe Necropsy::Configuration do
       end
     end
 
+    context 'with remote dynamic input limits' do
+      let(:config_data) do
+        {
+          analyzers: {
+            dynamic: {
+              coverband: {
+                source: 'rediss://redis.example/0',
+                connect_timeout: 1.0,
+                read_timeout: 2.0,
+                total_timeout: 3.0,
+                max_response_bytes: 1024,
+                max_bulk_bytes: 512,
+                max_array_elements: 100,
+                max_resp_depth: 4,
+                max_keys: 20,
+                max_payload_depth: 8
+              }
+            }
+          }
+        }
+      end
+
+      it 'accepts finite positive timeout and size limits' do
+        expect(configuration.dynamic_config(:coverband)).to include(
+          'total_timeout' => 3.0,
+          'max_response_bytes' => 1024,
+          'max_payload_depth' => 8
+        )
+      end
+    end
+
+    context 'with an invalid remote dynamic input limit' do
+      let(:config_data) do
+        { analyzers: { dynamic: { coverband: { source: 'redis://localhost', max_keys: 0 } } } }
+      end
+
+      it 'rejects non-positive values' do
+        expect { configuration }.to raise_error(Necropsy::Error, /coverband\.max_keys must be a finite positive number/)
+      end
+    end
+
+    context 'with an unbounded remote timeout' do
+      let(:config_data) do
+        { analyzers: { dynamic: { coverband: { source: 'redis://localhost', total_timeout: Float::INFINITY } } } }
+      end
+
+      it 'rejects non-finite values' do
+        expect { configuration }.to raise_error(Necropsy::Error, /coverband\.total_timeout must be a finite positive number/)
+      end
+    end
+
     context 'with an invalid RTA pruning mode' do
       let(:config_data) { { rta: { pruning: 'aggressive' } } }
 
