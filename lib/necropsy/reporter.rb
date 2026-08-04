@@ -39,6 +39,7 @@ module Necropsy
         "Nodes: #{report.summary['nodes']}, Edges: #{report.summary['edges']}, Entry points: #{report.summary['entry_points']}",
         "Findings: #{findings.length}"
       ]
+      append_dynamic_diagnostic(lines)
 
       findings.group_by(&:classification).sort_by do |classification, _|
         classification.to_s
@@ -51,6 +52,20 @@ module Necropsy
       end
 
       lines.join("\n")
+    end
+
+    def append_dynamic_diagnostic(lines)
+      diagnostic = report.diagnostics['dynamic_evidence']
+      return unless diagnostic
+
+      attempted = diagnostic.fetch('attempted')
+      matched = diagnostic.fetch('matched')
+      unmatched = diagnostic.fetch('unmatched')
+      samples = diagnostic.fetch('unmatched_samples').values.flatten
+      lines << "Dynamic evidence (positive-only): nodes attempted=#{attempted['nodes']} matched=#{matched['nodes']} " \
+               "unmatched=#{unmatched['nodes']}; edges attempted=#{attempted['edges']} matched=#{matched['edges']} " \
+               "unmatched=#{unmatched['edges']}"
+      lines << "Unmatched dynamic evidence: #{samples.join(', ')}" unless samples.empty?
     end
 
     def render_github_annotations(min_confidence)

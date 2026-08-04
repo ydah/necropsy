@@ -89,7 +89,7 @@ RSpec.describe Necropsy do
     expect(second.instantiated_classes).to include('CacheFactorySample')
   end
 
-  it 'classifies statically reachable methods as unused when dynamic evidence is absent' do
+  it 'does not classify a production method from missing dynamic evidence' do
     dir = Dir.mktmpdir
     coverage_path = File.join(dir, 'coverage.yml')
     config_path = File.join(dir, '.necropsy.yml')
@@ -110,7 +110,7 @@ RSpec.describe Necropsy do
     report = described_class.analyze(root: fixture_path('sample_project'), config_path: config_path)
     findings = report.findings.to_h { |finding| [finding.node.id, finding] }
 
-    expect(findings.fetch('Sample::Widget#render').classification).to eq(:unused)
+    expect(findings).not_to include('Sample::Widget#render')
   end
 
   it 'records dynamic method and edge evidence with TracePoint' do

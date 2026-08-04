@@ -17,9 +17,9 @@
       "path": "lib/dynamic_seed.rb",
       "line": 16,
       "state": "unreachable",
-      "confidence": "high",
+      "confidence": "medium",
       "reasons": [
-        "Static unreachable and absent from dynamic observations."
+        "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
     },
     {
@@ -27,9 +27,9 @@
       "path": "lib/dynamic_seed.rb",
       "line": 8,
       "state": "unreachable",
-      "confidence": "high",
+      "confidence": "medium",
       "reasons": [
-        "Static unreachable and absent from dynamic observations."
+        "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
     },
     {
@@ -37,9 +37,9 @@
       "path": "lib/dynamic_seed.rb",
       "line": 20,
       "state": "unreachable",
-      "confidence": "high",
+      "confidence": "medium",
       "reasons": [
-        "Static unreachable and absent from dynamic observations."
+        "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
     },
     {
@@ -47,9 +47,9 @@
       "path": "lib/dynamic_seed.rb",
       "line": 4,
       "state": "unreachable",
-      "confidence": "high",
+      "confidence": "medium",
       "reasons": [
-        "Static unreachable and absent from dynamic observations."
+        "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
     }
   ]

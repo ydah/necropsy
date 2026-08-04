@@ -16,11 +16,12 @@ module Necropsy
           return AnalyzerResult.empty unless source
 
           payload = load_payload(File.expand_path(source, project.root))
+          observation = ObservationPolicy.metadata(payload)
           alive = Array(payload['executed'] || payload['nodes']).map do |node_id|
             AliveEvidence.new(
               node_id: node_id,
               evidence: evidence(kind: :alive, details: "Coverage marked #{node_id} as executed",
-                                 metadata: payload['observation'] || {})
+                                 metadata: observation)
             )
           end
 
@@ -38,7 +39,7 @@ module Necropsy
             edge_evidences: edge_evidences,
             alive_evidences: alive,
             uncertainties: {},
-            observation: { 'coverage' => payload['observation'] || {} }
+            observation: { 'coverage' => observation }
           )
         end
 

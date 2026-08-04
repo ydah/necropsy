@@ -41,7 +41,7 @@
     }
   },
   "summary": {
-    "candidates": 5909,
+    "candidates": 5911,
     "reviewed": 34,
     "by_label": {
       "alive": 24,
@@ -64,7 +64,7 @@
         "necropsy": {
           "candidate": true,
           "state": "unreachable",
-          "confidence": "high"
+          "confidence": "medium"
         },
         "spoom": {
           "candidate": true,
@@ -94,7 +94,7 @@
         "necropsy": {
           "candidate": true,
           "state": "unreachable",
-          "confidence": "high"
+          "confidence": "medium"
         },
         "spoom": {
           "candidate": false
@@ -148,7 +148,7 @@
         "necropsy": {
           "candidate": true,
           "state": "unreachable",
-          "confidence": "high"
+          "confidence": "medium"
         },
         "spoom": {
           "candidate": false
@@ -176,7 +176,7 @@
         "necropsy": {
           "candidate": true,
           "state": "unreachable",
-          "confidence": "high"
+          "confidence": "medium"
         },
         "spoom": {
           "candidate": false
@@ -128876,28 +128876,6 @@
     },
     {
       "corpus": "self",
-      "id": "Necropsy::Bench::CandidateUnion#diagnostics",
-      "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 35,
-      "tool_results": {
-        "debride": {
-          "candidate": false
-        },
-        "necropsy": {
-          "candidate": true,
-          "state": "test_only_reachable",
-          "confidence": "low"
-        },
-        "spoom": {
-          "candidate": false
-        },
-        "type_aware": {
-          "candidate": false
-        }
-      }
-    },
-    {
-      "corpus": "self",
       "id": "Necropsy::Bench::CandidateUnion#executable?",
       "path": "lib/necropsy/bench/candidate_union.rb",
       "line": 120,
@@ -129384,7 +129362,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#artifact_contents",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 245,
+      "line": 257,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129406,7 +129384,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#artifact_digests",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 255,
+      "line": 267,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129428,7 +129406,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#build_summary",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 197,
+      "line": 209,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129450,7 +129428,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#call",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 33,
+      "line": 35,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129472,7 +129450,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#clock",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 56,
+      "line": 58,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129494,7 +129472,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#config_path",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 118,
+      "line": 122,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129516,7 +129494,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#corpus_path",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 112,
+      "line": 116,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129538,7 +129516,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#deterministic_artifacts",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 239,
+      "line": 251,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129558,9 +129536,31 @@
     },
     {
       "corpus": "self",
-      "id": "Necropsy::Bench::SeedRunner#diagnostics",
+      "id": "Necropsy::Bench::SeedRunner#dirty_reader",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 74,
+      "line": 58,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#ensure_required_corpora_generated!",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 301,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129582,7 +129582,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#failed_revision",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 143,
+      "line": 149,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129604,7 +129604,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#golden_integrity",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 221,
+      "line": 233,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129626,7 +129626,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#golden_status",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 208,
+      "line": 220,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129670,7 +129670,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#io",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 56,
+      "line": 58,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129692,7 +129692,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#manifest",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 58,
+      "line": 60,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129714,7 +129714,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#manifest_path",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 56,
+      "line": 58,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129736,7 +129736,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#monotonic_time",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 193,
+      "line": 205,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129758,7 +129758,29 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#output_dir",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 56,
+      "line": 58,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#pinned_corpus_error",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 135,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129780,7 +129802,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#prepare_output",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 78,
+      "line": 80,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129802,7 +129824,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#read_git_revision",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 186,
+      "line": 191,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129824,7 +129846,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#read_process_rss",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 160,
+      "line": 165,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129846,7 +129868,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#report_golden_status",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 259,
+      "line": 271,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129868,7 +129890,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#reports_dir",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 70,
+      "line": 72,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129890,29 +129912,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#repository_root",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 66,
-      "tool_results": {
-        "debride": {
-          "candidate": false
-        },
-        "necropsy": {
-          "candidate": true,
-          "state": "test_only_reachable",
-          "confidence": "low"
-        },
-        "spoom": {
-          "candidate": false
-        },
-        "type_aware": {
-          "candidate": false
-        }
-      }
-    },
-    {
-      "corpus": "self",
-      "id": "Necropsy::Bench::SeedRunner#revision_matches?",
-      "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 131,
+      "line": 68,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129934,7 +129934,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#revision_reader",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 56,
+      "line": 58,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129956,7 +129956,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#rss_measurement",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 151,
+      "line": 156,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -129978,7 +129978,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#rss_reader",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 56,
+      "line": 58,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130000,7 +130000,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#run_corpus",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 83,
+      "line": 85,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130022,7 +130022,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#skipped_corpus",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 123,
+      "line": 127,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130042,16 +130042,16 @@
     },
     {
       "corpus": "self",
-      "id": "Necropsy::Bench::SeedRunner#tag_matches?",
+      "id": "Necropsy::Bench::SeedRunner#tracked_git_dirty?",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 138,
+      "line": 198,
       "tool_results": {
         "debride": {
           "candidate": false
         },
         "necropsy": {
           "candidate": true,
-          "state": "test_only_reachable",
+          "state": "unreachable",
           "confidence": "low"
         },
         "spoom": {
@@ -130066,7 +130066,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#update_golden",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 270,
+      "line": 282,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130088,7 +130088,7 @@
       "corpus": "self",
       "id": "Necropsy::Bench::SeedRunner#write_json",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 265,
+      "line": 277,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130108,9 +130108,9 @@
     },
     {
       "corpus": "self",
-      "id": "Necropsy::CallGraph#modules_for",
+      "id": "Necropsy::CallGraph#dynamic_enabled?",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 134,
+      "line": 97,
       "tool_results": {
         "debride": {
           "candidate": false
@@ -130118,6 +130118,50 @@
         "necropsy": {
           "candidate": true,
           "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::CallGraph#modules_for",
+      "path": "lib/necropsy/graph/call_graph.rb",
+      "line": 143,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Configuration#min_observation_days",
+      "path": "lib/necropsy/configuration.rb",
+      "line": 85,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
           "confidence": "low"
         },
         "spoom": {

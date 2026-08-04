@@ -19,11 +19,13 @@ module Necropsy
           return AnalyzerResult.empty unless source
 
           payload = load_payload(source, project.root)
-          alive = alive_from_payload(graph, payload).map do |node|
+          observation = ObservationPolicy.metadata(payload)
+          alive = alive_ids_from_payload(graph, payload).map do |node_id|
+            node = graph.nodes[node_id]
+            details = node ? "Coverband executed #{node.file}:#{node.line}" : "Coverband marked #{node_id} as executed"
             AliveEvidence.new(
-              node_id: node.id,
-              evidence: evidence(kind: :alive, details: "Coverband executed #{node.file}:#{node.line}",
-                                 metadata: payload['observation'] || {})
+              node_id: node_id,
+              evidence: evidence(kind: :alive, details: details, metadata: observation)
             )
           end
 
@@ -31,7 +33,7 @@ module Necropsy
             edge_evidences: [],
             alive_evidences: alive,
             uncertainties: {},
-            observation: { 'coverband' => payload['observation'] || {} }
+            observation: { 'coverband' => observation }
           )
         end
 
@@ -68,9 +70,8 @@ module Necropsy
           RedisPayloadLoader.new(source: source, config: config).load
         end
 
-        def alive_from_payload(graph, payload)
+        def alive_ids_from_payload(graph, payload)
           executed_nodes = Array(payload['executed'] || payload['nodes'])
-          by_id = executed_nodes.filter_map { |id| graph.nodes[id] }
 
           files = coverage_files(payload)
           by_line = graph.method_nodes.select do |node|
@@ -78,7 +79,7 @@ module Necropsy
             executed_lines.any? { |line| line.between?(node.line, node.end_line) }
           end
 
-          (by_id + by_line).uniq(&:id)
+          (executed_nodes + by_line.map(&:id)).uniq
         end
 
         def coverage_files(payload)

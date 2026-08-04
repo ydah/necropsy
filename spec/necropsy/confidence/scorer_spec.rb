@@ -13,29 +13,73 @@ RSpec.describe Necropsy::Confidence::Scorer do
 
     context 'with runtime, dynamic, test-only, and unreachable nodes' do
       let(:live) { node('Sample#live', name: 'live') }
-      let(:unused) { node('Sample#unused', name: 'unused') }
+      let(:reachable) { node('Sample#reachable', name: 'reachable') }
       let(:test_only) { node('Sample#test_only', name: 'test_only') }
       let(:dead) { node('Sample#dead', name: 'dead') }
       let(:graph) do
-        graph_with(nodes: [live, unused, test_only, dead]).tap do |result|
+        graph_with(nodes: [live, reachable, test_only, dead]).tap do |result|
           result.add_alive(live.id, evidence(kind: :alive))
           result.apply_result(analyzer_result(observation: { 'coverage' => { 'days' => 45 } }))
         end
       end
       let(:reachability) do
         Necropsy::Reachability::Result.new(
-          runtime_paths: { live.id => nil, unused.id => live.id },
+          runtime_paths: { live.id => nil, reachable.id => live.id },
           test_paths: { test_only.id => nil }
         )
       end
 
       it 'classifies each reachability bucket separately' do
         expect(findings_by_id).not_to include(live.id)
-        expect(findings_by_id.fetch(unused.id).classification).to eq(:unused)
+        expect(findings_by_id).not_to include(reachable.id)
         expect(findings_by_id.fetch(test_only.id).classification).to eq(:test_only_reachable)
         expect(findings_by_id.fetch(dead.id).classification).to eq(:unreachable)
-        expect(findings_by_id.fetch(dead.id).score_components).to include(
-          have_attributes(name: 'base(unreachable)', value: 0.62)
+        expect(findings_by_id.fetch(dead.id)).to have_attributes(score: 0.62, confidence: :medium)
+        expect(findings_by_id.fetch(dead.id).score_components).to contain_exactly(
+          have_attributes(name: 'base(unreachable)', value: 0.62),
+          have_attributes(name: 'runtime_unobserved', value: 0.0)
+        )
+      end
+    end
+
+    context 'with multiple short runtime observations' do
+      let(:reachable) { node('Sample#reachable', name: 'reachable') }
+      let(:executed) { node('Sample#executed', name: 'executed') }
+      let(:dead) { node('Sample#dead', name: 'dead') }
+      let(:graph) do
+        graph_with(nodes: [reachable, executed, dead]).tap do |result|
+          result.apply_result(analyzer_result(
+                                alive_evidences: [
+                                  Necropsy::AliveEvidence.new(
+                                    node_id: executed.id,
+                                    evidence: evidence(analyzer: :coverage, kind: :alive)
+                                  )
+                                ],
+                                observation: { 'coverage' => { 'environment' => 'production', 'days' => 1,
+                                                               'started_at' => '2026-07-01T00:00:00Z' } }
+                              ))
+          result.apply_result(analyzer_result(
+                                observation: { 'trace_point' => { 'environment' => 'staging', 'days' => 1,
+                                                                  'started_at' => '2026-07-31T00:00:00Z' } }
+                              ))
+        end
+      end
+      let(:reachability) do
+        Necropsy::Reachability::Result.new(runtime_paths: { reachable.id => nil }, test_paths: {})
+      end
+
+      it 'only removes candidates backed by positive evidence' do
+        baseline_graph = graph_with(nodes: [reachable, executed, dead])
+        baseline = described_class.new(graph: baseline_graph, reachability: reachability,
+                                       project: project_for(project_root)).findings
+
+        expect(findings.map { |finding| finding.node.id }).to eq([dead.id])
+        expect(findings.map { |finding| finding.node.id } - baseline.map { |finding| finding.node.id }).to be_empty
+        expect(findings.first).to have_attributes(score: 0.62, classification: :unreachable)
+        expect(findings.first.score_components.map(&:name)).to include('runtime_unobserved')
+        expect(graph.observation).to include(
+          'coverage' => include('environment' => 'production', 'started_at' => '2026-07-01T00:00:00Z'),
+          'trace_point' => include('environment' => 'staging', 'started_at' => '2026-07-31T00:00:00Z')
         )
       end
     end

@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "update_reason": "Pin RuboCop corpus and harden benchmark gates",
+  "update_reason": "Adopt positive-only runtime evidence",
   "artifacts": {
-    "candidate_union.json": "3d6f474db73f881adfe893b71cff85b5802bb218405076607de1fb03526644ab",
-    "reports/dynamic_evidence.json": "7a67744d124f8e50833fc6fcfff03dfff401614be816ef45c844aace3ef78c48",
+    "candidate_union.json": "ddc2136fc0a4ffd00d9bea44e01d181aac81d6e3c2186c688e5df2d928d7f5b5",
+    "reports/dynamic_evidence.json": "f3c0d56cc4dc89f68fede9b34b551cd9423577f95fea37b17896bf54453ed91d",
     "reports/plain_ruby.json": "0aa08379241266e828fc64a2018c673f7ca2e1a664f9786c44dbac606c5a08d1",
     "reports/rails.json": "7a18e296e2ad72944161bd4c7a528768f6ce2c9fadbd078731ebac5241117d24",
     "reports/rubocop_1_75_0.json": "6345b5868cb69f0e054700213c301c6d4c4d892b88228dcc48c8eac7f765ebe6",
-    "reports/self.json": "b7e7e6e0c7ac20bfbb3ef7132783bbebcefb234ac3e57e3437764c8ec7e7c38c"
+    "reports/self.json": "57b4e9c0a90b8171fdafad767dadb79ff09de98195b30237852d175e3845eb43"
   }
 }

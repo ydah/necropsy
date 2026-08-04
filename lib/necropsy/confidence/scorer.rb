@@ -56,8 +56,6 @@ module Necropsy
         return nil if graph.dynamic_alive?(node.id)
 
         if reachability.runtime_paths.key?(node.id)
-          return :unused if graph.dynamic_enabled? && !generated_accessor?(node)
-
           nil
         elsif reachability.test_paths.key?(node.id)
           :test_only_reachable
@@ -95,28 +93,13 @@ module Necropsy
           reasons << "Lowered because #{reason}."
         end
 
-        if classification == :unreachable && graph.dynamic_enabled? && !graph.dynamic_alive?(node.id)
-          score += 0.25
-          components << score_component('absent_from_dynamic', 0.25, 'Absent from dynamic observations')
-          reasons << 'Static unreachable and absent from dynamic observations.'
-        end
+        add_runtime_unobserved_annotation(node, reasons, components)
 
         if classification == :unreachable && quarantine_expired?(node)
           raised_score = [score, 0.95].max
           components << score_component('expired_quarantine', raised_score - score, 'Expired without alive evidence')
           score = raised_score
           reasons << 'Raised because quarantine annotation has expired without alive evidence.'
-        end
-
-        if classification == :unused
-          days = observation_days
-          if days && days < project.config.min_observation_days
-            score -= 0.3
-            components << score_component('short_observation', -0.3, "Observed for only #{days} days")
-            reasons << "Observation window is #{days} days, below the configured minimum."
-          else
-            reasons << 'Reachable statically but never observed dynamically.'
-          end
         end
 
         clamped_score = score.clamp(0.0, 1.0)
@@ -126,6 +109,14 @@ module Necropsy
 
       def score_component(name, value, details)
         ScoreComponent.new(name: name, value: value.round(4), details: details)
+      end
+
+      def add_runtime_unobserved_annotation(node, reasons, components)
+        return unless graph.dynamic_observation?
+        return if graph.dynamic_alive?(node.id)
+
+        components << score_component('runtime_unobserved', 0.0, 'Informational only; deadness is unchanged')
+        reasons << 'Runtime observations did not include this definition; classification and confidence are unchanged.'
       end
 
       def base_score(classification)
@@ -201,14 +192,6 @@ module Necropsy
         return :medium if score >= 0.45
 
         :low
-      end
-
-      def observation_days
-        graph.observation.values.filter_map do |value|
-          next unless value.is_a?(Hash)
-
-          value['days'] || value[:days] || value['observation_days'] || value[:observation_days]
-        end.map(&:to_i).max
       end
 
       def quarantine_expired?(node)

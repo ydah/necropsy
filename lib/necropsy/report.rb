@@ -26,6 +26,7 @@ module Necropsy
         'summary' => summary,
         'findings' => reported_findings.map(&:to_h)
       }
+      payload['diagnostics'] = diagnostics unless diagnostics.empty?
       payload['graph'] = graph.to_h if include_graph
       payload
     end
@@ -52,6 +53,11 @@ module Necropsy
         'unused' => grouped.fetch(:unused, []).length,
         'test_only_reachable' => grouped.fetch(:test_only_reachable, []).length
       }
+    end
+
+    def diagnostics
+      dynamic = graph.dynamic_evidence_diagnostic
+      dynamic ? { 'dynamic_evidence' => dynamic } : {}
     end
 
     private

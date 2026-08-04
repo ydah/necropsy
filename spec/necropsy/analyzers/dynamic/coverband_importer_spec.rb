@@ -11,7 +11,21 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
       result = described_class.new('source' => 'coverband.yml').analyze(graph, project_for(root))
 
       expect(result.alive_evidences.map(&:node_id)).to eq([live.id])
-      expect(result.observation).to eq('coverband' => { 'days' => 30 })
+      expect(result.observation.fetch('coverband')).to include(
+        'days' => 30,
+        'positive_evidence_policy' => 'alive_only',
+        'source_revision_status' => 'unknown'
+      )
+    end
+  end
+
+  it 'preserves unmatched explicit node ids for graph diagnostics' do
+    graph = graph_with(nodes: [node('Sample#live')])
+
+    with_project(files: { 'coverband.yml' => { 'nodes' => ['Other#live'] }.to_yaml }) do |root|
+      result = described_class.new('source' => 'coverband.yml').analyze(graph, project_for(root))
+
+      expect(result.alive_evidences.map(&:node_id)).to eq(['Other#live'])
     end
   end
 

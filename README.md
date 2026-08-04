@@ -151,6 +151,18 @@ Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 GitHub Actions annotations are available via `--format sarif` and
 `--format github`.
 
+Runtime evidence is positive-only: executed methods and the endpoints of
+observed edges are kept alive, while an unobserved method never becomes a new
+finding and never receives higher confidence. Observation duration and
+environment remain informational metadata. Reports include attempted, matched,
+and unmatched evidence counts plus a bounded unmatched sample.
+
+Schema v1 payloads may omit the analyzed source revision. Their positive
+evidence is accepted for liveness for compatibility, but an omitted revision is
+marked `source_revision_status: unknown` and is never treated as proof that
+unobserved code is dead. Use evidence recorded from the same checkout; revision
+matching will require a revision-bearing payload schema.
+
 Coverband file, Redis string, and Redis hash exports are supported. Redis URLs
 may include an ACL username and password; `connect_timeout` and `read_timeout`
 can be set in the Coverband analyzer configuration. Rails route

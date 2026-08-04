@@ -2,6 +2,8 @@
 
 module Necropsy
   class CallGraph
+    include DynamicEvidenceTracking
+
     attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
                 :entrypoint_hints
 
@@ -45,14 +47,20 @@ module Necropsy
     end
 
     def apply_result(result)
-      result.edge_evidences.each { |edge| add_edge(edge.caller_id, edge.callee_id, edge.evidence) }
-      matched_alive = result.alive_evidences.count { |alive| add_alive(alive.node_id, alive.evidence) }
-      warn_unmatched_dynamic_evidence(result.alive_evidences.length) if matched_alive.zero?
+      dynamic_result = dynamic_result?(result)
+      edge_matches = result.edge_evidences.map do |edge|
+        matched = add_edge(edge.caller_id, edge.callee_id, edge.evidence)
+        add_alive(edge.caller_id, edge.evidence) if dynamic_result && matched
+        add_alive(edge.callee_id, edge.evidence) if dynamic_result && matched
+        matched
+      end
+      alive_matches = result.alive_evidences.map { |alive| add_alive(alive.node_id, alive.evidence) }
       result.uncertainties.each do |node_id, messages|
         @uncertainties[node_id] ||= []
         @uncertainties[node_id].concat(Array(messages))
       end
       observation.merge!(result.observation) { |_key, left, right| merge_observation(left, right) }
+      record_dynamic_evidence(result, alive_matches, edge_matches) if dynamic_result
     end
 
     def add_profile(profile)
@@ -60,13 +68,14 @@ module Necropsy
     end
 
     def add_edge(caller_id, callee_id, evidence)
-      return unless nodes.key?(caller_id) && nodes.key?(callee_id)
+      return false unless nodes.key?(caller_id) && nodes.key?(callee_id)
 
       @edges[caller_id] ||= {}
       @edges[caller_id][callee_id] ||= []
       @edges[caller_id][callee_id] << evidence
       @incoming_edges[callee_id] ||= {}
       @incoming_edges[callee_id][caller_id] = @edges[caller_id][callee_id]
+      true
     end
 
     def add_alive(node_id, evidence)
@@ -369,13 +378,6 @@ module Necropsy
     def retain_known_instantiated_classes
       known_owners = method_nodes.map(&:owner).compact.to_set
       instantiated_classes.select! { |name| known_owners.include?(name) }
-    end
-
-    def warn_unmatched_dynamic_evidence(attempted)
-      return if attempted.zero?
-
-      warn "Necropsy ignored #{attempted} dynamic node IDs because none matched the scanned project; " \
-           'dynamic absence will not be used for unused classification.'
     end
   end
 end

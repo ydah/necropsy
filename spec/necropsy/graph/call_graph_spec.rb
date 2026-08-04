@@ -28,13 +28,22 @@ RSpec.describe Necropsy::CallGraph do
       observation: { 'coverage' => { 'days' => 10 }, 'trace' => { 'requests' => 2 } }
     )
 
-    graph.apply_result(result)
+    expect { graph.apply_result(result) }.to output(/matched 1 of 2 dynamic node IDs.*matched 1 of 2 dynamic edges/m).to_stderr
 
     expect(graph.edges.map { |edge| [edge.caller_id, edge.callee_id] }).to eq([[caller.id, callee.id]])
     expect(graph.dynamic_alive?(callee.id)).to eq(true)
     expect(graph.dynamic_alive?('Missing#alive')).to eq(false)
     expect(graph.uncertainties(caller.id)).to include('dynamic dispatch')
     expect(graph.observation).to include('coverage' => { 'days' => 10 }, 'trace' => { 'requests' => 2 })
+    expect(graph.dynamic_evidence_diagnostic).to include(
+      'attempted' => { 'nodes' => 2, 'edges' => 2 },
+      'matched' => { 'nodes' => 1, 'edges' => 1 },
+      'unmatched' => { 'nodes' => 1, 'edges' => 1 },
+      'unmatched_samples' => {
+        'nodes' => ['Missing#alive'],
+        'edges' => ['Sample#caller -> Missing#callee']
+      }
+    )
   end
 
   it 'resolves calls by receiver kind and RTA instantiated classes' do
@@ -101,8 +110,30 @@ RSpec.describe Necropsy::CallGraph do
       observation: { 'coverage' => { 'days' => 30 } }
     )
 
-    expect { graph.apply_result(result) }.to output(/none matched the scanned project/).to_stderr
+    expect { graph.apply_result(result) }.to output(/matched 0 of 1 dynamic node IDs/).to_stderr
     expect(graph).not_to be_dynamic_enabled
+    expect(graph).to be_dynamic_observation
+  end
+
+  it 'uses observed dynamic edges as positive liveness evidence' do
+    caller = node('Sample#caller', name: 'caller')
+    callee = node('Sample#callee', name: 'callee')
+    graph = graph_with(nodes: [caller, callee])
+    result = analyzer_result(
+      edge_evidences: [
+        Necropsy::EdgeEvidence.new(
+          caller_id: caller.id,
+          callee_id: callee.id,
+          evidence: evidence(analyzer: :coverage, kind: :call_edge)
+        )
+      ],
+      observation: { 'coverage' => { 'environment' => 'production' } }
+    )
+
+    graph.apply_result(result)
+
+    expect(graph).to be_dynamic_alive(caller.id)
+    expect(graph).to be_dynamic_alive(callee.id)
   end
 
   it 'indexes incoming edges without mutating empty graph buckets during reads' do

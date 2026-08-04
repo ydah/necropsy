@@ -22,6 +22,36 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'with partially matched dynamic evidence' do
+      let(:format) { :human }
+      let(:report) do
+        graph = graph_with(nodes: [node('Sample#live')])
+        result = analyzer_result(
+          alive_evidences: [
+            Necropsy::AliveEvidence.new(node_id: 'Sample#live', evidence: evidence(kind: :alive)),
+            Necropsy::AliveEvidence.new(node_id: 'Other#live', evidence: evidence(kind: :alive))
+          ],
+          observation: { 'coverage' => { 'environment' => 'production' } }
+        )
+        graph.apply_result(result)
+        report_with_findings([], graph: graph)
+      end
+
+      it 'renders match counts and an unmatched sample' do
+        output = nil
+
+        expect { output = rendered }.to output(/matched 1 of 2 dynamic node IDs/).to_stderr
+        expect(output).to include(
+          'Dynamic evidence (positive-only): nodes attempted=2 matched=1 unmatched=1; ' \
+          'edges attempted=0 matched=0 unmatched=0',
+          'Unmatched dynamic evidence: Other#live'
+        )
+        expect(report.to_h.fetch('diagnostics').fetch('dynamic_evidence')).to include(
+          'unmatched' => { 'nodes' => 1, 'edges' => 0 }
+        )
+      end
+    end
+
     context 'without an explicit confidence threshold' do
       let(:report) do
         report_with_findings([
