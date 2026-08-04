@@ -20,7 +20,9 @@
       "properties": {
         "status": { "enum": ["generated", "snapshot", "skipped"] },
         "version": { "type": ["string", "null"] },
-        "diagnostic": { "type": "string" }
+        "diagnostic": { "type": "string" },
+        "snapshot_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance": { "type": ["object", "string"] }
       }
     },
     "toolResult": {

@@ -1,7 +1,9 @@
 # frozen_string_literal: true
 
 require 'fileutils'
+require 'digest'
 require 'json'
+require 'open3'
 require 'yaml'
 
 require_relative 'candidate_union'
@@ -10,18 +12,26 @@ require_relative 'report_normalizer'
 module Necropsy
   module Bench
     class SeedRunner
-      DETERMINISTIC_FILES = %w[candidate_union.json reports].freeze
-
-      def initialize(manifest_path:, output_dir:, io: $stdout, clock: Process.method(:clock_gettime), analyzer: nil)
+      def initialize(
+        manifest_path:,
+        output_dir:,
+        io: $stdout,
+        clock: Process.method(:clock_gettime),
+        analyzer: nil,
+        rss_reader: nil,
+        revision_reader: nil
+      )
         @manifest_path = File.expand_path(manifest_path)
         @output_dir = File.expand_path(output_dir)
         @io = io
         @clock = clock
         @analyzer = analyzer || ->(root, config_path) { Necropsy.analyze(root: root, config_path: config_path) }
+        @rss_reader = rss_reader || method(:read_process_rss)
+        @revision_reader = revision_reader || method(:read_git_revision)
       end
 
       def call(update_golden_reason: nil)
-        FileUtils.mkdir_p(reports_dir)
+        prepare_output
         reports = {}
         corpus_runs = manifest.fetch('corpora').sort.map do |id, definition|
           run_corpus(id, definition, reports)
@@ -33,15 +43,17 @@ module Necropsy
           diagnostics: diagnostics
         ).call
         write_json(File.join(output_dir, 'candidate_union.json'), union)
-        summary = build_summary(corpus_runs, union, golden_status)
-        write_json(File.join(output_dir, 'summary.json'), summary)
         update_golden(update_golden_reason) if update_golden_reason
+        golden = golden_status
+        report_golden_status(golden)
+        summary = build_summary(corpus_runs, union, golden)
+        write_json(File.join(output_dir, 'summary.json'), summary)
         summary
       end
 
       private
 
-      attr_reader :manifest_path, :output_dir, :io, :clock, :analyzer
+      attr_reader :manifest_path, :output_dir, :io, :clock, :analyzer, :rss_reader, :revision_reader
 
       def manifest
         @manifest ||= YAML.safe_load_file(manifest_path, aliases: false).tap do |payload|
@@ -63,9 +75,15 @@ module Necropsy
         @diagnostics ||= []
       end
 
+      def prepare_output
+        FileUtils.mkdir_p(reports_dir)
+        Dir.glob(File.join(reports_dir, '*.json')).each { |path| FileUtils.rm_f(path) }
+      end
+
       def run_corpus(id, definition, reports)
         path = corpus_path(definition)
         return skipped_corpus(id, definition, path) unless path && File.directory?(path)
+        return failed_revision(id, definition, path) unless revision_matches?(definition, path)
 
         started_at = monotonic_time
         report = analyzer.call(path, config_path(path, definition))
@@ -74,16 +92,15 @@ module Necropsy
         reports[id] = normalized
         write_json(File.join(reports_dir, "#{id}.json"), normalized)
         io.puts "#{id}: generated"
+        performance = {
+          'wall_time_seconds' => wall_time.round(6)
+        }.merge(rss_measurement(id))
         {
           'id' => id,
           'status' => 'generated',
           'revision' => definition['revision'],
           'metrics' => normalized.fetch('metrics'),
-          'performance' => {
-            'wall_time_seconds' => wall_time.round(6),
-            'peak_rss_kb' => current_rss_kb,
-            'rss_measurement' => 'process high-water mark when available; current RSS fallback'
-          }
+          'performance' => performance
         }.compact
       rescue Error, SystemCallError => e
         message = "#{id} failed: #{e.message}"
@@ -111,16 +128,65 @@ module Necropsy
         { 'id' => id, 'status' => 'skipped', 'revision' => definition['revision'], 'diagnostic' => message }.compact
       end
 
-      def current_rss_kb
+      def revision_matches?(definition, path)
+        expected = definition['git_commit']
+        return true unless expected
+
+        revision_reader.call(path, 'HEAD') == expected && tag_matches?(definition, path, expected)
+      end
+
+      def tag_matches?(definition, path, expected)
+        tag = definition['git_tag']
+        !tag || revision_reader.call(path, "refs/tags/#{tag}^{commit}") == expected
+      end
+
+      def failed_revision(id, definition, path)
+        actual = revision_reader.call(path, 'HEAD') || 'not a Git checkout'
+        message = "#{id} failed: expected Git HEAD #{definition['git_commit']}, got #{actual} at #{path}"
+        diagnostics << message
+        io.puts message
+        { 'id' => id, 'status' => 'failed', 'revision' => definition['git_commit'], 'diagnostic' => message }
+      end
+
+      def rss_measurement(id)
+        measurement = rss_reader.call
+        return measurement if measurement
+
+        message = "#{id}: RSS unavailable on this platform"
+        diagnostics << message
+        { 'rss_status' => 'unavailable', 'rss_diagnostic' => message }
+      end
+
+      def read_process_rss
         status_path = '/proc/self/status'
         if File.file?(status_path)
           match = File.read(status_path).match(/^VmHWM:\s+(\d+)\s+kB$/)
-          return match[1].to_i if match
+          if match
+            return {
+              'process_hwm_kb' => match[1].to_i,
+              'rss_kind' => 'cumulative_process_high_water_mark',
+              'rss_scope' => 'benchmark_runner_process'
+            }
+          end
         end
 
         output = IO.popen(['ps', '-o', 'rss=', '-p', Process.pid.to_s], &:read)
-        Integer(output.strip, exception: false)
+        rss = Integer(output.strip, exception: false)
+        return unless rss
+
+        {
+          'process_rss_kb' => rss,
+          'rss_kind' => 'current_process_rss_after_corpus',
+          'rss_scope' => 'benchmark_runner_process'
+        }
       rescue ArgumentError, SystemCallError
+        nil
+      end
+
+      def read_git_revision(path, reference)
+        output, status = Open3.capture2e('git', '-C', path, 'rev-parse', reference)
+        status.success? ? output.strip : nil
+      rescue SystemCallError
         nil
       end
 
@@ -143,10 +209,31 @@ module Necropsy
         golden_dir = File.expand_path(manifest.fetch('golden_dir'), repository_root)
         return { 'status' => 'missing', 'differences' => deterministic_artifacts } unless File.directory?(golden_dir)
 
+        integrity = golden_integrity(golden_dir)
+        return integrity unless integrity['status'] == 'valid'
+
         expected = artifact_contents(golden_dir)
         actual = artifact_contents(output_dir)
         differences = (expected.keys | actual.keys).reject { |path| expected[path] == actual[path] }.sort
         { 'status' => differences.empty? ? 'match' : 'drift', 'differences' => differences }
+      end
+
+      def golden_integrity(golden_dir)
+        metadata_path = File.join(golden_dir, 'metadata.json')
+        return { 'status' => 'invalid', 'differences' => ['metadata.json missing'] } unless File.file?(metadata_path)
+
+        metadata = JSON.parse(File.read(metadata_path))
+        reason = metadata['update_reason'].to_s.strip
+        return { 'status' => 'invalid', 'differences' => ['update reason missing'] } if reason.empty?
+
+        actual = artifact_digests(golden_dir)
+        expected = metadata.fetch('artifacts', {})
+        differences = (actual.keys | expected.keys).reject { |path| actual[path] == expected[path] }.sort
+        return { 'status' => 'invalid', 'differences' => differences } unless differences.empty?
+
+        { 'status' => 'valid', 'differences' => [] }
+      rescue JSON::ParserError
+        { 'status' => 'invalid', 'differences' => ['metadata.json malformed'] }
       end
 
       def deterministic_artifacts
@@ -165,6 +252,16 @@ module Necropsy
         end
       end
 
+      def artifact_digests(root)
+        artifact_contents(root).transform_values { |contents| Digest::SHA256.hexdigest(contents) }
+      end
+
+      def report_golden_status(golden)
+        differences = golden.fetch('differences')
+        suffix = differences.empty? ? '' : " (#{differences.join(', ')})"
+        io.puts "golden: #{golden.fetch('status')}#{suffix}"
+      end
+
       def write_json(path, payload)
         FileUtils.mkdir_p(File.dirname(path))
         File.write(path, "#{JSON.pretty_generate(payload)}\n")
@@ -176,10 +273,19 @@ module Necropsy
         golden_dir = File.expand_path(manifest.fetch('golden_dir'), repository_root)
         FileUtils.mkdir_p(File.join(golden_dir, 'reports'))
         FileUtils.cp(File.join(output_dir, 'candidate_union.json'), File.join(golden_dir, 'candidate_union.json'))
-        Dir.glob(File.join(output_dir, 'reports', '*.json')).each do |source|
+        sources = Dir.glob(File.join(output_dir, 'reports', '*.json'))
+        source_names = sources.map { |source| File.basename(source) }
+        Dir.glob(File.join(golden_dir, 'reports', '*.json')).each do |existing|
+          FileUtils.rm_f(existing) unless source_names.include?(File.basename(existing))
+        end
+        sources.each do |source|
           FileUtils.cp(source, File.join(golden_dir, 'reports', File.basename(source)))
         end
-        File.write(File.join(golden_dir, 'UPDATE_REASON.txt'), "#{reason.strip}\n")
+        write_json(File.join(golden_dir, 'metadata.json'), {
+                     'schema_version' => 1,
+                     'update_reason' => reason.strip,
+                     'artifacts' => artifact_digests(golden_dir).sort.to_h
+                   })
       end
     end
   end

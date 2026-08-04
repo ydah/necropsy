@@ -1,6 +1,9 @@
 schema_version: 1
 tool: type_aware
-provenance: benchmark-fixture-seed
+provenance:
+  kind: versioned_external_candidate_snapshot
+  source: reviewed benchmark fixtures
+  normalization: fully qualified method identity
 candidates:
   - { corpus: rails, id: "Sample::Widget#dead_model", path: app/models/widget.rb, line: 47 }
   - { corpus: plain_ruby, id: "PlainSeed::Formatter#unused", path: lib/plain_seed.rb, line: 13 }

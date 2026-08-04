@@ -1,6 +1,10 @@
 schema_version: 1
 tool: debride
-provenance: benchmark-fixture-seed
+provenance:
+  kind: versioned_external_candidate_snapshot
+  tool_version: 1.15.2
+  source: reviewed benchmark fixtures
+  normalization: fully qualified method identity
 candidates:
   - { corpus: rails, id: "Sample::Widget#dead_model", path: app/models/widget.rb, line: 47 }
   - { corpus: rails, id: "Sample::Widget#alias_live", path: app/models/widget.rb, line: 37 }

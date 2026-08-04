@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "update_reason": "Pin RuboCop corpus and harden benchmark gates",
+  "artifacts": {
+    "candidate_union.json": "3d6f474db73f881adfe893b71cff85b5802bb218405076607de1fb03526644ab",
+    "reports/dynamic_evidence.json": "7a67744d124f8e50833fc6fcfff03dfff401614be816ef45c844aace3ef78c48",
+    "reports/plain_ruby.json": "0aa08379241266e828fc64a2018c673f7ca2e1a664f9786c44dbac606c5a08d1",
+    "reports/rails.json": "7a18e296e2ad72944161bd4c7a528768f6ce2c9fadbd078731ebac5241117d24",
+    "reports/rubocop_1_75_0.json": "6345b5868cb69f0e054700213c301c6d4c4d892b88228dcc48c8eac7f765ebe6",
+    "reports/self.json": "b7e7e6e0c7ac20bfbb3ef7132783bbebcefb234ac3e57e3437764c8ec7e7c38c"
+  }
+}

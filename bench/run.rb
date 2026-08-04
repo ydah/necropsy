@@ -25,4 +25,6 @@ runner = Necropsy::Bench::SeedRunner.new(
 )
 summary = runner.call(update_golden_reason: options[:update_golden_reason])
 puts "summary: #{File.join(File.expand_path(options.fetch(:output)), 'summary.json')}"
-exit(summary.fetch('corpora').any? { |corpus| corpus['status'] == 'failed' } ? 1 : 0)
+failed_corpus = summary.fetch('corpora').any? { |corpus| corpus['status'] == 'failed' }
+golden_mismatch = summary.dig('golden', 'status') != 'match'
+exit(failed_corpus || golden_mismatch ? 1 : 0)

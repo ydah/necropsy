@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require 'digest'
 require 'yaml'
 
 module Necropsy
@@ -19,12 +20,14 @@ module Necropsy
         load_external_candidates
         apply_labels
         fill_tool_results
-        {
+        result = {
           'schema_version' => 1,
           'tool_runs' => tool_runs.sort.to_h,
           'summary' => summary,
           'candidates' => candidates.values.sort_by { |candidate| [candidate['corpus'], candidate['id']] }
         }
+        validate_result!(result)
+        result
       end
 
       private
@@ -36,7 +39,13 @@ module Necropsy
       end
 
       def tool_runs
-        @tool_runs ||= { 'necropsy' => { 'status' => 'generated' } }
+        @tool_runs ||= {
+          'necropsy' => {
+            'status' => 'generated',
+            'version' => manifest.dig('tools', 'necropsy', 'version'),
+            'provenance' => { 'kind' => 'generated_normalized_report' }
+          }.compact
+        }
       end
 
       def load_necropsy_candidates
@@ -63,6 +72,7 @@ module Necropsy
           end
 
           payload = YAML.safe_load_file(path, aliases: false) || {}
+          validate_snapshot!(payload, tool)
           Array(payload['candidates']).each do |entry|
             candidate = candidate_for(entry.fetch('corpus'), entry.fetch('id'), entry)
             candidate['tool_results'][tool] = {
@@ -73,6 +83,7 @@ module Necropsy
           tool_runs[tool] = {
             'status' => 'snapshot',
             'version' => definition['version'],
+            'snapshot_sha256' => Digest::SHA256.file(path).hexdigest,
             'provenance' => payload['provenance']
           }.compact
         rescue KeyError, Psych::Exception => e
@@ -84,6 +95,14 @@ module Necropsy
         env_path = ENV[definition['snapshot_env'].to_s] if definition['snapshot_env']
         relative = env_path || definition['snapshot']
         File.expand_path(relative, repository_root) if relative && !relative.empty?
+      end
+
+      def validate_snapshot!(payload, tool)
+        raise Error, 'schema_version must be 1' unless payload['schema_version'] == 1
+        raise Error, "tool must be #{tool}" unless payload['tool'] == tool
+
+        provenance = payload['provenance']
+        raise Error, 'provenance must be a non-empty mapping' unless provenance.is_a?(Hash) && !provenance.empty?
       end
 
       def skip_tool(tool, definition)
@@ -126,7 +145,11 @@ module Necropsy
 
         labels.each do |entry|
           validate_label(entry)
-          candidate = candidate_for(entry.fetch('corpus'), entry.fetch('id'), entry)
+          key = [entry.fetch('corpus'), entry.fetch('id')]
+          candidate = candidates[key]
+          raise Error, "Benchmark label does not match a tool candidate: #{key.join(':')}" unless candidate
+          raise Error, "Duplicate benchmark label: #{key.join(':')}" if candidate.key?('label')
+
           candidate['label'] = entry.slice('value', 'rationale', 'reviewer')
         end
       rescue KeyError, ArgumentError, Psych::Exception => e
@@ -157,6 +180,16 @@ module Necropsy
           'reviewed' => labels.length,
           'by_label' => labels.tally.sort.to_h
         }
+      end
+
+      def validate_result!(result)
+        tools = result.fetch('tool_runs').keys
+        result.fetch('candidates').each do |candidate|
+          actual_tools = candidate.fetch('tool_results').keys
+          next if actual_tools == tools
+
+          raise Error, "Candidate #{candidate['corpus']}:#{candidate['id']} has incomplete tool results"
+        end
       end
     end
   end

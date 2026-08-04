@@ -22,4 +22,23 @@ RSpec.describe Necropsy::Bench::CandidateUnion do
       'dead', 'alive', 'external', 'unknown'
     )
   end
+
+  it 'rejects labels that do not exist in any tool candidate set' do
+    with_project(files: {
+                   'labels.yml' => {
+                     'labels' => [{ 'corpus' => 'fixture', 'id' => 'Typo#missing', 'value' => 'dead',
+                                    'rationale' => 'reviewed' }]
+                   }.to_yaml
+                 }) do |root|
+      manifest = {
+        'labels' => 'labels.yml',
+        'minimum_reviewed_labels' => 1,
+        'tools' => { 'necropsy' => { 'version' => 'test' } }
+      }
+
+      expect do
+        described_class.new(manifest: manifest, repository_root: root, reports: {}, diagnostics: []).call
+      end.to raise_error(Necropsy::Error, /does not match a tool candidate/)
+    end
+  end
 end

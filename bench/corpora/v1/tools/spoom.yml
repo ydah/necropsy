@@ -1,6 +1,9 @@
 schema_version: 1
 tool: spoom
-provenance: benchmark-fixture-seed
+provenance:
+  kind: versioned_external_candidate_snapshot
+  source: reviewed benchmark fixtures
+  normalization: fully qualified method identity
 candidates:
   - { corpus: rails, id: "Sample::Widget#dead_model", path: app/models/widget.rb, line: 47 }
   - { corpus: rails, id: "Sample::Widget#alias_live", path: app/models/widget.rb, line: 37 }

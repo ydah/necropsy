@@ -2,15 +2,15 @@
   "schema_version": 1,
   "corpus": "self",
   "metrics": {
-    "nodes": 815,
-    "definitions": 715,
-    "call_sites": 8360,
-    "edges": 3777,
-    "findings": 65
+    "nodes": 835,
+    "definitions": 735,
+    "call_sites": 8805,
+    "edges": 3902,
+    "findings": 78
   },
   "states": {
-    "test_only_reachable": 48,
-    "unreachable": 17
+    "test_only_reachable": 59,
+    "unreachable": 19
   },
   "findings": [
     {
@@ -144,7 +144,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#apply_labels",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 120,
+      "line": 139,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -155,7 +155,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#call",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 17,
+      "line": 18,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -166,7 +166,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#candidate_for",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 109,
+      "line": 128,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -177,7 +177,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#diagnostics",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 32,
+      "line": 35,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -188,7 +188,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#executable?",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 101,
+      "line": 120,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -199,7 +199,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#fill_tool_results",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 142,
+      "line": 165,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -210,7 +210,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#initialize",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 10,
+      "line": 11,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -220,7 +220,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#load_external_candidates",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 55,
+      "line": 64,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -231,7 +231,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#load_necropsy_candidates",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 42,
+      "line": 51,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -242,7 +242,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#manifest",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 32,
+      "line": 35,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -253,7 +253,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#reports",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 32,
+      "line": 35,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -264,7 +264,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#repository_root",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 32,
+      "line": 35,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -275,7 +275,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#skip_tool",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 89,
+      "line": 108,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -286,7 +286,7 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#snapshot_path",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 83,
+      "line": 94,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -297,17 +297,40 @@
     {
       "id": "Necropsy::Bench::CandidateUnion#tool_runs",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 38,
+      "line": 41,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
-        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::CandidateUnion#call."
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::CandidateUnion#call.",
+        "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::CandidateUnion#validate_label",
       "path": "lib/necropsy/bench/candidate_union.rb",
-      "line": 136,
+      "line": 159,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::CandidateUnion#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::CandidateUnion#validate_result!",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 185,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::CandidateUnion#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::CandidateUnion#validate_snapshot!",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 100,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -401,7 +424,18 @@
     {
       "id": "Necropsy::Bench::SeedRunner#artifact_contents",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 158,
+      "line": 245,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#artifact_digests",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 255,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -412,7 +446,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#build_summary",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 131,
+      "line": 197,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -423,7 +457,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#call",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 23,
+      "line": 33,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -434,7 +468,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#clock",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 44,
+      "line": 56,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -445,7 +479,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#config_path",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 101,
+      "line": 118,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -456,18 +490,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#corpus_path",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 95,
-      "state": "test_only_reachable",
-      "confidence": "low",
-      "reasons": [
-        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
-        "Lowered because this node is near unresolved metaprogramming."
-      ]
-    },
-    {
-      "id": "Necropsy::Bench::SeedRunner#current_rss_kb",
-      "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 114,
+      "line": 112,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -478,7 +501,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#deterministic_artifacts",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 152,
+      "line": 239,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -489,7 +512,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#diagnostics",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 62,
+      "line": 74,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -497,9 +520,31 @@
       ]
     },
     {
+      "id": "Necropsy::Bench::SeedRunner#failed_revision",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 143,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#golden_integrity",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 221,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
       "id": "Necropsy::Bench::SeedRunner#golden_status",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 142,
+      "line": 208,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -518,7 +563,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#io",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 44,
+      "line": 56,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -529,7 +574,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#manifest",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 46,
+      "line": 58,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -540,7 +585,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#manifest_path",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 44,
+      "line": 56,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -551,7 +596,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#monotonic_time",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 127,
+      "line": 193,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -562,7 +607,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#output_dir",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 44,
+      "line": 56,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -571,9 +616,50 @@
       ]
     },
     {
+      "id": "Necropsy::Bench::SeedRunner#prepare_output",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 78,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#read_git_revision",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 186,
+      "state": "unreachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#read_process_rss",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 160,
+      "state": "unreachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#report_golden_status",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 259,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
       "id": "Necropsy::Bench::SeedRunner#reports_dir",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 58,
+      "line": 70,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -583,7 +669,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#repository_root",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 54,
+      "line": 66,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -591,9 +677,53 @@
       ]
     },
     {
+      "id": "Necropsy::Bench::SeedRunner#revision_matches?",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 131,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#revision_reader",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 56,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#rss_measurement",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 151,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#rss_reader",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 56,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
       "id": "Necropsy::Bench::SeedRunner#run_corpus",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 66,
+      "line": 83,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -604,7 +734,18 @@
     {
       "id": "Necropsy::Bench::SeedRunner#skipped_corpus",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 106,
+      "line": 123,
+      "state": "test_only_reachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because it is reachable from implicitly invoked Necropsy::Bench::SeedRunner#call.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::SeedRunner#tag_matches?",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 138,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -615,7 +756,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#update_golden",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 173,
+      "line": 270,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [
@@ -626,7 +767,7 @@
     {
       "id": "Necropsy::Bench::SeedRunner#write_json",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 168,
+      "line": 265,
       "state": "test_only_reachable",
       "confidence": "low",
       "reasons": [

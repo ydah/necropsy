@@ -20,7 +20,10 @@ corpora:
   rubocop_1_75_0:
     kind: external
     path_env: NECROPSY_RUBOCOP_CORPUS
-    revision: v1.75.0
+    version: 1.75.0
+    git_tag: v1.75.0
+    git_commit: 9c2bc8eb11e269f1cf47113041a1be3ff615f68b
+    revision: 9c2bc8eb11e269f1cf47113041a1be3ff615f68b
   self:
     kind: repository
     path: .
