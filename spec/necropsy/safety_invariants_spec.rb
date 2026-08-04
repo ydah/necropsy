@@ -211,6 +211,37 @@ RSpec.describe 'analysis safety invariants' do
     expect(SafetyInvariantMatcher.candidate_ids(after)).not_to include('SafetyObserved#called')
   end
 
+  it 'does not invent observed edges or candidates for ambiguous runtime definitions' do
+    files = {
+      'lib/first.rb' => 'class SafetyRepeated; def run = target; def target = :first; end',
+      'lib/second.rb' => 'class SafetyRepeated; def run = target; def target = :second; end'
+    }
+    observed = analyzer_result(
+      edge_evidences: [
+        Necropsy::EdgeEvidence.new(
+          caller_id: { 'symbol_id' => 'SafetyRepeated#run' },
+          callee_id: { 'symbol_id' => 'SafetyRepeated#target' },
+          evidence: evidence(analyzer: :safety_observation, kind: :call_edge)
+        )
+      ],
+      observation: { 'safety_observation' => { 'environment' => 'production' } }
+    )
+    before = analyze(files: files, analyzers: [SafetyInvariantAnalyzer.new])
+    after = analyze(
+      files: files,
+      analyzers: [SafetyInvariantAnalyzer.new(result: observed, name: :safety_observation, kind: :dynamic)]
+    )
+
+    expect(after.graph.edges).to be_empty
+    expect(after.graph.definitions_for('SafetyRepeated#run')).to all(
+      satisfy { |definition| after.graph.dynamic_alive?(definition.graph_id) }
+    )
+    expect(after.graph.definitions_for('SafetyRepeated#target')).to all(
+      satisfy { |definition| after.graph.dynamic_alive?(definition.graph_id) }
+    )
+    expect(after).to preserve_candidate_safety_from(before).for_invariant('ambiguous observed edge addition')
+  end
+
   it 'keeps normalized analysis semantics identical across file order and cache modes' do
     files = {
       'lib/first.rb' => 'class SafetyFirst; def run = SafetySecond.new.call; end',

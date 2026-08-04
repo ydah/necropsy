@@ -63,6 +63,159 @@ RSpec.describe 'physical definition analysis' do
     )
   end
 
+  it 'keeps ambiguous observed endpoints alive without inventing cartesian edges' do
+    callers = [
+      physical_node('Repeated#run', 'def:v1:caller-a', file: 'lib/a.rb'),
+      physical_node('Repeated#run', 'def:v1:caller-b', file: 'lib/b.rb')
+    ]
+    callees = [
+      physical_node('Repeated#target', 'def:v1:callee-a', file: 'lib/a.rb', line: 2),
+      physical_node('Repeated#target', 'def:v1:callee-b', file: 'lib/b.rb', line: 2)
+    ]
+    graph = graph_with(nodes: callers + callees)
+    observed = evidence(analyzer: :coverage, kind: :call_edge)
+    result = analyzer_result(
+      edge_evidences: [
+        Necropsy::EdgeEvidence.new(
+          caller_id: { 'symbol_id' => 'Repeated#run' },
+          callee_id: { 'symbol_id' => 'Repeated#target' },
+          evidence: observed
+        )
+      ],
+      observation: { 'coverage' => { 'environment' => 'production' } }
+    )
+
+    expect { graph.apply_result(result) }.to output(/partially matched 1/).to_stderr
+
+    expect(graph.edges).to be_empty
+    expect(callers + callees).to all(satisfy { |definition| graph.dynamic_alive?(definition.graph_id) })
+    expect(graph.dynamic_evidence_diagnostic).to include(
+      'matched' => include('edges' => 0),
+      'partially_matched' => include('edges' => 1),
+      'resolution' => include(
+        'edge_endpoints' => { 'exact' => 0, 'unique' => 0, 'ambiguous' => 2, 'missing' => 0 }
+      )
+    )
+    expect(graph.observation.dig('definition_resolution', 'ambiguous_inputs')).to include(
+      include('kind' => 'edge_caller', 'reference' => { 'symbol_id' => 'Repeated#run' }),
+      include('kind' => 'edge_callee', 'reference' => { 'symbol_id' => 'Repeated#target' })
+    )
+  end
+
+  it 'resolves structured runtime references exactly or by unique location hints' do
+    caller = physical_node('Caller#run', 'def:v1:caller', file: 'lib/caller.rb', line: 3)
+    first = physical_node('Repeated#target', 'def:v1:first', file: 'lib/first.rb', line: 5)
+    second = physical_node('Repeated#target', 'def:v1:second', file: 'lib/second.rb', line: 7)
+    fallback = physical_node('Fallback#run', 'def:v1:fallback', file: 'lib/fallback.rb', line: 9)
+    graph = graph_with(nodes: [caller, first, second, fallback])
+    observed = evidence(analyzer: :coverage, kind: :call_edge)
+    result = analyzer_result(
+      edge_evidences: [
+        Necropsy::EdgeEvidence.new(
+          caller_id: {
+            'definition_id' => caller.graph_id, 'symbol_id' => caller.symbol_id,
+            'file' => caller.file, 'line' => caller.line
+          },
+          callee_id: {
+            'definition_id' => first.graph_id, 'symbol_id' => second.symbol_id,
+            'file' => second.file, 'line' => second.line
+          },
+          evidence: observed
+        )
+      ],
+      alive_evidences: [
+        Necropsy::AliveEvidence.new(
+          node_id: {
+            definition_id: 'def:v1:stale', symbol_id: fallback.symbol_id,
+            file: fallback.file, line: fallback.line
+          },
+          evidence: observed.with(kind: :alive)
+        )
+      ],
+      observation: { 'coverage' => { 'environment' => 'production' } }
+    )
+
+    graph.apply_result(result)
+
+    expect(graph.edges.map { |edge| [edge.caller_id, edge.callee_id] }).to eq(
+      [[caller.graph_id, second.graph_id]]
+    )
+    expect(graph).not_to be_dynamic_alive(first.graph_id)
+    expect(graph).to be_dynamic_alive(second.graph_id)
+    expect(graph).to be_dynamic_alive(fallback.graph_id)
+    expect(graph.dynamic_evidence_diagnostic.dig('resolution', 'nodes')).to eq(
+      'exact' => 0, 'unique' => 1, 'ambiguous' => 0, 'missing' => 0
+    )
+    expect(graph.dynamic_evidence_diagnostic.dig('resolution', 'edge_endpoints')).to eq(
+      'exact' => 1, 'unique' => 1, 'ambiguous' => 0, 'missing' => 0
+    )
+    expect(graph.dynamic_evidence_diagnostic.dig('resolution_samples', 'nodes')).to include(
+      include(
+        'reference' => {
+          'definition_id' => 'def:v1:stale', 'symbol_id' => fallback.symbol_id,
+          'file' => fallback.file, 'line' => fallback.line
+        },
+        'status' => 'unique', 'definition_ids' => [fallback.graph_id]
+      )
+    )
+  end
+
+  it 'does not use a stale physical ID fallback without an explicit location' do
+    target = physical_node('Target#run', 'def:v1:target', file: 'lib/target.rb')
+    graph = graph_with(nodes: [target])
+    result = analyzer_result(
+      alive_evidences: [
+        Necropsy::AliveEvidence.new(
+          node_id: { 'definition_id' => 'def:v1:stale', 'symbol_id' => target.symbol_id },
+          evidence: evidence(analyzer: :coverage, kind: :alive)
+        )
+      ],
+      observation: { 'coverage' => {} }
+    )
+
+    expect { graph.apply_result(result) }.to output(/missing 1/).to_stderr
+
+    expect(graph).not_to be_dynamic_alive(target.graph_id)
+    expect(graph.dynamic_evidence_diagnostic.dig('resolution', 'nodes', 'missing')).to eq(1)
+  end
+
+  it 'keeps resolution counts additive and samples bounded across input order' do
+    references = 7.times.map do |index|
+      {
+        'definition_id' => "def:v1:missing-#{index}",
+        'symbol_id' => "Missing#{index}#run",
+        'file' => "lib/missing_#{index}.rb",
+        'line' => index + 1
+      }
+    end
+    diagnostics = [references, references.reverse].map do |ordered|
+      graph = graph_with(nodes: [physical_node('Known#run', 'def:v1:known', file: 'lib/known.rb')])
+      result = analyzer_result(
+        alive_evidences: ordered.map do |reference|
+          Necropsy::AliveEvidence.new(
+            node_id: reference,
+            evidence: evidence(analyzer: :coverage, kind: :alive)
+          )
+        end,
+        observation: { 'coverage' => {} }
+      )
+      expect { graph.apply_result(result) }.to output(/missing 7/).to_stderr
+      graph.dynamic_evidence_diagnostic
+    end
+
+    expect(diagnostics.last.dig('resolution_samples', 'nodes')).to eq(
+      diagnostics.first.dig('resolution_samples', 'nodes')
+    )
+    expect(diagnostics.first.dig('resolution_samples', 'nodes').length).to eq(5)
+    diagnostics.each do |diagnostic|
+      expect(diagnostic.dig('resolution', 'nodes').values.sum).to eq(diagnostic.dig('attempted', 'nodes'))
+      expect(
+        diagnostic.dig('matched', 'nodes') + diagnostic.dig('partially_matched', 'nodes') +
+        diagnostic.dig('unmatched', 'nodes')
+      ).to eq(diagnostic.dig('attempted', 'nodes'))
+    end
+  end
+
   it 'keeps exact physical edge and alive evidence exact' do
     caller = physical_node('Repeated#run', 'def:v1:caller', file: 'lib/caller.rb')
     first = physical_node('Repeated#target', 'def:v1:first', file: 'lib/first.rb')
@@ -92,8 +245,74 @@ RSpec.describe 'physical definition analysis' do
     )
     graph.add_blocker(blocker)
 
-    expect(graph.matching_blockers(first)).to eq([blocker])
-    expect(graph.matching_blockers(second)).to eq([])
+    expect(graph.matching_blockers(first)).to include(blocker)
+    expect(graph.matching_blockers(second)).not_to include(blocker)
+  end
+
+  it 'blocks every production duplicate but does not leak test-only duplicates into production' do
+    first = physical_node('Repeated#target', 'def:v1:first', file: 'lib/first.rb')
+    second = physical_node('Repeated#target', 'def:v1:second', file: 'lib/second.rb').with(visibility: :private)
+    test_first = physical_node('TestOnly#target', 'def:v1:test-first', file: 'spec/first_spec.rb').with(test: true)
+    test_second = physical_node('TestOnly#target', 'def:v1:test-second', file: 'spec/second_spec.rb').with(test: true)
+    graph = graph_with(nodes: [first, second, test_first, test_second])
+    blocker = graph.blockers.find { |item| item.kind == :duplicate_definition }
+
+    expect(blocker).to have_attributes(scope_kind: :symbol, scope_value: 'Repeated#target')
+    expect(blocker.metadata).to include(
+      'definition_count' => 2,
+      'definition_ids' => %w[def:v1:first def:v1:second],
+      'locations' => [
+        { 'definition_id' => first.graph_id, 'file' => first.file, 'line' => first.line },
+        { 'definition_id' => second.graph_id, 'file' => second.file, 'line' => second.line }
+      ]
+    )
+    expect(graph.matching_blockers(first)).to include(blocker)
+    expect(graph.matching_blockers(second)).to include(blocker)
+    expect(graph.matching_blockers(test_first)).to be_empty
+    expect(graph.matching_blockers(test_second)).to be_empty
+  end
+
+  it 'refreshes duplicate blocker metadata when a definition is added later' do
+    first = physical_node('Repeated#target', 'def:v1:first', file: 'lib/first.rb')
+    second = physical_node('Repeated#target', 'def:v1:second', file: 'lib/second.rb')
+    third = physical_node('Repeated#target', 'def:v1:third', file: 'lib/third.rb')
+    graph = graph_with(nodes: [first, second])
+
+    graph.add_node(third)
+
+    blockers = graph.blockers.select { |item| item.kind == :duplicate_definition }
+    expect(blockers.length).to eq(1)
+    expect(blockers.first.metadata).to include(
+      'definition_count' => 3,
+      'definition_ids' => %w[def:v1:first def:v1:second def:v1:third]
+    )
+    expect(graph.matching_blockers(third)).to eq(blockers)
+  end
+
+  it 'keeps an unobserved production duplicate blocked after exact physical evidence' do
+    first = physical_node('Repeated#target', 'def:v1:first', file: 'lib/first.rb')
+    second = physical_node('Repeated#target', 'def:v1:second', file: 'lib/second.rb')
+    graph = graph_with(nodes: [first, second])
+    graph.apply_result(analyzer_result(
+                         alive_evidences: [
+                           Necropsy::AliveEvidence.new(
+                             node_id: first.graph_id,
+                             evidence: evidence(analyzer: :coverage, kind: :alive)
+                           )
+                         ],
+                         observation: { 'coverage' => {} }
+                       ))
+    findings = Necropsy::Confidence::Scorer.new(
+      graph: graph,
+      reachability: Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}),
+      project: project_for(create_project)
+    ).findings
+
+    expect(findings.map(&:node)).to eq([second])
+    expect(findings.first).to have_attributes(
+      classification: :blocked,
+      blockers: include(have_attributes(kind: :duplicate_definition, scope_value: second.symbol_id))
+    )
   end
 
   it 'emits physical targets from every static analyzer' do

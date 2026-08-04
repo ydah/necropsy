@@ -11,7 +11,7 @@ module Necropsy
       return blocker unless @blocker_keys.add?(key)
 
       @blockers << blocker
-      @blockers_by_message[blocker.message&.to_s] << blocker
+      blocker_index_messages(blocker).each { |message| @blockers_by_message[message] << blocker }
       blocker
     end
 
@@ -28,6 +28,28 @@ module Necropsy
     end
 
     private
+
+    def remove_blockers_matching(&)
+      removed = @blockers.select(&)
+      return if removed.empty?
+
+      @blockers -= removed
+      rebuild_blocker_indexes
+    end
+
+    def rebuild_blocker_indexes
+      @blocker_keys = Set.new
+      @blockers_by_message = Hash.new { |hash, key| hash[key] = [] }
+      retained = @blockers
+      @blockers = []
+      retained.each { |blocker| add_blocker(blocker) }
+    end
+
+    def blocker_index_messages(blocker)
+      return [blocker.message&.to_s] unless blocker.scope_kind.to_sym == :symbol
+
+      Array(blocker.scope_value).map { |symbol_id| symbol_id.to_s.split(/[.#]/).last }.uniq
+    end
 
     def blocker_key(blocker)
       metadata = blocker.metadata
@@ -61,7 +83,7 @@ module Necropsy
     end
 
     def blocker_matches_node?(blocker, node)
-      return false unless blocker.message.nil? || blocker.message.to_s == node.name
+      return false unless blocker_message_matches?(blocker, node)
       return false unless blocker_visibility_matches?(blocker, node)
 
       values = Array(blocker.scope_value).compact.map(&:to_s)
@@ -83,8 +105,14 @@ module Necropsy
       end
     end
 
+    def blocker_message_matches?(blocker, node)
+      return true if blocker.scope_kind.to_sym == :symbol
+
+      blocker.message.nil? || blocker.message.to_s == node.name
+    end
+
     def blocker_visibility_matches?(blocker, node)
-      return true if %i[analyzer_failure parse_incomplete].include?(blocker.kind.to_sym)
+      return true if %i[analyzer_failure duplicate_definition parse_incomplete].include?(blocker.kind.to_sym)
 
       metadata = blocker.metadata
       receiver_kind = (metadata['receiver_kind'] || metadata[:receiver_kind])&.to_sym

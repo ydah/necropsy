@@ -200,9 +200,9 @@ RSpec.describe Necropsy::CallGraph do
       'unmatched_samples' => include(
         'edges' => [
           'KnownCaller#run -> MissingCallee#run (unmatched callee: MissingCallee#run)',
-          'MissingCaller#run -> KnownCallee#run (unmatched caller: MissingCaller#run)',
           'MissingBothCaller#run -> MissingBothCallee#run ' \
-          '(unmatched caller: MissingBothCaller#run, callee: MissingBothCallee#run)'
+          '(unmatched caller: MissingBothCaller#run, callee: MissingBothCallee#run)',
+          'MissingCaller#run -> KnownCallee#run (unmatched caller: MissingCaller#run)'
         ]
       )
     )

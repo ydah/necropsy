@@ -32,7 +32,10 @@ module Necropsy
       @dynamic_alive = {}
       @observation = {}
       @descendants = {}
+      @duplicate_blockers_initialized = false
       scan_result.nodes.each { |node| add_node(node) }
+      register_duplicate_definition_blockers
+      @duplicate_blockers_initialized = true
       register_incomplete_source_blockers
       retain_known_instantiated_classes
     end
@@ -46,7 +49,9 @@ module Necropsy
       @dispatch_cache = nil
       @lookup_chain_cache = nil
       @owner_ancestor_cache = nil
-      nodes.add(node)
+      added = nodes.add(node)
+      register_duplicate_definition_blocker(node.symbol_id) if @duplicate_blockers_initialized
+      added
     end
 
     def add_entry_point(node_id, reason)
@@ -63,17 +68,13 @@ module Necropsy
     def apply_result(result)
       dynamic_result = dynamic_result?(result)
       edge_matches = result.edge_evidences.map do |edge|
-        add_edge(edge.caller_id, edge.callee_id, edge.evidence)
-        next unless dynamic_result
+        next apply_dynamic_edge(edge) if dynamic_result
 
-        {
-          caller_id: edge.caller_id,
-          caller: add_alive(edge.caller_id, edge.evidence),
-          callee_id: edge.callee_id,
-          callee: add_alive(edge.callee_id, edge.evidence)
-        }
+        add_edge(edge.caller_id, edge.callee_id, edge.evidence)
       end
-      alive_matches = result.alive_evidences.map { |alive| add_alive(alive.node_id, alive.evidence) }
+      alive_matches = result.alive_evidences.map do |alive|
+        dynamic_result ? apply_dynamic_alive(alive.node_id, alive.evidence) : add_alive(alive.node_id, alive.evidence)
+      end
       result.uncertainties.each do |node_id, messages|
         resolved_ids = resolve_definitions(node_id).map(&:graph_id)
         resolved_ids = [node_id] if resolved_ids.empty?
@@ -302,6 +303,146 @@ module Necropsy
 
     private
 
+    def register_duplicate_definition_blockers
+      method_nodes.reject(&:test).map(&:symbol_id).uniq.sort.each do |symbol_id|
+        register_duplicate_definition_blocker(symbol_id)
+      end
+    end
+
+    def register_duplicate_definition_blocker(symbol_id)
+      definitions = definitions_for(symbol_id).reject(&:test)
+      remove_blockers_matching do |blocker|
+        blocker.kind == :duplicate_definition && blocker.scope_kind == :symbol && blocker.scope_value == symbol_id
+      end
+      return unless definitions.length > 1
+
+      add_blocker(Blocker.new(
+                    kind: :duplicate_definition,
+                    scope_kind: :symbol,
+                    scope_value: symbol_id,
+                    source: :definition_index,
+                    reason: 'Multiple production definitions have no proven activation order',
+                    suggested_action: :review_definitions,
+                    metadata: {
+                      'caller_domain' => 'runtime',
+                      'definition_count' => definitions.length,
+                      'definition_ids' => definitions.map(&:graph_id).sort,
+                      'locations' => definitions.map do |definition|
+                        {
+                          'definition_id' => definition.graph_id,
+                          'file' => definition.file,
+                          'line' => definition.line
+                        }
+                      end
+                    }
+                  ))
+    end
+
+    def apply_dynamic_edge(edge)
+      caller = resolve_dynamic_reference(edge.caller_id)
+      callee = resolve_dynamic_reference(edge.callee_id)
+      record_dynamic_ambiguous_input(:edge_caller, caller)
+      record_dynamic_ambiguous_input(:edge_callee, callee)
+      mark_dynamic_alive(caller, edge.evidence)
+      mark_dynamic_alive(callee, edge.evidence)
+      materialized = precise_dynamic_resolution?(caller) && precise_dynamic_resolution?(callee)
+      if materialized
+        add_physical_edge(caller.fetch(:definitions).first.graph_id, callee.fetch(:definitions).first.graph_id,
+                          edge.evidence)
+      end
+
+      { caller: caller, callee: callee, materialized: materialized }
+    end
+
+    def apply_dynamic_alive(reference, evidence)
+      resolution = resolve_dynamic_reference(reference)
+      record_dynamic_ambiguous_input(:alive, resolution)
+      mark_dynamic_alive(resolution, evidence)
+      resolution
+    end
+
+    def mark_dynamic_alive(resolution, evidence)
+      resolution.fetch(:definitions).each do |definition|
+        @dynamic_alive[definition.graph_id] ||= []
+        @dynamic_alive[definition.graph_id] << evidence
+      end
+    end
+
+    def precise_dynamic_resolution?(resolution)
+      %i[exact unique].include?(resolution.fetch(:status))
+    end
+
+    def resolve_dynamic_reference(reference)
+      normalized = normalize_dynamic_reference(reference)
+      return resolve_legacy_dynamic_reference(normalized) if normalized.key?('identifier')
+      return dynamic_resolution(normalized, :missing, []) unless normalized['symbol_id']
+
+      definition = nodes.exact(normalized['definition_id']) if normalized['definition_id']
+      exact_match = definition && dynamic_reference_matches?(definition, normalized)
+      return dynamic_resolution(normalized, :exact, [definition]) if exact_match
+
+      resolve_dynamic_reference_hints(normalized, definition_id_supplied: normalized.key?('definition_id'))
+    end
+
+    def normalize_dynamic_reference(reference)
+      return { 'identifier' => reference.to_s } unless reference.is_a?(Hash)
+
+      normalized = {}
+      %w[definition_id symbol_id file].each do |key|
+        value = reference[key] || reference[key.to_sym]
+        normalized[key] = value.to_s unless value.nil? || value.to_s.empty?
+      end
+      line = reference['line'] || reference[:line]
+      normalized['line'] = line.to_i unless line.nil?
+      normalized
+    end
+
+    def resolve_legacy_dynamic_reference(normalized)
+      lookup = nodes.lookup(normalized.fetch('identifier'))
+      dynamic_resolution(normalized, lookup.status, lookup.definitions)
+    end
+
+    def resolve_dynamic_reference_hints(normalized, definition_id_supplied:)
+      symbol_id = normalized['symbol_id']
+      location_supplied = normalized.key?('file') || normalized.key?('line')
+      return dynamic_resolution(normalized, :missing, []) unless symbol_id
+      return dynamic_resolution(normalized, :missing, []) if definition_id_supplied && !location_supplied
+
+      definitions = definitions_for(symbol_id)
+      definitions = definitions.select { |node| node.file == normalized['file'] } if normalized.key?('file')
+      definitions = definitions.select { |node| node.line.to_i == normalized['line'] } if normalized.key?('line')
+      status = if definitions.empty?
+                 :missing
+               elsif definitions.one?
+                 :unique
+               else
+                 :ambiguous
+               end
+      dynamic_resolution(normalized, status, definitions)
+    end
+
+    def dynamic_reference_matches?(definition, normalized)
+      return false if normalized['symbol_id'] && definition.symbol_id != normalized['symbol_id']
+      return false if normalized['file'] && definition.file != normalized['file']
+      return false if normalized.key?('line') && definition.line.to_i != normalized['line']
+
+      true
+    end
+
+    def dynamic_resolution(reference, status, definitions)
+      { reference: reference.freeze, status: status, definitions: definitions.freeze }.freeze
+    end
+
+    def record_dynamic_ambiguous_input(kind, resolution)
+      return unless resolution.fetch(:status) == :ambiguous
+
+      record_definition_ambiguity(
+        kind,
+        { 'reference' => resolution.fetch(:reference) },
+        resolution.fetch(:definitions)
+      )
+    end
+
     def register_incomplete_source_blockers
       incomplete_files.each do |file|
         errors = source_errors.select { |error| error.file == file }
@@ -504,13 +645,19 @@ module Necropsy
     def record_ambiguous_input(kind, identifier, definitions)
       return unless definitions.length > 1 && definitions_for(identifier).length > 1
 
-      resolution = observation['definition_resolution'] ||= { 'ambiguous_inputs' => [] }
-      resolution['ambiguous_inputs'] << {
+      record_definition_ambiguity(kind, { 'identifier' => identifier }, definitions)
+    end
+
+    def record_definition_ambiguity(kind, reference, definitions)
+      resolution = observation['definition_resolution'] ||= { 'ambiguous_input_count' => 0, 'ambiguous_inputs' => [] }
+      resolution['ambiguous_input_count'] += 1
+      resolution['ambiguous_inputs'] << reference.merge(
         'kind' => kind.to_s,
-        'identifier' => identifier,
         'definition_ids' => definitions.map(&:graph_id).sort
-      }
-      resolution['ambiguous_inputs'].uniq!
+      )
+      resolution['ambiguous_inputs'] = resolution['ambiguous_inputs'].uniq.sort_by do |sample|
+        [sample.fetch('kind'), canonical_dynamic_sample(sample), sample.fetch('definition_ids')]
+      end.first(DynamicEvidenceTracking::SAMPLE_LIMIT)
     end
 
     def retain_known_instantiated_classes
