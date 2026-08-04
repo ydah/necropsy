@@ -3,12 +3,16 @@
 require 'openssl'
 require 'socket'
 
+require_relative 'redis_nonblocking_io'
+
 module Necropsy
   module Analyzers
     module Dynamic
       class RedisCommandError < StandardError; end
 
       class RedisTransport
+        include RedisNonblockingIO
+
         CRLF = "\r\n"
 
         def initialize(uri:, limits:, deadline:, redactor:)
@@ -21,12 +25,13 @@ module Necropsy
         end
 
         def connect
-          timeout = [limits.connect_timeout, deadline.remaining].min
-          @tcp_socket = Socket.tcp(uri.host, uri.port || 6379, connect_timeout: timeout)
-          apply_socket_timeout
+          @tcp_socket = connect_tcp
           @socket = uri.scheme == 'rediss' ? connect_tls : tcp_socket
           deadline.check!
           self
+        rescue Error
+          close
+          raise
         rescue SystemCallError, SocketError, IO::TimeoutError, OpenSSL::SSL::SSLError => e
           close
           domain_error("Could not connect securely to Redis at #{target}: #{e.message}")
@@ -44,8 +49,7 @@ module Necropsy
 
         def command(*parts)
           deadline.check!
-          apply_socket_timeout
-          socket.write(redis_command(parts))
+          write_all(redis_command(parts))
           response = read_response
           deadline.check!
           response
@@ -59,6 +63,40 @@ module Necropsy
 
         attr_reader :uri, :limits, :deadline, :redactor, :socket, :tcp_socket
 
+        def connect_tcp
+          expires_at = monotonic_time + limits.connect_timeout
+          last_error = nil
+          addresses.each do |address|
+            candidate = Socket.new(address.afamily, address.socktype, address.protocol)
+            begin
+              finish_tcp_connect(candidate, address, expires_at)
+              return candidate
+            rescue SystemCallError, SocketError => e
+              candidate.close
+              last_error = e
+            rescue Error
+              candidate.close
+              raise
+            end
+          end
+          raise(last_error || SocketError.new("No Redis address found for #{uri.host}"))
+        end
+
+        def addresses
+          Addrinfo.getaddrinfo(uri.host, uri.port || 6379, nil, :STREAM)
+        end
+
+        def finish_tcp_connect(candidate, address, expires_at)
+          status = candidate.connect_nonblock(address, exception: false)
+          return unless wait_status?(status)
+
+          wait_for_io(status, io: candidate, expires_at: expires_at, label: 'Redis connect timeout exceeded')
+          error = candidate.getsockopt(Socket::SOL_SOCKET, Socket::SO_ERROR).int
+          raise SystemCallError.new("connect(2) for #{target}", error) unless error.zero?
+        rescue Errno::EISCONN
+          nil
+        end
+
         def connect_tls
           context = OpenSSL::SSL::SSLContext.new
           store = OpenSSL::X509::Store.new
@@ -70,7 +108,7 @@ module Necropsy
           ssl_socket = OpenSSL::SSL::SSLSocket.new(tcp_socket, context)
           ssl_socket.sync_close = true
           ssl_socket.hostname = uri.host
-          ssl_socket.connect
+          finish_tls_connect(ssl_socket)
           ssl_socket.post_connection_check(uri.host)
           ssl_socket
         rescue StandardError
@@ -152,19 +190,9 @@ module Necropsy
           remaining = limits.max_response_bytes - @response_bytes
           domain_error('Redis response exceeds configured byte limit') unless remaining.positive?
 
-          apply_socket_timeout
-          chunk = socket.readpartial([4096, remaining].min)
+          chunk = read_nonblock([4096, remaining].min)
           @response_bytes += chunk.bytesize
           @read_buffer << chunk
-        rescue EOFError
-          domain_error('Redis closed the connection while reading a response')
-        end
-
-        def apply_socket_timeout
-          seconds = [limits.read_timeout, deadline.remaining].min
-          timeout = [seconds.to_i, ((seconds % 1) * 1_000_000).to_i].pack('l_2')
-          tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_RCVTIMEO, timeout)
-          tcp_socket.setsockopt(Socket::SOL_SOCKET, Socket::SO_SNDTIMEO, timeout)
         end
 
         def domain_error(message)

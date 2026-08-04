@@ -131,7 +131,9 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
 
     it 'redacts URI credentials from connection exceptions' do
       secret_source = 'redis://app:s3cr%65t@redis.invalid/0'
-      allow(Socket).to receive(:tcp).and_raise(SocketError, "failed #{secret_source} app s3cret s3cr%65t")
+      allow(Addrinfo).to receive(:getaddrinfo).and_raise(
+        SocketError, "failed #{secret_source} app s3cret s3cr%65t"
+      )
 
       expect do
         described_class.new(source: secret_source, config: {}).load
@@ -169,11 +171,10 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
     def attach_response(transport, response)
       remaining = response.dup
       socket = instance_double(Socket)
-      allow(socket).to receive(:setsockopt)
-      allow(socket).to receive(:readpartial) do |length|
-        raise EOFError if remaining.empty?
-
-        remaining.slice!(0, length)
+      allow(socket).to receive(:to_io).and_return(socket)
+      allow(socket).to receive(:read_nonblock) do |length, exception:|
+        expect(exception).to eq(false)
+        remaining.empty? ? nil : remaining.slice!(0, length)
       end
       transport.instance_variable_set(:@socket, socket)
       transport.instance_variable_set(:@tcp_socket, socket)
@@ -222,13 +223,12 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
       ssl_socket = instance_double(OpenSSL::SSL::SSLSocket)
       tcp_socket = instance_double(Socket)
       captured_context = nil
-      allow(Socket).to receive(:tcp).and_return(tcp_socket)
-      allow(tcp_socket).to receive(:setsockopt)
       allow(tcp_socket).to receive(:close)
       allow(ssl_socket).to receive(:sync_close=)
       allow(ssl_socket).to receive(:hostname=)
       allow(ssl_socket).to receive(:close)
-      allow(ssl_socket).to receive(:connect).and_raise(OpenSSL::SSL::SSLError, 'certificate verify failed')
+      allow(ssl_socket).to receive(:connect_nonblock)
+        .with(exception: false).and_raise(OpenSSL::SSL::SSLError, 'certificate verify failed')
       allow(OpenSSL::SSL::SSLSocket).to receive(:new) do |_socket, context|
         captured_context = context
         ssl_socket
@@ -237,6 +237,7 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
       secure = described_class.new(
         uri: URI('rediss://localhost/0'), limits: limits, deadline: deadline, redactor: redactor
       )
+      allow(secure).to receive(:connect_tcp).and_return(tcp_socket)
       expect { secure.connect }.to raise_error(Necropsy::Error, /connect securely/)
       expect(captured_context.verify_mode).to eq(OpenSSL::SSL::VERIFY_PEER)
       expect(captured_context.cert_store).to be_a(OpenSSL::X509::Store)
@@ -245,12 +246,10 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
     it 'sets SNI and performs post-connect hostname verification' do
       ssl_socket = instance_double(OpenSSL::SSL::SSLSocket)
       tcp_socket = instance_double(Socket)
-      allow(Socket).to receive(:tcp).and_return(tcp_socket)
-      allow(tcp_socket).to receive(:setsockopt)
       allow(tcp_socket).to receive(:close)
       allow(ssl_socket).to receive(:sync_close=)
       allow(ssl_socket).to receive(:hostname=)
-      allow(ssl_socket).to receive(:connect)
+      allow(ssl_socket).to receive(:connect_nonblock).with(exception: false).and_return(ssl_socket)
       allow(ssl_socket).to receive(:close)
       allow(ssl_socket).to receive(:post_connection_check)
         .with('example.test').and_raise(OpenSSL::SSL::SSLError, 'hostname mismatch')
@@ -259,9 +258,87 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
       secure = described_class.new(
         uri: URI('rediss://example.test/0'), limits: limits, deadline: deadline, redactor: redactor
       )
+      allow(secure).to receive(:connect_tcp).and_return(tcp_socket)
       expect { secure.connect }.to raise_error(Necropsy::Error, /connect securely/)
       expect(ssl_socket).to have_received(:hostname=).with('example.test')
       expect(ssl_socket).to have_received(:post_connection_check).with('example.test')
+    end
+
+    it 'enforces read and total deadlines on a stalled real socket' do
+      [
+        [{ 'read_timeout' => 0.03, 'total_timeout' => 1.0 }, /read timeout/],
+        [{ 'read_timeout' => 1.0, 'total_timeout' => 0.03 }, /total timeout/]
+      ].each do |config, message|
+        reader, writer = Socket.pair(:UNIX, :STREAM, 0)
+        stalled_limits = Necropsy::Analyzers::Dynamic::RedisInputLimits.new(config)
+        stalled_deadline = Necropsy::Analyzers::Dynamic::RedisDeadline.new(stalled_limits.total_timeout)
+        stalled = described_class.new(uri: uri, limits: stalled_limits, deadline: stalled_deadline, redactor: redactor)
+        stalled.instance_variable_set(:@socket, reader)
+        stalled.instance_variable_set(:@tcp_socket, reader)
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+        expect { stalled.send(:read_response) }.to raise_error(Necropsy::Error, message)
+        elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+        expect(elapsed).to be_between(0.01, 0.5)
+      ensure
+        reader&.close
+        writer&.close
+      end
+    end
+
+    it 'enforces the IO deadline when a real socket cannot accept more writes' do
+      writer, reader = Socket.pair(:UNIX, :STREAM, 0)
+      payload = 'x' * 65_536
+      loop do
+        result = writer.write_nonblock(payload, exception: false)
+        break if result == :wait_writable
+      end
+      stalled_limits = Necropsy::Analyzers::Dynamic::RedisInputLimits.new(
+        'read_timeout' => 0.03, 'total_timeout' => 1.0
+      )
+      stalled = described_class.new(
+        uri: uri,
+        limits: stalled_limits,
+        deadline: Necropsy::Analyzers::Dynamic::RedisDeadline.new(stalled_limits.total_timeout),
+        redactor: redactor
+      )
+      stalled.instance_variable_set(:@socket, writer)
+      stalled.instance_variable_set(:@tcp_socket, writer)
+      started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      expect { stalled.send(:write_all, 'PING') }.to raise_error(Necropsy::Error, /write timeout/)
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+      expect(elapsed).to be_between(0.01, 0.5)
+    ensure
+      writer&.close
+      reader&.close
+    end
+
+    it 'enforces the total deadline while a TLS handshake is stalled' do
+      tcp_socket, peer = Socket.pair(:UNIX, :STREAM, 0)
+      ssl_socket = instance_double(OpenSSL::SSL::SSLSocket)
+      stalled_limits = Necropsy::Analyzers::Dynamic::RedisInputLimits.new(
+        'connect_timeout' => 1.0, 'total_timeout' => 0.03
+      )
+      stalled_deadline = Necropsy::Analyzers::Dynamic::RedisDeadline.new(stalled_limits.total_timeout)
+      allow(ssl_socket).to receive(:sync_close=)
+      allow(ssl_socket).to receive(:hostname=)
+      allow(ssl_socket).to receive(:connect_nonblock).with(exception: false).and_return(:wait_readable)
+      allow(ssl_socket).to receive(:to_io).and_return(tcp_socket)
+      allow(ssl_socket).to receive(:close)
+      allow(OpenSSL::SSL::SSLSocket).to receive(:new).and_return(ssl_socket)
+      secure = described_class.new(
+        uri: URI('rediss://localhost/0'), limits: stalled_limits, deadline: stalled_deadline, redactor: redactor
+      )
+      allow(secure).to receive(:connect_tcp).and_return(tcp_socket)
+      started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+
+      expect { secure.connect }.to raise_error(Necropsy::Error, /total timeout/)
+      elapsed = Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at
+      expect(elapsed).to be_between(0.01, 0.5)
+    ensure
+      tcp_socket&.close
+      peer&.close
     end
   end
 end
