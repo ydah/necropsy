@@ -62,6 +62,13 @@ RSpec.describe 'analysis safety invariants' do
     before = analyze(files: files)
     after = analyze(files: files, config: base_config.merge(entry_points: { extra: ['SafetyEntry#run'] }))
 
+    expect(SafetyInvariantMatcher.candidate_ids(before)).to include('SafetyEntry#run')
+    expect(before.reachability.runtime_alive).not_to include('SafetyEntry#run')
+    expect(after.graph.entry_points).to include(
+      have_attributes(node_id: 'SafetyEntry#run', reason: :public_api_declared)
+    )
+    expect(after.reachability.runtime_alive).to include('SafetyEntry#run')
+    expect(SafetyInvariantMatcher.candidate_ids(after)).not_to include('SafetyEntry#run')
     expect(after).to preserve_candidate_safety_from(before).for_invariant('entry point addition')
   end
 
@@ -75,6 +82,10 @@ RSpec.describe 'analysis safety invariants' do
       analyzers: [SafetyInvariantAnalyzer.new(result: edge_result('SafetyEdge#run', 'SafetyEdge#target'))]
     )
 
+    expect(before.graph.edges_from('SafetyEdge#run')).not_to have_key('SafetyEdge#target')
+    expect(before.reachability.runtime_alive).not_to include('SafetyEdge#target')
+    expect(after.graph.edges_from('SafetyEdge#run')).to have_key('SafetyEdge#target')
+    expect(after.reachability.runtime_alive).to include('SafetyEdge#target')
     expect(after).to preserve_candidate_safety_from(before).for_invariant('may-edge addition')
   end
 
@@ -98,6 +109,22 @@ RSpec.describe 'analysis safety invariants' do
     before = analyze(files: files, analyzers: [scoped])
     after = analyze(files: files, analyzers: [global])
 
+    before_matches = %w[Billing::Handler#call Shipping::Handler#call].to_h do |id|
+      [id, before.graph.matching_blockers(id).map(&:scope_kind)]
+    end
+    after_matches = %w[Billing::Handler#call Shipping::Handler#call].to_h do |id|
+      [id, after.graph.matching_blockers(id).map(&:scope_kind)]
+    end
+    expect(before_matches).to eq(
+      'Billing::Handler#call' => [:namespace],
+      'Shipping::Handler#call' => []
+    )
+    expect(after_matches).to eq(
+      'Billing::Handler#call' => [:global],
+      'Shipping::Handler#call' => [:global]
+    )
+    expect(SafetyInvariantMatcher.candidate_ids(before)).to include('Shipping::Handler#call')
+    expect(SafetyInvariantMatcher.candidate_ids(after)).not_to include('Shipping::Handler#call')
     expect(after).to preserve_candidate_safety_from(before).for_invariant('unknown scope expansion')
   end
 
@@ -172,25 +199,36 @@ RSpec.describe 'analysis safety invariants' do
     expect(SafetyInvariantMatcher.candidate_ids(after)).not_to include('SafetyObserved#called')
   end
 
-  it 'keeps candidate sets identical across file order and cache modes' do
+  it 'keeps normalized analysis semantics identical across file order and cache modes' do
     files = {
       'lib/first.rb' => 'class SafetyFirst; def run = SafetySecond.new.call; end',
-      'lib/second.rb' => 'class SafetySecond; def call = :ok; def dead = :ok; end'
+      'lib/second.rb' => 'class SafetySecond; def call = helper; def helper = :ok; def dead = :ok; end'
     }
+    config = { cache: { enabled: false }, entry_points: { extra: ['SafetyFirst#run'] } }
 
-    with_project(files: files, config: base_config) do |root|
+    with_project(files: files, config: config) do |root|
       uncached = Necropsy::Runner.new(root: root).analyze
-      write_project_file(root, '.necropsy.yml', base_config.merge(cache: { enabled: true }).to_yaml)
+      write_project_file(root, '.necropsy.yml', config.merge(cache: { enabled: true }).to_yaml)
       allow_any_instance_of(Necropsy::Project).to receive(:ruby_files).and_wrap_original do |method|
         method.call.reverse
       end
       reversed_cold = Necropsy::Runner.new(root: root).analyze
       reversed_warm = Necropsy::Runner.new(root: root).analyze
 
-      expect(reversed_cold).to preserve_candidate_safety_from(uncached)
-        .for_invariant('file discovery order').with_equal_sets
-      expect(reversed_warm).to preserve_candidate_safety_from(reversed_cold)
-        .for_invariant('cache cold/warm').with_equal_sets
+      expect(uncached.graph.call_sites.map(&:message)).to include('call', 'helper')
+      expect(uncached.graph.edges).to include(
+        have_attributes(caller_id: 'SafetyFirst#run', callee_id: 'SafetySecond#call'),
+        have_attributes(caller_id: 'SafetySecond#call', callee_id: 'SafetySecond#helper')
+      )
+      expect(uncached.reachability.runtime_alive).to include(
+        'SafetyFirst#run', 'SafetySecond#call', 'SafetySecond#helper'
+      )
+      expect(SafetyInvariantMatcher.normalized_result(reversed_cold)).to eq(
+        SafetyInvariantMatcher.normalized_result(uncached)
+      )
+      expect(SafetyInvariantMatcher.normalized_result(reversed_warm)).to eq(
+        SafetyInvariantMatcher.normalized_result(reversed_cold)
+      )
     end
   end
 
@@ -201,6 +239,22 @@ RSpec.describe 'analysis safety invariants' do
     before = analyze(files: files, config: common.merge(resolution: { ambiguity_limit: 'unlimited' }))
     after = analyze(files: files, config: common.merge(resolution: { ambiguity_limit: 4 }))
 
+    before_targets = before.graph.edges_from('SafetyCaller#run').keys.grep(/SafetyHandler\d+#call/)
+    after_targets = after.graph.edges_from('SafetyCaller#run').keys.grep(/SafetyHandler\d+#call/)
+    expect(before.graph.ambiguity_limit).to eq(Float::INFINITY)
+    expect(after.graph.ambiguity_limit).to eq(4)
+    expect(before_targets.length).to eq(5)
+    expect(after_targets).to be_empty
+    expect(before.graph.blockers).to be_empty
+    expect(after.graph.blockers).to contain_exactly(
+      have_attributes(
+        kind: :unknown_dispatch,
+        metadata: include('candidate_count' => 5, 'ambiguity_limit' => 4)
+      )
+    )
+    expect(after.findings.select { |finding| finding.node.name == 'call' }).to all(
+      have_attributes(classification: :blocked, confidence: :low)
+    )
     expect(after).to preserve_candidate_safety_from(before).for_invariant('ambiguity limit reduction')
   end
 end
