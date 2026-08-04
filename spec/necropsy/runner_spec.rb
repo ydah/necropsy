@@ -40,8 +40,14 @@ RSpec.describe Necropsy::Runner do
 
   def render_targets(report)
     report.graph.edges.filter_map do |edge|
-      edge.callee_id if edge.caller_id == 'Caller#run' && edge.callee_id.end_with?('#render')
+      caller = report.graph.nodes.fetch(edge.caller_id)
+      callee = report.graph.nodes.fetch(edge.callee_id)
+      callee.symbol_id if caller.symbol_id == 'Caller#run' && callee.symbol_id.end_with?('#render')
     end
+  end
+
+  def logical_reachable(report)
+    report.reachability.runtime_alive.to_set { |graph_id| report.graph.nodes.fetch(graph_id).symbol_id }
   end
 
   def analyze_fixture(files:, config: {})
@@ -138,10 +144,12 @@ RSpec.describe Necropsy::Runner do
       files: { 'app/sample.rb' => rta_source },
       config: common.merge(analyzers: { static: %w[name_resolution cha] })
     ) do |root|
-      without_rta = described_class.new(root: root).analyze.reachability.runtime_alive.to_set
+      report = described_class.new(root: root).analyze
+      without_rta = logical_reachable(report)
     end
     with_project(files: { 'app/sample.rb' => rta_source }, config: common) do |root|
-      with_rta = described_class.new(root: root).analyze.reachability.runtime_alive.to_set
+      report = described_class.new(root: root).analyze
+      with_rta = logical_reachable(report)
     end
 
     expect(without_rta).to include('Caller#run', 'Base#render', 'Live#render', 'Dead#render')
@@ -154,8 +162,8 @@ RSpec.describe Necropsy::Runner do
       files: { 'app/sample.rb' => rta_source },
       config: { entry_points: { extra: ['Caller#run'] } }
     )
-    before_reachable = before.reachability.runtime_alive.to_set
-    after_reachable = after.reachability.runtime_alive.to_set
+    before_reachable = logical_reachable(before)
+    after_reachable = logical_reachable(after)
 
     expect(before_reachable).to be_empty
     expect(after_reachable).to include('Caller#run', 'Base#render', 'Live#render', 'Dead#render')
@@ -167,8 +175,8 @@ RSpec.describe Necropsy::Runner do
     config = { entry_points: { extra: ['Caller#run'] } }
     before = analyze_fixture(files: { 'app/sample.rb' => without_allocation }, config: config)
     after = analyze_fixture(files: { 'app/sample.rb' => rta_source }, config: config)
-    before_reachable = before.reachability.runtime_alive.to_set
-    after_reachable = after.reachability.runtime_alive.to_set
+    before_reachable = logical_reachable(before)
+    after_reachable = logical_reachable(after)
 
     expect(before.graph.instantiated_classes).not_to include('Live')
     expect(after.graph.instantiated_classes).to include('Live')
@@ -253,7 +261,9 @@ RSpec.describe Necropsy::Runner do
       Worker.new
     RUBY
     report = analyze_fixture(files: { 'app/module_lookup.rb' => source })
-    edge = report.graph.edges.find { |candidate| candidate.callee_id == 'Renderable#render' }
+    edge = report.graph.edges.find do |candidate|
+      report.graph.nodes.fetch(candidate.callee_id).symbol_id == 'Renderable#render'
+    end
 
     expect(edge).not_to be_nil
     expect(edge.evidences.map(&:analyzer)).to include(:name_resolution, :cha)
@@ -366,7 +376,8 @@ RSpec.describe Necropsy::Runner do
 
   def render_targets_for(report, message)
     report.graph.edges.filter_map do |edge|
-      edge.callee_id if report.graph.nodes.fetch(edge.callee_id).name == message
+      node = report.graph.nodes.fetch(edge.callee_id)
+      node.symbol_id if node.name == message
     end.uniq
   end
 end

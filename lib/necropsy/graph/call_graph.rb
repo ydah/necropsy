@@ -9,7 +9,7 @@ module Necropsy
                 :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors
 
     def initialize(scan_result, ambiguity_limit: 4)
-      @nodes = {}
+      @nodes = DefinitionIndex.new
       @edges = {}
       @incoming_edges = {}
       @call_sites = scan_result.call_sites
@@ -38,21 +38,26 @@ module Necropsy
     end
 
     def add_node(node)
-      return nodes[node.id] if nodes.key?(node.id)
+      existing = nodes.exact(node.graph_id)
+      return existing if existing
 
       @method_nodes = nil
       @nodes_by_name = nil
       @dispatch_cache = nil
       @lookup_chain_cache = nil
       @owner_ancestor_cache = nil
-      nodes[node.id] = node
+      nodes.add(node)
     end
 
     def add_entry_point(node_id, reason)
-      return unless nodes.key?(node_id)
+      resolve_definitions(node_id).each do |definition|
+        entry = EntryPoint.new(node_id: definition.graph_id, reason: reason)
+        entry_points << entry unless entry_points.include?(entry)
+      end
+    end
 
-      entry = EntryPoint.new(node_id: node_id, reason: reason)
-      entry_points << entry unless entry_points.include?(entry)
+    def definitions_for(symbol_id)
+      nodes.definitions_for(symbol_id)
     end
 
     def apply_result(result)
@@ -70,8 +75,12 @@ module Necropsy
       end
       alive_matches = result.alive_evidences.map { |alive| add_alive(alive.node_id, alive.evidence) }
       result.uncertainties.each do |node_id, messages|
-        @uncertainties[node_id] ||= []
-        @uncertainties[node_id].concat(Array(messages))
+        resolved_ids = resolve_definitions(node_id).map(&:graph_id)
+        resolved_ids = [node_id] if resolved_ids.empty?
+        resolved_ids.each do |resolved_id|
+          @uncertainties[resolved_id] ||= []
+          @uncertainties[resolved_id].concat(Array(messages))
+        end
       end
       Array(result.respond_to?(:blockers) ? result.blockers : []).each { |blocker| add_blocker(blocker) }
       observation.merge!(result.observation) { |_key, left, right| merge_observation(left, right) }
@@ -83,30 +92,36 @@ module Necropsy
     end
 
     def add_edge(caller_id, callee_id, evidence)
-      return false unless nodes.key?(caller_id) && nodes.key?(callee_id)
+      callers = resolve_definitions(caller_id)
+      callees = resolve_definitions(callee_id)
+      return false if callers.empty? || callees.empty?
 
-      @edges[caller_id] ||= {}
-      @edges[caller_id][callee_id] ||= []
-      @edges[caller_id][callee_id] << evidence
-      @incoming_edges[callee_id] ||= {}
-      @incoming_edges[callee_id][caller_id] = @edges[caller_id][callee_id]
+      record_ambiguous_input(:edge_caller, caller_id, callers)
+      record_ambiguous_input(:edge_callee, callee_id, callees)
+      callers.product(callees).each do |caller, callee|
+        add_physical_edge(caller.graph_id, callee.graph_id, evidence)
+      end
       true
     end
 
     def add_alive(node_id, evidence)
-      return false unless nodes.key?(node_id)
+      definitions = resolve_definitions(node_id)
+      return false if definitions.empty?
 
-      @dynamic_alive[node_id] ||= []
-      @dynamic_alive[node_id] << evidence
+      record_ambiguous_input(:alive, node_id, definitions)
+      definitions.each do |definition|
+        @dynamic_alive[definition.graph_id] ||= []
+        @dynamic_alive[definition.graph_id] << evidence
+      end
       true
     end
 
     def dynamic_alive?(node_id)
-      @dynamic_alive.key?(node_id)
+      resolve_definitions(node_id).any? { |definition| @dynamic_alive.key?(definition.graph_id) }
     end
 
     def alive_evidences(node_id)
-      @dynamic_alive[node_id] || []
+      resolve_definitions(node_id).flat_map { |definition| @dynamic_alive.fetch(definition.graph_id, []) }
     end
 
     def dynamic_enabled?
@@ -114,7 +129,11 @@ module Necropsy
     end
 
     def edges_from(node_id)
-      @edges.fetch(node_id, {})
+      resolve_definitions(node_id).each_with_object({}) do |definition, merged|
+        @edges.fetch(definition.graph_id, {}).each do |callee_id, evidences|
+          merged[callee_id] = Array(merged[callee_id]) + evidences
+        end
+      end
     end
 
     def edges
@@ -122,19 +141,24 @@ module Necropsy
         callees.map do |callee_id, evidences|
           Edge.new(caller_id: caller_id, callee_id: callee_id, evidences: evidences)
         end
-      end
+      end.sort_by { |edge| [edge.caller_id, edge.callee_id] }
     end
 
     def incoming_edges(node_id)
-      @incoming_edges.fetch(node_id, {}).map do |caller_id, evidences|
-        Edge.new(caller_id: caller_id, callee_id: node_id, evidences: evidences)
-      end
+      resolve_definitions(node_id).flat_map do |definition|
+        @incoming_edges.fetch(definition.graph_id, {}).map do |caller_id, evidences|
+          Edge.new(caller_id: caller_id, callee_id: definition.graph_id, evidences: evidences)
+        end
+      end.sort_by { |edge| [edge.caller_id, edge.callee_id] }
     end
 
     def uncertainties(node_id = nil)
       return @uncertainties unless node_id
 
-      @uncertainties.fetch(node_id, [])
+      resolved = resolve_definitions(node_id)
+      return @uncertainties.fetch(node_id, []) if resolved.empty?
+
+      resolved.flat_map { |definition| @uncertainties.fetch(definition.graph_id, []) }.uniq
     end
 
     def incomplete_files
@@ -249,9 +273,9 @@ module Necropsy
 
       case site.receiver_kind
       when :constant
-        receiver_candidates(site).none? { |name| nodes.key?("#{name}.#{site.message}") }
+        receiver_candidates(site).none? { |name| definitions_for("#{name}.#{site.message}").any? }
       when :instance
-        receiver_candidates(site).none? { |name| nodes.key?("#{name}##{site.message}") }
+        receiver_candidates(site).none? { |name| definitions_for("#{name}##{site.message}").any? }
       when :implicit
         same_owner_candidates(site).empty?
       when :unknown
@@ -322,11 +346,11 @@ module Necropsy
     def candidates_for_receiver(site)
       case site.receiver_kind
       when :constant
-        exact = receiver_candidates(site).filter_map { |name| nodes["#{name}.#{site.message}"] }.first
-        exact ? [exact] : ambiguous_fallback_candidates(site.message)
+        exact = first_defined_symbol(receiver_candidates(site).map { |name| "#{name}.#{site.message}" })
+        exact.empty? ? ambiguous_fallback_candidates(site.message) : exact
       when :instance
-        exact = receiver_candidates(site).filter_map { |name| nodes["#{name}##{site.message}"] }.first
-        exact ? [exact] : ambiguous_fallback_candidates(site.message)
+        exact = first_defined_symbol(receiver_candidates(site).map { |name| "#{name}##{site.message}" })
+        exact.empty? ? ambiguous_fallback_candidates(site.message) : exact
       when :self
         same_owner_candidates(site)
       when :super
@@ -355,7 +379,7 @@ module Necropsy
         "#{caller.owner}##{site.message}",
         "#{caller.owner}.#{site.message}"
       ]
-      ids.filter_map { |id| nodes[id] }
+      ids.flat_map { |id| definitions_for(id) }
     end
 
     def super_candidates(site)
@@ -365,8 +389,8 @@ module Necropsy
       separator = caller.kind == :singleton_method ? '.' : '#'
       owner = class_info(caller.owner)&.superclass
       while owner
-        candidate = nodes["#{owner}#{separator}#{site.message}"]
-        return [candidate] if candidate
+        candidates = definitions_for("#{owner}#{separator}#{site.message}")
+        return candidates unless candidates.empty?
 
         owner = class_info(owner)&.superclass
       end
@@ -396,7 +420,9 @@ module Necropsy
       key = [owner, message]
       return @dispatch_cache[key] if @dispatch_cache.key?(key)
 
-      @dispatch_cache[key] = cached_lookup_chain(owner).find { |candidate| nodes.key?("#{candidate}##{message}") }
+      @dispatch_cache[key] = cached_lookup_chain(owner).find do |candidate|
+        definitions_for("#{candidate}##{message}").any?
+      end
     end
 
     def cached_lookup_chain(owner)
@@ -453,6 +479,38 @@ module Necropsy
           @incoming_edges[callee_id][caller_id] = evidences
         end
       end
+    end
+
+    def resolve_definitions(identifier)
+      nodes.resolve(identifier)
+    end
+
+    def first_defined_symbol(symbol_ids)
+      symbol_ids.each do |symbol_id|
+        definitions = definitions_for(symbol_id)
+        return definitions unless definitions.empty?
+      end
+      []
+    end
+
+    def add_physical_edge(caller_id, callee_id, evidence)
+      @edges[caller_id] ||= {}
+      @edges[caller_id][callee_id] ||= []
+      @edges[caller_id][callee_id] << evidence
+      @incoming_edges[callee_id] ||= {}
+      @incoming_edges[callee_id][caller_id] = @edges[caller_id][callee_id]
+    end
+
+    def record_ambiguous_input(kind, identifier, definitions)
+      return unless definitions.length > 1 && definitions_for(identifier).length > 1
+
+      resolution = observation['definition_resolution'] ||= { 'ambiguous_inputs' => [] }
+      resolution['ambiguous_inputs'] << {
+        'kind' => kind.to_s,
+        'identifier' => identifier,
+        'definition_ids' => definitions.map(&:graph_id).sort
+      }
+      resolution['ambiguous_inputs'].uniq!
     end
 
     def retain_known_instantiated_classes

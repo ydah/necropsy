@@ -57,17 +57,29 @@ RSpec.describe 'analysis safety invariants' do
                     ])
   end
 
+  def graph_id(report, symbol_id)
+    report.graph.definitions_for(symbol_id).fetch(0).graph_id
+  end
+
+  def logical_reachable(report)
+    report.reachability.runtime_alive.map { |node_id| report.graph.nodes.fetch(node_id).symbol_id }
+  end
+
+  def logical_edge_targets(report, caller_id)
+    report.graph.edges_from(caller_id).keys.map { |node_id| report.graph.nodes.fetch(node_id).symbol_id }
+  end
+
   it 'does not add candidates when an entry point is added' do
     files = { 'lib/entry.rb' => 'class SafetyEntry; def run = helper; def helper = :ok; end' }
     before = analyze(files: files)
     after = analyze(files: files, config: base_config.merge(entry_points: { extra: ['SafetyEntry#run'] }))
 
     expect(SafetyInvariantMatcher.candidate_ids(before)).to include('SafetyEntry#run')
-    expect(before.reachability.runtime_alive).not_to include('SafetyEntry#run')
+    expect(logical_reachable(before)).not_to include('SafetyEntry#run')
     expect(after.graph.entry_points).to include(
-      have_attributes(node_id: 'SafetyEntry#run', reason: :public_api_declared)
+      have_attributes(node_id: graph_id(after, 'SafetyEntry#run'), reason: :public_api_declared)
     )
-    expect(after.reachability.runtime_alive).to include('SafetyEntry#run')
+    expect(logical_reachable(after)).to include('SafetyEntry#run')
     expect(SafetyInvariantMatcher.candidate_ids(after)).not_to include('SafetyEntry#run')
     expect(after).to preserve_candidate_safety_from(before).for_invariant('entry point addition')
   end
@@ -82,10 +94,10 @@ RSpec.describe 'analysis safety invariants' do
       analyzers: [SafetyInvariantAnalyzer.new(result: edge_result('SafetyEdge#run', 'SafetyEdge#target'))]
     )
 
-    expect(before.graph.edges_from('SafetyEdge#run')).not_to have_key('SafetyEdge#target')
-    expect(before.reachability.runtime_alive).not_to include('SafetyEdge#target')
-    expect(after.graph.edges_from('SafetyEdge#run')).to have_key('SafetyEdge#target')
-    expect(after.reachability.runtime_alive).to include('SafetyEdge#target')
+    expect(logical_edge_targets(before, 'SafetyEdge#run')).not_to include('SafetyEdge#target')
+    expect(logical_reachable(before)).not_to include('SafetyEdge#target')
+    expect(logical_edge_targets(after, 'SafetyEdge#run')).to include('SafetyEdge#target')
+    expect(logical_reachable(after)).to include('SafetyEdge#target')
     expect(after).to preserve_candidate_safety_from(before).for_invariant('may-edge addition')
   end
 
@@ -217,10 +229,12 @@ RSpec.describe 'analysis safety invariants' do
 
       expect(uncached.graph.call_sites.map(&:message)).to include('call', 'helper')
       expect(uncached.graph.edges).to include(
-        have_attributes(caller_id: 'SafetyFirst#run', callee_id: 'SafetySecond#call'),
-        have_attributes(caller_id: 'SafetySecond#call', callee_id: 'SafetySecond#helper')
+        have_attributes(caller_id: graph_id(uncached, 'SafetyFirst#run'),
+                        callee_id: graph_id(uncached, 'SafetySecond#call')),
+        have_attributes(caller_id: graph_id(uncached, 'SafetySecond#call'),
+                        callee_id: graph_id(uncached, 'SafetySecond#helper'))
       )
-      expect(uncached.reachability.runtime_alive).to include(
+      expect(logical_reachable(uncached)).to include(
         'SafetyFirst#run', 'SafetySecond#call', 'SafetySecond#helper'
       )
       expect(SafetyInvariantMatcher.normalized_result(reversed_cold)).to eq(
@@ -239,8 +253,8 @@ RSpec.describe 'analysis safety invariants' do
     before = analyze(files: files, config: common.merge(resolution: { ambiguity_limit: 'unlimited' }))
     after = analyze(files: files, config: common.merge(resolution: { ambiguity_limit: 4 }))
 
-    before_targets = before.graph.edges_from('SafetyCaller#run').keys.grep(/SafetyHandler\d+#call/)
-    after_targets = after.graph.edges_from('SafetyCaller#run').keys.grep(/SafetyHandler\d+#call/)
+    before_targets = logical_edge_targets(before, 'SafetyCaller#run').grep(/SafetyHandler\d+#call/)
+    after_targets = logical_edge_targets(after, 'SafetyCaller#run').grep(/SafetyHandler\d+#call/)
     expect(before.graph.ambiguity_limit).to eq(Float::INFINITY)
     expect(after.graph.ambiguity_limit).to eq(4)
     expect(before_targets.length).to eq(5)

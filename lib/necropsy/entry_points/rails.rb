@@ -18,30 +18,30 @@ module Necropsy
         graph.method_nodes.each do |node|
           case node.file
           when %r{\Aapp/jobs/}
-            graph.add_entry_point(node.id, :job_perform) if node.name == 'perform'
+            graph.add_entry_point(node.graph_id, :job_perform) if node.name == 'perform'
           when %r{\Aapp/mailers/}
             if node.kind == :instance_method && node.visibility == :public
-              graph.add_entry_point(node.id,
+              graph.add_entry_point(node.graph_id,
                                     :mailer_action)
             end
           when %r{\Aapp/helpers/}
-            graph.add_entry_point(node.id, :rails_view_helper) if referenced_view_methods.include?(node.name)
+            graph.add_entry_point(node.graph_id, :rails_view_helper) if referenced_view_methods.include?(node.name)
           when %r{\Aapp/components/}
-            graph.add_entry_point(node.id, :rails_component) if component_entrypoint?(node)
+            graph.add_entry_point(node.graph_id, :rails_component) if component_entrypoint?(node)
           when %r{\Adb/migrate/}
-            graph.add_entry_point(node.id, :rails_migration) if %w[change up down].include?(node.name)
+            graph.add_entry_point(node.graph_id, :rails_migration) if %w[change up down].include?(node.name)
           end
 
           if node.file.start_with?('app/') && !node.file.start_with?('app/helpers/', 'app/components/') &&
              referenced_view_methods.include?(node.name)
-            graph.add_entry_point(node.id, :rails_view_reference)
+            graph.add_entry_point(node.graph_id, :rails_view_reference)
           end
         end
 
         graph.nodes.values.select do |node|
           node.kind == :block_entry && node.file.start_with?('config/initializers/')
         end.each do |node|
-          graph.add_entry_point(node.id, :callback_registered)
+          graph.add_entry_point(node.graph_id, :callback_registered)
         end
 
         route_entry_points(project).each do |node_id|
@@ -313,7 +313,8 @@ module Necropsy
       end
 
       def matching_route_nodes(graph, node_id)
-        return [node_id] if graph.nodes.key?(node_id)
+        exact = graph.definitions_for(node_id)
+        return exact.map(&:graph_id) unless exact.empty?
         return [] unless node_id.include?('Controller#')
 
         controller, action = node_id.split('#', 2)
@@ -322,7 +323,7 @@ module Necropsy
           next unless node.name == action && node.owner&.end_with?(controller)
           next unless node.file == expected_file
 
-          node.id
+          node.graph_id
         end
       end
 

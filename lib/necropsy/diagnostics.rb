@@ -16,13 +16,14 @@ module Necropsy
       node = graph.nodes[node_id]
       return with_source_incompleteness(missing_payload(node_id)) unless node
 
-      runtime_path = reachability.witness(node_id)
+      graph_id = node.graph_id
+      runtime_path = reachability.witness(graph_id)
       return with_source_incompleteness(alive_payload(node, runtime_path, :runtime)) if runtime_path
 
-      finding = finding_for(node_id)
+      finding = finding_for(graph_id)
       return with_source_incompleteness(dead_payload(node, finding)) if finding&.classification == :blocked
 
-      test_path = reachability.witness(node_id, kind: :test)
+      test_path = reachability.witness(graph_id, kind: :test)
       return with_source_incompleteness(alive_payload(node, test_path, :test)) if test_path
 
       with_source_incompleteness(dead_payload(node, finding))
@@ -32,7 +33,7 @@ module Necropsy
       node = graph.nodes[node_id]
       return with_source_incompleteness(missing_payload(node_id)) unless node
 
-      finding = finding_for(node_id)
+      finding = finding_for(node.graph_id)
       return with_source_incompleteness({ 'status' => 'alive', 'node' => node.to_h }) unless finding
 
       payload = {
@@ -96,20 +97,20 @@ module Necropsy
       step
     end
 
-    def dead_payload(node, finding = finding_for(node.id))
+    def dead_payload(node, finding = finding_for(node.graph_id))
       blockers = finding ? finding.blockers : graph.matching_blockers(node)
       {
         'status' => finding&.classification == :blocked ? 'blocked' : 'dead',
         'node' => node.to_h,
         'classification' => finding&.classification&.to_s,
-        'nearest_alive' => nearest_alive(node.id),
-        'uncertainties' => graph.uncertainties(node.id),
+        'nearest_alive' => nearest_alive(node.graph_id),
+        'uncertainties' => graph.uncertainties(node.graph_id),
         'blockers' => blockers.map(&:to_h)
       }
     end
 
     def finding_for(node_id)
-      report.findings.find { |candidate| candidate.node.id == node_id }
+      report.findings.find { |candidate| candidate.node.graph_id == node_id }
     end
 
     def nearest_alive(node_id)
@@ -141,7 +142,7 @@ module Necropsy
 
     def missing_payload(node_id)
       terms = [node_id, node_id.split(/[.#]/).last].compact.map(&:downcase).reject { |term| term.length < 2 }
-      suggestions = graph.nodes.keys.select do |candidate|
+      suggestions = graph.nodes.values.map(&:symbol_id).uniq.select do |candidate|
         terms.any? { |term| candidate.downcase[term] }
       end.sort.first(10)
       { 'status' => 'not_found', 'node_id' => node_id, 'suggestions' => suggestions }

@@ -20,7 +20,7 @@ module Necropsy
           payload = load_payload(source, project.root)
           observation = ObservationPolicy.metadata(payload)
           alive = alive_ids_from_payload(graph, payload).map do |node_id|
-            node = graph.nodes[node_id]
+            node = graph.nodes.lookup(node_id).node
             details = node ? "Coverband executed #{node.file}:#{node.line}" : "Coverband marked #{node_id} as executed"
             AliveEvidence.new(
               node_id: node_id,
@@ -78,7 +78,7 @@ module Necropsy
             executed_lines.any? { |line| line.between?(node.line, node.end_line) }
           end
 
-          (executed_nodes + by_line.map(&:id)).uniq
+          (executed_nodes + by_line.map(&:graph_id)).uniq
         end
 
         def coverage_files(payload)

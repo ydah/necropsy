@@ -5,7 +5,7 @@ module Necropsy
     class Test
       def apply(graph, _project)
         graph.nodes.values.select { |node| node.kind == :block_entry && node.test }.each do |node|
-          graph.add_entry_point(node.id, :test_suite)
+          graph.add_entry_point(node.graph_id, :test_suite)
         end
       end
     end

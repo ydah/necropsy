@@ -44,7 +44,7 @@ module Necropsy
             score: score,
             score_components: score_components,
             reasons: reasons,
-            evidences: graph.incoming_edges(node.id).flat_map(&:evidences) + graph.alive_evidences(node.id),
+            evidences: graph.incoming_edges(node.graph_id).flat_map(&:evidences) + graph.alive_evidences(node.graph_id),
             blockers: blockers
           )
         end
@@ -55,13 +55,13 @@ module Necropsy
       attr_reader :graph, :reachability, :project
 
       def classification_for(node, blockers)
-        return nil if graph.dynamic_alive?(node.id)
+        return nil if graph.dynamic_alive?(node.graph_id)
 
-        if reachability.runtime_paths.key?(node.id)
+        if reachability.runtime_paths.key?(node.graph_id)
           nil
         elsif blockers.any?
           :blocked
-        elsif reachability.test_paths.key?(node.id)
+        elsif reachability.test_paths.key?(node.graph_id)
           :test_only_reachable
         else
           :unreachable
@@ -78,7 +78,7 @@ module Necropsy
           reasons << "Blocked by #{blockers.length} unresolved runtime dispatch#{'es' unless blockers.one?}."
         end
 
-        if graph.uncertainties(node.id).any?
+        if graph.uncertainties(node.graph_id).any?
           score -= 0.35
           components << score_component('near_metaprogramming', -0.35, 'Unresolved metaprogramming nearby')
           reasons << 'Lowered because this node is near unresolved metaprogramming.'
@@ -117,7 +117,7 @@ module Necropsy
 
       def add_runtime_unobserved_annotation(node, reasons, components)
         return unless graph.dynamic_observation?
-        return if graph.dynamic_alive?(node.id)
+        return if graph.dynamic_alive?(node.graph_id)
 
         components << score_component('runtime_unobserved', 0.0, 'Informational only; deadness is unchanged')
         reasons << 'Runtime observations did not include this definition; classification and confidence are unchanged.'
@@ -158,13 +158,13 @@ module Necropsy
         direct_reason = implicit_call_reason(node)
         return direct_reason if direct_reason
 
-        root_id = implicit_paths[node.id]
+        root_id = implicit_paths[node.graph_id]
         "it is reachable from implicitly invoked #{root_id}" if root_id
       end
 
       def implicit_paths
         @implicit_paths ||= begin
-          roots = graph.method_nodes.reject(&:test).select { |node| implicit_call_reason(node) }.map(&:id)
+          roots = graph.method_nodes.reject(&:test).select { |node| implicit_call_reason(node) }.map(&:graph_id)
           paths = roots.to_h { |node_id| [node_id, node_id] }
           queue = roots.dup
 

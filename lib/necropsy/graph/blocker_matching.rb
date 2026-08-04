@@ -67,14 +67,16 @@ module Necropsy
       values = Array(blocker.scope_value).compact.map(&:to_s)
       case blocker.scope_kind.to_sym
       when :definition
-        values.include?(node.id)
+        values.include?(node.graph_id)
       when :owner
         values.any? { |owner| blocker_owner_matches?(blocker, node, owner) }
       when :namespace
         values.any? { |namespace| node.owner == namespace || node.owner&.start_with?("#{namespace}::") }
       when :file
         values.include?(node.file)
-      when :message, :symbol, :global
+      when :symbol
+        values.include?(node.symbol_id)
+      when :message, :global
         true
       else
         false

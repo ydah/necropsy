@@ -41,7 +41,7 @@ module Necropsy
           candidates.map do |candidate|
             EdgeEvidence.new(
               caller_id: site.caller_id,
-              callee_id: candidate.id,
+              callee_id: candidate.graph_id,
               evidence: evidence(
                 kind: :call_edge,
                 details: "Name resolution#{' fallback' if fallback} at #{site.file}:#{site.line}",

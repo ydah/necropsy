@@ -82,6 +82,10 @@ module Necropsy
       result.node
     end
 
+    def resolve(identifier)
+      lookup(identifier).definitions
+    end
+
     def fetch(identifier, default = UNDEFINED)
       result = lookup(identifier)
       raise AmbiguousDefinitionError, result if result.ambiguous?

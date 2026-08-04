@@ -9,7 +9,7 @@ module Necropsy
             candidates(graph, site).map do |candidate|
               EdgeEvidence.new(
                 caller_id: site.caller_id,
-                callee_id: candidate.id,
+                callee_id: candidate.graph_id,
                 evidence: evidence(
                   kind: :call_edge,
                   details: "CHA candidate at #{site.file}:#{site.line}",
@@ -46,18 +46,18 @@ module Necropsy
             self_targets(graph, site)
           else
             graph.resolve_call_site(site)
-          end.uniq(&:id)
+          end.uniq(&:graph_id)
         end
 
         private
 
         def constant_targets(graph, site)
           receiver_candidates(site).flat_map do |owner|
-            targets = owners_for_lookup(graph, owner, include_descendants: false).filter_map do |candidate_owner|
-              graph.nodes["#{candidate_owner}.#{site.message}"]
+            targets = owners_for_lookup(graph, owner, include_descendants: false).flat_map do |candidate_owner|
+              graph.definitions_for("#{candidate_owner}.#{site.message}")
             end
-            extended = Array(graph.class_info(owner)&.extends).filter_map do |mod|
-              graph.nodes["#{mod}##{site.message}"]
+            extended = Array(graph.class_info(owner)&.extends).flat_map do |mod|
+              graph.definitions_for("#{mod}##{site.message}")
             end
             targets + extended
           end
@@ -65,8 +65,8 @@ module Necropsy
 
         def instance_targets(graph, site)
           receiver_candidates(site).flat_map do |owner|
-            owners_for_lookup(graph, owner, include_descendants: true).filter_map do |candidate_owner|
-              graph.nodes["#{candidate_owner}##{site.message}"]
+            owners_for_lookup(graph, owner, include_descendants: true).flat_map do |candidate_owner|
+              graph.definitions_for("#{candidate_owner}##{site.message}")
             end
           end
         end
@@ -76,8 +76,9 @@ module Necropsy
           return [] unless caller&.owner
 
           separator = caller.kind == :singleton_method ? '.' : '#'
-          owners_for_lookup(graph, caller.owner, include_descendants: false).filter_map do |owner|
-            graph.nodes["#{owner}#{separator}#{site.message}"] || graph.nodes["#{owner}##{site.message}"]
+          owners_for_lookup(graph, caller.owner, include_descendants: false).flat_map do |owner|
+            primary = graph.definitions_for("#{owner}#{separator}#{site.message}")
+            primary.empty? ? graph.definitions_for("#{owner}##{site.message}") : primary
           end
         end
 
