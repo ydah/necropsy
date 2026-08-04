@@ -28,7 +28,9 @@ RSpec.describe Necropsy::CallGraph do
       observation: { 'coverage' => { 'days' => 10 }, 'trace' => { 'requests' => 2 } }
     )
 
-    expect { graph.apply_result(result) }.to output(/matched 1 of 2 dynamic node IDs.*matched 1 of 2 dynamic edges/m).to_stderr
+    expect { graph.apply_result(result) }.to output(
+      /matched 1 of 2 dynamic node IDs.*fully matched 1 of 2 dynamic edges; partially matched 1; unmatched 0/m
+    ).to_stderr
 
     expect(graph.edges.map { |edge| [edge.caller_id, edge.callee_id] }).to eq([[caller.id, callee.id]])
     expect(graph.dynamic_alive?(callee.id)).to eq(true)
@@ -38,10 +40,11 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.dynamic_evidence_diagnostic).to include(
       'attempted' => { 'nodes' => 2, 'edges' => 2 },
       'matched' => { 'nodes' => 1, 'edges' => 1 },
-      'unmatched' => { 'nodes' => 1, 'edges' => 1 },
+      'partially_matched' => { 'nodes' => 0, 'edges' => 1 },
+      'unmatched' => { 'nodes' => 1, 'edges' => 0 },
       'unmatched_samples' => {
         'nodes' => ['Missing#alive'],
-        'edges' => ['Sample#caller -> Missing#callee']
+        'edges' => ['Sample#caller -> Missing#callee (unmatched callee: Missing#callee)']
       }
     )
   end
@@ -136,6 +139,51 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph).to be_dynamic_alive(callee.id)
   end
 
+  it 'keeps every known endpoint alive and diagnoses partial observed edges' do
+    full_caller = node('FullCaller#run')
+    full_callee = node('FullCallee#run')
+    known_caller = node('KnownCaller#run')
+    known_callee = node('KnownCallee#run')
+    unobserved = node('Unobserved#run')
+    graph = graph_with(nodes: [full_caller, full_callee, known_caller, known_callee, unobserved])
+    dynamic_evidence = evidence(analyzer: :coverage, kind: :call_edge)
+    result = analyzer_result(
+      edge_evidences: [
+        edge_evidence(full_caller.id, full_callee.id, dynamic_evidence),
+        edge_evidence(known_caller.id, 'MissingCallee#run', dynamic_evidence),
+        edge_evidence('MissingCaller#run', known_callee.id, dynamic_evidence),
+        edge_evidence('MissingBothCaller#run', 'MissingBothCallee#run', dynamic_evidence)
+      ],
+      observation: { 'coverage' => { 'environment' => 'production' } }
+    )
+
+    expect { graph.apply_result(result) }.to output(
+      /fully matched 1 of 4 dynamic edges; partially matched 2; unmatched 1/
+    ).to_stderr
+
+    findings = Necropsy::Confidence::Scorer.new(
+      graph: graph,
+      reachability: Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}),
+      project: project_for(create_project)
+    ).findings
+    expect(findings.map { |finding| finding.node.id }).to eq([unobserved.id])
+    expect(graph.edges.map { |edge| [edge.caller_id, edge.callee_id] }).to eq([[full_caller.id, full_callee.id]])
+    expect(graph.dynamic_evidence_diagnostic).to include(
+      'attempted' => include('edges' => 4),
+      'matched' => include('edges' => 1),
+      'partially_matched' => include('edges' => 2),
+      'unmatched' => include('edges' => 1),
+      'unmatched_samples' => include(
+        'edges' => [
+          'KnownCaller#run -> MissingCallee#run (unmatched callee: MissingCallee#run)',
+          'MissingCaller#run -> KnownCallee#run (unmatched caller: MissingCaller#run)',
+          'MissingBothCaller#run -> MissingBothCallee#run ' \
+          '(unmatched caller: MissingBothCaller#run, callee: MissingBothCallee#run)'
+        ]
+      )
+    )
+  end
+
   it 'indexes incoming edges without mutating empty graph buckets during reads' do
     caller = node('Sample#caller', name: 'caller')
     callee = node('Sample#callee', name: 'callee')
@@ -207,4 +255,8 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.edges.map(&:callee_id)).to eq(['Live#render'])
     expect(graph.incoming_edges(live.id).flat_map(&:evidences).map(&:analyzer)).to contain_exactly(:cha, :rta)
   end
+end
+
+def edge_evidence(caller_id, callee_id, evidence)
+  Necropsy::EdgeEvidence.new(caller_id: caller_id, callee_id: callee_id, evidence: evidence)
 end

@@ -49,10 +49,15 @@ module Necropsy
     def apply_result(result)
       dynamic_result = dynamic_result?(result)
       edge_matches = result.edge_evidences.map do |edge|
-        matched = add_edge(edge.caller_id, edge.callee_id, edge.evidence)
-        add_alive(edge.caller_id, edge.evidence) if dynamic_result && matched
-        add_alive(edge.callee_id, edge.evidence) if dynamic_result && matched
-        matched
+        add_edge(edge.caller_id, edge.callee_id, edge.evidence)
+        next unless dynamic_result
+
+        {
+          caller_id: edge.caller_id,
+          caller: add_alive(edge.caller_id, edge.evidence),
+          callee_id: edge.callee_id,
+          callee: add_alive(edge.callee_id, edge.evidence)
+        }
       end
       alive_matches = result.alive_evidences.map { |alive| add_alive(alive.node_id, alive.evidence) }
       result.uncertainties.each do |node_id, messages|
