@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "corpus": "plain_ruby",
+  "metrics": {
+    "nodes": 8,
+    "definitions": 6,
+    "call_sites": 7,
+    "edges": 3,
+    "findings": 3
+  },
+  "states": {
+    "unreachable": 3
+  },
+  "findings": [
+    {
+      "id": "PlainSeed::Formatter#public_extension",
+      "path": "lib/plain_seed.rb",
+      "line": 17,
+      "state": "unreachable",
+      "confidence": "medium",
+      "reasons": []
+    },
+    {
+      "id": "PlainSeed::Formatter#unused",
+      "path": "lib/plain_seed.rb",
+      "line": 13,
+      "state": "unreachable",
+      "confidence": "medium",
+      "reasons": []
+    },
+    {
+      "id": "PlainSeed::Runner#legacy",
+      "path": "lib/plain_seed.rb",
+      "line": 27,
+      "state": "unreachable",
+      "confidence": "medium",
+      "reasons": []
+    }
+  ]
+}

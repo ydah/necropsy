@@ -1,0 +1,5 @@
+nodes:
+  - DynamicSeed#observed_only
+observation:
+  days: 7
+  source_revision: benchmark-v1

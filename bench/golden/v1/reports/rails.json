@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "corpus": "rails",
+  "metrics": {
+    "nodes": 32,
+    "definitions": 23,
+    "call_sites": 49,
+    "edges": 17,
+    "findings": 4
+  },
+  "states": {
+    "test_only_reachable": 1,
+    "unreachable": 3
+  },
+  "findings": [
+    {
+      "id": "Sample::Widget#<=>",
+      "path": "app/models/widget.rb",
+      "line": 43,
+      "state": "unreachable",
+      "confidence": "low",
+      "reasons": [
+        "Lowered because <=> is a Ruby protocol method invoked implicitly."
+      ]
+    },
+    {
+      "id": "Sample::Widget#alias_live",
+      "path": "app/models/widget.rb",
+      "line": 37,
+      "state": "unreachable",
+      "confidence": "medium",
+      "reasons": []
+    },
+    {
+      "id": "Sample::Widget#dead_model",
+      "path": "app/models/widget.rb",
+      "line": 51,
+      "state": "unreachable",
+      "confidence": "medium",
+      "reasons": []
+    },
+    {
+      "id": "Sample::Widget#test_only",
+      "path": "app/models/widget.rb",
+      "line": 55,
+      "state": "test_only_reachable",
+      "confidence": "medium",
+      "reasons": []
+    }
+  ]
+}

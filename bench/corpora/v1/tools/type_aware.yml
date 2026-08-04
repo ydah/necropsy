@@ -1,0 +1,8 @@
+schema_version: 1
+tool: type_aware
+provenance: benchmark-fixture-seed
+candidates:
+  - { corpus: rails, id: "Sample::Widget#dead_model", path: app/models/widget.rb, line: 47 }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#unused", path: lib/plain_seed.rb, line: 13 }
+  - { corpus: plain_ruby, id: "PlainSeed::Runner#legacy", path: lib/plain_seed.rb, line: 27 }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#dead", path: lib/dynamic_seed.rb, line: 16 }

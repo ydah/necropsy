@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ydah/necropsy/bench/schema/candidate-union-v1.schema.json",
+  "title": "Necropsy candidate union",
+  "type": "object",
+  "required": ["schema_version", "tool_runs", "summary", "candidates"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "tool_runs": { "type": "object", "additionalProperties": { "$ref": "#/$defs/toolRun" } },
+    "summary": { "type": "object" },
+    "candidates": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/candidate" }
+    }
+  },
+  "$defs": {
+    "toolRun": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": { "enum": ["generated", "snapshot", "skipped"] },
+        "version": { "type": ["string", "null"] },
+        "diagnostic": { "type": "string" }
+      }
+    },
+    "toolResult": {
+      "type": "object",
+      "required": ["candidate"],
+      "properties": {
+        "candidate": { "type": ["boolean", "null"] },
+        "status": { "enum": ["skipped"] },
+        "state": { "type": "string" },
+        "confidence": { "type": "string" },
+        "classification": { "type": "string" }
+      }
+    },
+    "label": {
+      "type": "object",
+      "required": ["value", "rationale"],
+      "properties": {
+        "value": { "enum": ["dead", "alive", "external", "unknown"] },
+        "rationale": { "type": "string", "minLength": 1 },
+        "reviewer": { "type": "string" }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "required": ["corpus", "id", "tool_results"],
+      "properties": {
+        "corpus": { "type": "string" },
+        "id": { "type": "string" },
+        "path": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "label": { "$ref": "#/$defs/label" },
+        "tool_results": {
+          "type": "object",
+          "required": ["necropsy", "debride", "spoom", "type_aware"],
+          "properties": {
+            "necropsy": { "$ref": "#/$defs/toolResult" },
+            "debride": { "$ref": "#/$defs/toolResult" },
+            "spoom": { "$ref": "#/$defs/toolResult" },
+            "type_aware": { "$ref": "#/$defs/toolResult" }
+          }
+        }
+      }
+    }
+  }
+}

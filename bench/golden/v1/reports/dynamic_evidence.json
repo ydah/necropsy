@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "corpus": "dynamic_evidence",
+  "metrics": {
+    "nodes": 6,
+    "definitions": 5,
+    "call_sites": 4,
+    "edges": 2,
+    "findings": 4
+  },
+  "states": {
+    "unreachable": 4
+  },
+  "findings": [
+    {
+      "id": "DynamicSeed#dead",
+      "path": "lib/dynamic_seed.rb",
+      "line": 16,
+      "state": "unreachable",
+      "confidence": "high",
+      "reasons": [
+        "Static unreachable and absent from dynamic observations."
+      ]
+    },
+    {
+      "id": "DynamicSeed#helper",
+      "path": "lib/dynamic_seed.rb",
+      "line": 8,
+      "state": "unreachable",
+      "confidence": "high",
+      "reasons": [
+        "Static unreachable and absent from dynamic observations."
+      ]
+    },
+    {
+      "id": "DynamicSeed#public_hook",
+      "path": "lib/dynamic_seed.rb",
+      "line": 20,
+      "state": "unreachable",
+      "confidence": "high",
+      "reasons": [
+        "Static unreachable and absent from dynamic observations."
+      ]
+    },
+    {
+      "id": "DynamicSeed#run",
+      "path": "lib/dynamic_seed.rb",
+      "line": 4,
+      "state": "unreachable",
+      "confidence": "high",
+      "reasons": [
+        "Static unreachable and absent from dynamic observations."
+      ]
+    }
+  ]
+}

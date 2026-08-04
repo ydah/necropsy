@@ -1,0 +1,43 @@
+schema_version: 1
+repository_root: ../../..
+golden_dir: bench/golden/v1
+labels: bench/corpora/v1/labels.yml
+minimum_reviewed_labels: 30
+
+corpora:
+  dynamic_evidence:
+    kind: fixture
+    path: spec/fixtures/benchmark/dynamic_evidence
+    revision: benchmark-v1
+  plain_ruby:
+    kind: fixture
+    path: spec/fixtures/benchmark/plain_ruby
+    revision: benchmark-v1
+  rails:
+    kind: fixture
+    path: spec/fixtures/sample_project
+    revision: sample-project-v1
+  rubocop_1_75_0:
+    kind: external
+    path_env: NECROPSY_RUBOCOP_CORPUS
+    revision: v1.75.0
+  self:
+    kind: repository
+    path: .
+    revision: working-tree
+
+tools:
+  necropsy:
+    version: 0.2.0
+  debride:
+    version: 1.15.2
+    command: [debride]
+    snapshot: bench/corpora/v1/tools/debride.yml
+  spoom:
+    version: pinned-by-snapshot
+    command: [spoom]
+    snapshot: bench/corpora/v1/tools/spoom.yml
+  type_aware:
+    version: pinned-by-snapshot
+    command: [srb]
+    snapshot: bench/corpora/v1/tools/type_aware.yml

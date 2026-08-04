@@ -2,6 +2,11 @@
 
 Measurements are local wall-clock results. Compare runs made on the same machine and Ruby version; absolute timings are not portable.
 
+The reproducible seed under `bench/corpora/v1` supersedes ad hoc commands for new comparisons.
+`bundle exec ruby bench/run.rb` regenerates normalized findings, candidate-union results, corpus
+summaries, wall time, and RSS measurements in one pass. RuboCop remains pinned to 1.75.0 and is
+enabled by setting `NECROPSY_RUBOCOP_CORPUS`; an unavailable checkout is reported as a skip.
+
 | date | commit | target | nodes | findings | ratio | seconds |
 |---|---|---|---:|---:|---:|---:|
 | 2026-08-01 | baseline | necropsy | 678 | 246 | 36.3% | 4.33 |

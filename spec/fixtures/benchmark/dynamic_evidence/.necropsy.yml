@@ -1,0 +1,7 @@
+analyzers:
+  static: [name_resolution, cha, rta]
+  dynamic:
+    coverage:
+      source: evidence.yml
+cache:
+  enabled: false

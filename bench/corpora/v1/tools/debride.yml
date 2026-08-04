@@ -1,0 +1,38 @@
+schema_version: 1
+tool: debride
+provenance: benchmark-fixture-seed
+candidates:
+  - { corpus: rails, id: "Sample::Widget#dead_model", path: app/models/widget.rb, line: 47 }
+  - { corpus: rails, id: "Sample::Widget#alias_live", path: app/models/widget.rb, line: 37 }
+  - { corpus: rails, id: "Sample::Widget#<=>", path: app/models/widget.rb, line: 43 }
+  - { corpus: rails, id: "Sample::Widget#test_only", path: app/models/widget.rb, line: 51 }
+  - { corpus: rails, id: "Sample::Widget#persist_callback", path: app/models/widget.rb, line: 55 }
+  - { corpus: rails, id: "Sample::Widget#each", path: app/models/widget.rb, line: 39 }
+  - { corpus: rails, id: "Sample::Widget#render", path: app/models/widget.rb, line: 27 }
+  - { corpus: rails, id: "Sample::Widget#live_helper", path: app/models/widget.rb, line: 33 }
+  - { corpus: rails, id: "Sample::Widget.build_live", path: app/models/widget.rb, line: 22 }
+  - { corpus: rails, id: "Sample::Renderable#decorated", path: app/models/widget.rb, line: 5 }
+  - { corpus: rails, id: "Sample::BaseWidget#inherited_live", path: app/models/widget.rb, line: 11 }
+  - { corpus: rails, id: "Sample::MountedEngine.call", path: app/models/mounted_engine.rb, line: 5 }
+  - { corpus: rails, id: "Sample::WidgetsHelper#widget_title", path: app/helpers/widgets_helper.rb, line: 5 }
+  - { corpus: rails, id: "Sample::WidgetsHelper#component_title", path: app/helpers/widgets_helper.rb, line: 9 }
+  - { corpus: rails, id: "Sample::TitleComponent#call", path: app/components/title_component.rb, line: 5 }
+  - { corpus: rails, id: "Sample::WidgetsController#index", path: app/controllers/widgets_controller.rb, line: 5 }
+  - { corpus: rails, id: "Sample::WidgetsController#audit", path: app/controllers/widgets_controller.rb, line: 9 }
+  - { corpus: rails, id: "Sample::WidgetsController#legacy", path: app/controllers/widgets_controller.rb, line: 13 }
+  - { corpus: rails, id: "Sample::WidgetsController#contextual", path: app/controllers/widgets_controller.rb, line: 17 }
+  - { corpus: rails, id: "Sample::WidgetsController#scoped", path: app/controllers/widgets_controller.rb, line: 21 }
+  - { corpus: rails, id: "Sample::Admin::WidgetsController#index", path: app/controllers/admin/widgets_controller.rb, line: 6 }
+  - { corpus: rails, id: "Sample::Admin::WidgetsController#preview", path: app/controllers/admin/widgets_controller.rb, line: 10 }
+  - { corpus: rails, id: "Sample::Admin::WidgetsController#drawn", path: app/controllers/admin/widgets_controller.rb, line: 14 }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#format", path: lib/plain_seed.rb, line: 5 }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#normalize", path: lib/plain_seed.rb, line: 9 }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#unused", path: lib/plain_seed.rb, line: 13 }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#public_extension", path: lib/plain_seed.rb, line: 17 }
+  - { corpus: plain_ruby, id: "PlainSeed::Runner.call", path: lib/plain_seed.rb, line: 23 }
+  - { corpus: plain_ruby, id: "PlainSeed::Runner#legacy", path: lib/plain_seed.rb, line: 27 }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#run", path: lib/dynamic_seed.rb, line: 4 }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#helper", path: lib/dynamic_seed.rb, line: 8 }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#observed_only", path: lib/dynamic_seed.rb, line: 12 }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#dead", path: lib/dynamic_seed.rb, line: 16 }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#public_hook", path: lib/dynamic_seed.rb, line: 20 }

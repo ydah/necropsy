@@ -1,0 +1,36 @@
+schema_version: 1
+labels:
+  - { corpus: rails, id: "Sample::Widget#dead_model", value: dead, rationale: "No production, test, route, callback, or runtime reference reaches this method.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget#alias_live", value: unknown, rationale: "The alias is not called by the fixture, but its compatibility intent is not documented.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget#<=>", value: external, rationale: "Comparable-style protocol methods can be invoked by callers outside the analyzed fixture.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget#test_only", value: alive, rationale: "spec/widget_usage.rb calls this method directly.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget#persist_callback", value: alive, rationale: "before_save registers the method as a Rails callback.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget#each", value: external, rationale: "The public iterator is an extension point for callers outside the fixture.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget#render", value: alive, rationale: "Controller actions instantiate Widget and call render.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget#live_helper", value: alive, rationale: "render calls live_helper directly.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Widget.build_live", value: alive, rationale: "The widgets controller actions call this constructor.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Renderable#decorated", value: alive, rationale: "build_live calls the included module method.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::BaseWidget#inherited_live", value: alive, rationale: "Widget#render calls this inherited method.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::MountedEngine.call", value: alive, rationale: "config/routes.rb mounts the Rack endpoint.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::WidgetsHelper#widget_title", value: alive, rationale: "The ERB template references widget_title.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::WidgetsHelper#component_title", value: alive, rationale: "TitleComponent#call references component_title through the helper surface.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::TitleComponent#call", value: external, rationale: "View components invoke the public call protocol outside direct Ruby call sites.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::WidgetsController#index", value: alive, rationale: "The root route dispatches to widgets#index.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::WidgetsController#audit", value: alive, rationale: "The auditable route concern dispatches to audit.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::WidgetsController#legacy", value: alive, rationale: "An explicit route dispatches to widgets#legacy.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::WidgetsController#contextual", value: alive, rationale: "The controller route block dispatches to contextual.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::WidgetsController#scoped", value: alive, rationale: "The scoped controller route dispatches to scoped.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Admin::WidgetsController#index", value: alive, rationale: "The admin resources route dispatches to index.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Admin::WidgetsController#preview", value: alive, rationale: "The admin member route dispatches to preview.", reviewer: maintainer }
+  - { corpus: rails, id: "Sample::Admin::WidgetsController#drawn", value: alive, rationale: "The drawn route in config/routes/admin.rb dispatches to this action.", reviewer: maintainer }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#format", value: alive, rationale: "Runner.call invokes format.", reviewer: maintainer }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#normalize", value: alive, rationale: "Formatter#format invokes normalize.", reviewer: maintainer }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#unused", value: dead, rationale: "The closed fixture has no reference to this private-purpose sample method.", reviewer: maintainer }
+  - { corpus: plain_ruby, id: "PlainSeed::Formatter#public_extension", value: external, rationale: "The method explicitly models a public extension point outside the closed fixture.", reviewer: maintainer }
+  - { corpus: plain_ruby, id: "PlainSeed::Runner.call", value: alive, rationale: "The executable entry point invokes Runner.call.", reviewer: maintainer }
+  - { corpus: plain_ruby, id: "PlainSeed::Runner#legacy", value: dead, rationale: "No fixture entry point or method references legacy.", reviewer: maintainer }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#run", value: alive, rationale: "The fixture's top-level entry point invokes run.", reviewer: maintainer }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#helper", value: alive, rationale: "DynamicSeed#run calls helper directly.", reviewer: maintainer }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#observed_only", value: alive, rationale: "Versioned positive runtime evidence records this method as executed.", reviewer: maintainer }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#dead", value: dead, rationale: "Neither static roots nor positive runtime evidence reference this method.", reviewer: maintainer }
+  - { corpus: dynamic_evidence, id: "DynamicSeed#public_hook", value: external, rationale: "The method models a documented callback surface for an external caller.", reviewer: maintainer }

@@ -1,0 +1,2380 @@
+{
+  "schema_version": 1,
+  "tool_runs": {
+    "debride": {
+      "status": "snapshot",
+      "version": "1.15.2",
+      "provenance": "benchmark-fixture-seed"
+    },
+    "necropsy": {
+      "status": "generated"
+    },
+    "spoom": {
+      "status": "snapshot",
+      "version": "pinned-by-snapshot",
+      "provenance": "benchmark-fixture-seed"
+    },
+    "type_aware": {
+      "status": "snapshot",
+      "version": "pinned-by-snapshot",
+      "provenance": "benchmark-fixture-seed"
+    }
+  },
+  "summary": {
+    "candidates": 99,
+    "reviewed": 34,
+    "by_label": {
+      "alive": 24,
+      "dead": 4,
+      "external": 5,
+      "unknown": 1
+    }
+  },
+  "candidates": [
+    {
+      "corpus": "dynamic_evidence",
+      "id": "DynamicSeed#dead",
+      "path": "lib/dynamic_seed.rb",
+      "line": 16,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "high"
+        },
+        "spoom": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "type_aware": {
+          "candidate": true,
+          "classification": "candidate"
+        }
+      },
+      "label": {
+        "value": "dead",
+        "rationale": "Neither static roots nor positive runtime evidence reference this method.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "dynamic_evidence",
+      "id": "DynamicSeed#helper",
+      "path": "lib/dynamic_seed.rb",
+      "line": 8,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "high"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "DynamicSeed#run calls helper directly.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "dynamic_evidence",
+      "id": "DynamicSeed#observed_only",
+      "path": "lib/dynamic_seed.rb",
+      "line": 12,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "Versioned positive runtime evidence records this method as executed.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "dynamic_evidence",
+      "id": "DynamicSeed#public_hook",
+      "path": "lib/dynamic_seed.rb",
+      "line": 20,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "high"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "external",
+        "rationale": "The method models a documented callback surface for an external caller.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "dynamic_evidence",
+      "id": "DynamicSeed#run",
+      "path": "lib/dynamic_seed.rb",
+      "line": 4,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "high"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The fixture's top-level entry point invokes run.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "plain_ruby",
+      "id": "PlainSeed::Formatter#format",
+      "path": "lib/plain_seed.rb",
+      "line": 5,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "Runner.call invokes format.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "plain_ruby",
+      "id": "PlainSeed::Formatter#normalize",
+      "path": "lib/plain_seed.rb",
+      "line": 9,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "Formatter#format invokes normalize.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "plain_ruby",
+      "id": "PlainSeed::Formatter#public_extension",
+      "path": "lib/plain_seed.rb",
+      "line": 17,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "external",
+        "rationale": "The method explicitly models a public extension point outside the closed fixture.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "plain_ruby",
+      "id": "PlainSeed::Formatter#unused",
+      "path": "lib/plain_seed.rb",
+      "line": 13,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "type_aware": {
+          "candidate": true,
+          "classification": "candidate"
+        }
+      },
+      "label": {
+        "value": "dead",
+        "rationale": "The closed fixture has no reference to this private-purpose sample method.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "plain_ruby",
+      "id": "PlainSeed::Runner#legacy",
+      "path": "lib/plain_seed.rb",
+      "line": 27,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "type_aware": {
+          "candidate": true,
+          "classification": "candidate"
+        }
+      },
+      "label": {
+        "value": "dead",
+        "rationale": "No fixture entry point or method references legacy.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "plain_ruby",
+      "id": "PlainSeed::Runner.call",
+      "path": "lib/plain_seed.rb",
+      "line": 23,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The executable entry point invokes Runner.call.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Admin::WidgetsController#drawn",
+      "path": "app/controllers/admin/widgets_controller.rb",
+      "line": 14,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The drawn route in config/routes/admin.rb dispatches to this action.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Admin::WidgetsController#index",
+      "path": "app/controllers/admin/widgets_controller.rb",
+      "line": 6,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The admin resources route dispatches to index.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Admin::WidgetsController#preview",
+      "path": "app/controllers/admin/widgets_controller.rb",
+      "line": 10,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The admin member route dispatches to preview.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::BaseWidget#inherited_live",
+      "path": "app/models/widget.rb",
+      "line": 11,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "Widget#render calls this inherited method.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::MountedEngine.call",
+      "path": "app/models/mounted_engine.rb",
+      "line": 5,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "config/routes.rb mounts the Rack endpoint.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Renderable#decorated",
+      "path": "app/models/widget.rb",
+      "line": 5,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "build_live calls the included module method.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::TitleComponent#call",
+      "path": "app/components/title_component.rb",
+      "line": 5,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "external",
+        "rationale": "View components invoke the public call protocol outside direct Ruby call sites.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#<=>",
+      "path": "app/models/widget.rb",
+      "line": 43,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "external",
+        "rationale": "Comparable-style protocol methods can be invoked by callers outside the analyzed fixture.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#alias_live",
+      "path": "app/models/widget.rb",
+      "line": 37,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "unknown",
+        "rationale": "The alias is not called by the fixture, but its compatibility intent is not documented.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#dead_model",
+      "path": "app/models/widget.rb",
+      "line": 51,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "type_aware": {
+          "candidate": true,
+          "classification": "candidate"
+        }
+      },
+      "label": {
+        "value": "dead",
+        "rationale": "No production, test, route, callback, or runtime reference reaches this method.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#each",
+      "path": "app/models/widget.rb",
+      "line": 39,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "external",
+        "rationale": "The public iterator is an extension point for callers outside the fixture.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#live_helper",
+      "path": "app/models/widget.rb",
+      "line": 33,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "render calls live_helper directly.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#persist_callback",
+      "path": "app/models/widget.rb",
+      "line": 55,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "before_save registers the method as a Rails callback.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#render",
+      "path": "app/models/widget.rb",
+      "line": 27,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "Controller actions instantiate Widget and call render.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget#test_only",
+      "path": "app/models/widget.rb",
+      "line": 55,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "spec/widget_usage.rb calls this method directly.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::Widget.build_live",
+      "path": "app/models/widget.rb",
+      "line": 22,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The widgets controller actions call this constructor.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::WidgetsController#audit",
+      "path": "app/controllers/widgets_controller.rb",
+      "line": 9,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The auditable route concern dispatches to audit.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::WidgetsController#contextual",
+      "path": "app/controllers/widgets_controller.rb",
+      "line": 17,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The controller route block dispatches to contextual.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::WidgetsController#index",
+      "path": "app/controllers/widgets_controller.rb",
+      "line": 5,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The root route dispatches to widgets#index.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::WidgetsController#legacy",
+      "path": "app/controllers/widgets_controller.rb",
+      "line": 13,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "An explicit route dispatches to widgets#legacy.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::WidgetsController#scoped",
+      "path": "app/controllers/widgets_controller.rb",
+      "line": 21,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The scoped controller route dispatches to scoped.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::WidgetsHelper#component_title",
+      "path": "app/helpers/widgets_helper.rb",
+      "line": 9,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "TitleComponent#call references component_title through the helper surface.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "rails",
+      "id": "Sample::WidgetsHelper#widget_title",
+      "path": "app/helpers/widgets_helper.rb",
+      "line": 5,
+      "tool_results": {
+        "debride": {
+          "candidate": true,
+          "classification": "candidate"
+        },
+        "necropsy": {
+          "candidate": false
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "label": {
+        "value": "alive",
+        "rationale": "The ERB template references widget_title.",
+        "reviewer": "maintainer"
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzer#analyze",
+      "path": "lib/necropsy/analyzer.rb",
+      "line": 5,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzer#profile",
+      "path": "lib/necropsy/analyzer.rb",
+      "line": 9,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#coverage_result",
+      "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
+      "line": 64,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#install_at_exit",
+      "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
+      "line": 36,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#method_coverage?",
+      "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
+      "line": 77,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#start_coverage",
+      "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
+      "line": 57,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::CoverageCollector.install_at_exit",
+      "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
+      "line": 16,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::TracePointCollector#install_at_exit",
+      "path": "lib/necropsy/analyzers/dynamic/trace_point_collector.rb",
+      "line": 44,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Analyzers::Dynamic::TracePointCollector.install_at_exit",
+      "path": "lib/necropsy/analyzers/dynamic/trace_point_collector.rb",
+      "line": 16,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#file=",
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 35,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#module_function",
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 35,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#relative_file=",
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 35,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#root_id=",
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 35,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#test=",
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 35,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#apply_labels",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 120,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#call",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 17,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#candidate_for",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 109,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#diagnostics",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 32,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#executable?",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 101,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#fill_tool_results",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 142,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#initialize",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 10,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#load_external_candidates",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 55,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#load_necropsy_candidates",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 42,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#manifest",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 32,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#reports",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 32,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#repository_root",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 32,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#skip_tool",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 89,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#snapshot_path",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 83,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#tool_runs",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 38,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::CandidateUnion#validate_label",
+      "path": "lib/necropsy/bench/candidate_union.rb",
+      "line": 136,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#call",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 15,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#corpus",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 31,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#dump",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 25,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#initialize",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 10,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#metrics",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 33,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#normalized_findings",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 47,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#report",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 31,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReportNormalizer#state_counts",
+      "path": "lib/necropsy/bench/report_normalizer.rb",
+      "line": 43,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#artifact_contents",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 158,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#build_summary",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 131,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#call",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 23,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#clock",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 44,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#config_path",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 101,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#corpus_path",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 95,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#current_rss_kb",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 114,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#deterministic_artifacts",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 152,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#diagnostics",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 62,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#golden_status",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 142,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#initialize",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 15,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#io",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 44,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#manifest",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 46,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#manifest_path",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 44,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#monotonic_time",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 127,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#output_dir",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 44,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#reports_dir",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 58,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#repository_root",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 54,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#run_corpus",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 66,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#skipped_corpus",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 106,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#update_golden",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 173,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::SeedRunner#write_json",
+      "path": "lib/necropsy/bench/seed_runner.rb",
+      "line": 168,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "test_only_reachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::CallGraph#modules_for",
+      "path": "lib/necropsy/graph/call_graph.rb",
+      "line": 134,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::EntryPoints::Rails#helper_referenced?",
+      "path": "lib/necropsy/entry_points/rails.rb",
+      "line": 329,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "medium"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::EntryPoints::Rails::RouteContext#controller=",
+      "path": "lib/necropsy/entry_points/rails.rb",
+      "line": 12,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::EntryPoints::Rails::RouteContext#modules=",
+      "path": "lib/necropsy/entry_points/rails.rb",
+      "line": 12,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::EntryPoints::Rails::RouteContext#resource=",
+      "path": "lib/necropsy/entry_points/rails.rb",
+      "line": 12,
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "state": "unreachable",
+          "confidence": "low"
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      }
+    }
+  ]
+}
