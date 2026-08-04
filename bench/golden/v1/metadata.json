@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "update_reason": "Propagate incomplete source impact",
+  "update_reason": "Complete 0.2.1 safety audit",
   "artifacts": {
-    "candidate_union.json": "5168a90f8ab65efe2fcd9efc559cb2f11601db27de60c7bae31fd9ad1d26de79",
+    "candidate_union.json": "080bdcee349253e9a1313f0f8cad39da98e8898460f4e272a69efe12f05b40e5",
     "reports/dynamic_evidence.json": "f3c0d56cc4dc89f68fede9b34b551cd9423577f95fea37b17896bf54453ed91d",
     "reports/plain_ruby.json": "0aa08379241266e828fc64a2018c673f7ca2e1a664f9786c44dbac606c5a08d1",
     "reports/rails.json": "7a18e296e2ad72944161bd4c7a528768f6ce2c9fadbd078731ebac5241117d24",
-    "reports/rubocop_1_75_0.json": "615e3d9fffac45ec71e301bcd9efe0ddb7f72df6acab218eb8fb5b6461df68dd",
-    "reports/self.json": "e5a29afdd49ca9901e7c94a3dee3b020a69ef5e91687c52c9829a750c3b222fd"
+    "reports/rubocop_1_75_0.json": "56c6c0c0071f5ba0672d018c4f1835f7d789e35fea669d2cb44f23d07bc1d9a7",
+    "reports/self.json": "66c4cf7819dae14a315a9542d185382a5866e3632fab2b97e2424860cc61ce87"
   }
 }

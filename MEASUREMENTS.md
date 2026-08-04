@@ -7,6 +7,28 @@ The reproducible seed under `bench/corpora/v1` supersedes ad hoc commands for ne
 summaries, wall time, and RSS measurements in one pass. RuboCop remains pinned to 1.75.0 and is
 enabled by setting `NECROPSY_RUBOCOP_CORPUS`; an unavailable checkout is reported as a skip.
 
+## 0.2.1 safety release audit
+
+The versioned audit compares commit `51d490188ae9ad846b4c023f14e252ec624a2d5e`, the first
+integrity-bound five-corpus snapshot, with `3831ce651ed331426413a767824955414529001d` on the same
+Ruby 4.0.0/macOS arm64 environment. RSS is the benchmark process's current resident size after each
+corpus, not a per-corpus isolated peak. Full provenance and candidate-level changes are stored in
+`bench/audits/0.2.1/audit.json`.
+
+| corpus | findings baseline/current | state changes | newly high | wall s baseline/current | RSS KiB baseline/current |
+|---|---:|---:|---:|---:|---:|
+| dynamic evidence | 4 / 4 | 0 | 0 | 0.001 / 0.003 | 52,720 / 51,200 |
+| plain Ruby | 3 / 3 | 0 | 0 | 0.002 / 0.002 | 53,088 / 51,488 |
+| Rails fixture | 4 / 4 | 0 | 0 | 0.004 / 0.004 | 54,272 / 52,656 |
+| RuboCop 1.75.0 | 5,797 / 5,797 | 119 | 0 | 5.196 / 5.281 | 576,256 / 584,432 |
+| self | 78 / 50 | 2 | 0 | 0.217 / 0.423 | 608,448 / 580,480 |
+
+All seven release gates passed. Rails had no candidate changes. RuboCop retained the same candidate
+count; its 119 state changes were conservative transitions to `blocked`, with all nine deterministic
+stratified review samples accepted. The dynamic, parse, ambiguity, and remote-input adversarial
+suites passed 69 examples in total. No new high-confidence candidate or confirmed reviewed false
+positive was introduced.
+
 | date | commit | target | nodes | findings | ratio | seconds |
 |---|---|---|---:|---:|---:|---:|
 | 2026-08-01 | baseline | necropsy | 678 | 246 | 36.3% | 4.33 |

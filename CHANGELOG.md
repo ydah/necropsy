@@ -4,6 +4,13 @@ All notable changes to Necropsy are documented in this file.
 
 ## Unreleased
 
+## 0.2.1 - 2026-08-04
+
+- Prevent unsafe dead-code recommendations when runtime dispatch, source parsing, or an analyzer is incomplete; affected methods are now reported as low-confidence `blocked` findings with the reason and source location.
+- Make the default analysis conservative: RTA no longer deletes broader static edges, runtime observations only prove liveness, and quarantine expiry requests review without increasing deadness confidence.
+- Harden remote Coverband/Redis evidence loading with verified TLS, bounded DNS/connect/read/write/total deadlines, strict payload and RESP limits, safe deserialization, and credential-redacted errors.
+- Add reproducible five-corpus release auditing with reviewed candidate transitions, safety-invariant and adversarial suites, provenance-bound artifacts, and fail-closed wall-time/RSS budgets.
+
 ## 0.2.0 - 2026-08-03
 
 - **Breaking:** Reports now omit `low` confidence findings by default, substantially reducing noisy output. Pass `--min-confidence low` to retain the previous output.
