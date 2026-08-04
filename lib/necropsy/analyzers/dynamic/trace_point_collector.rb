@@ -4,6 +4,7 @@ require 'securerandom'
 require 'fileutils'
 require 'time'
 require 'yaml'
+require_relative 'runtime_reference'
 
 module Necropsy
   module Analyzers
@@ -24,7 +25,9 @@ module Necropsy
           raise Error, 'sample_rate must be between 0.0 and 1.0' unless @sample_rate.between?(0.0, 1.0)
 
           @nodes = {}
+          @node_references = {}
           @edges = {}
+          @edge_references = {}
           @stacks = {}.compare_by_identity
           @lock = Mutex.new
           @merge = merge
@@ -55,7 +58,8 @@ module Necropsy
 
         private
 
-        attr_reader :root, :output, :sample_rate, :nodes, :edges, :stacks, :lock, :run_id
+        attr_reader :root, :output, :sample_rate, :nodes, :node_references, :edges, :edge_references, :stacks, :lock,
+                    :run_id
 
         def merge?
           @merge
@@ -64,32 +68,37 @@ module Necropsy
         def capture(event)
           return unless project_path?(event.path)
 
-          node_id = node_id_for(event)
-          return unless node_id
+          reference = node_reference_for(event)
+          return unless reference
 
           lock.synchronize do
             stack = stacks[Thread.current] ||= []
             if event.event == :return
-              unwind_stack(stack, node_id)
+              unwind_stack(stack, reference)
               stacks.delete(Thread.current) if stack.empty?
               return
             end
 
             sampled = sample_rate >= 1.0 || (sample_rate.positive? && SecureRandom.random_number < sample_rate)
-            caller_id = stack.last&.first if stack.last&.last
+            caller_reference = stack.last&.first if stack.last&.last
             if sampled
-              nodes[node_id] = true
-              edges[[caller_id, node_id]] = true if caller_id
+              record_node(reference)
+              record_edge(caller_reference, reference) if caller_reference
             end
-            stack << [node_id, sampled]
+            stack << [reference, sampled]
           end
         end
 
-        def unwind_stack(stack, node_id)
-          index = stack.rindex { |frame| frame.first == node_id }
+        def unwind_stack(stack, reference)
+          reference_key = frame_key(reference)
+          index = stack.rindex { |frame| frame_key(frame.first) == reference_key }
           return unless index
 
           stack.slice!(index..)
+        end
+
+        def frame_key(reference)
+          RuntimeReference.key(reference)
         end
 
         def project_path?(path)
@@ -105,6 +114,28 @@ module Necropsy
           "#{owner}#{separator}#{event.method_id}"
         end
 
+        def node_reference_for(event)
+          symbol_id = node_id_for(event)
+          return unless symbol_id
+
+          RuntimeReference.build(
+            symbol_id: symbol_id,
+            file: RuntimeReference.relative_file(root, event.path),
+            line: event.respond_to?(:lineno) ? event.lineno : nil
+          )
+        end
+
+        def record_node(reference)
+          nodes[reference.fetch('symbol_id')] = true
+          node_references[RuntimeReference.key(reference)] = reference
+        end
+
+        def record_edge(caller, callee)
+          edges[[caller.fetch('symbol_id'), callee.fetch('symbol_id')]] = true
+          key = [RuntimeReference.key(caller), RuntimeReference.key(callee)]
+          edge_references[key] = { 'caller_id' => caller.dup, 'callee_id' => callee.dup }
+        end
+
         def owner_and_separator(defined_class)
           name = defined_class.name
           return [name, '#'] if name
@@ -118,7 +149,9 @@ module Necropsy
         def write_payload(started_at:, finished_at:)
           payload = {
             'nodes' => nodes.keys.sort,
-            'edges' => edges.keys.map { |caller_id, callee_id| { 'caller_id' => caller_id, 'callee_id' => callee_id } },
+            'node_references' => node_references.values.sort_by { |reference| RuntimeReference.sort_key(reference) },
+            'edges' => legacy_edges,
+            'edge_references' => structured_edges,
             'observation' => {
               'started_at' => started_at.iso8601,
               'finished_at' => finished_at.iso8601,
@@ -174,9 +207,42 @@ module Necropsy
           observation['processes'] = process_count(left_observation) + process_count(right_observation)
           {
             'nodes' => (Array(left['nodes']) + Array(right['nodes'])).uniq.sort,
+            'node_references' => merge_node_references(left['node_references'], right['node_references']),
             'edges' => edges,
+            'edge_references' => merge_edge_references(left['edge_references'], right['edge_references']),
             'observation' => observation
           }
+        end
+
+        def legacy_edges
+          edges.keys.sort.map { |caller_id, callee_id| { 'caller_id' => caller_id, 'callee_id' => callee_id } }
+        end
+
+        def structured_edges
+          edge_references.values.sort_by do |edge|
+            [RuntimeReference.sort_key(edge.fetch('caller_id')), RuntimeReference.sort_key(edge.fetch('callee_id'))]
+          end
+        end
+
+        def merge_node_references(left, right)
+          (Array(left) + Array(right))
+            .filter_map { |reference| RuntimeReference.normalize(reference) }
+            .uniq { |reference| RuntimeReference.key(reference) }
+            .sort_by { |reference| RuntimeReference.sort_key(reference) }
+        end
+
+        def merge_edge_references(left, right)
+          (Array(left) + Array(right)).filter_map do |edge|
+            next unless edge.is_a?(Hash)
+
+            caller = RuntimeReference.normalize(edge['caller_id'] || edge[:caller_id])
+            callee = RuntimeReference.normalize(edge['callee_id'] || edge[:callee_id])
+            { 'caller_id' => caller, 'callee_id' => callee } if caller && callee
+          end.uniq do |edge|
+            [RuntimeReference.key(edge.fetch('caller_id')), RuntimeReference.key(edge.fetch('callee_id'))]
+          end.sort_by do |edge|
+            [RuntimeReference.sort_key(edge.fetch('caller_id')), RuntimeReference.sort_key(edge.fetch('callee_id'))]
+          end
         end
 
         def process_count(observation)

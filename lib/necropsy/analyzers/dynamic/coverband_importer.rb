@@ -4,6 +4,7 @@ require 'json'
 require 'yaml'
 
 require_relative 'redis_payload_loader'
+require_relative 'runtime_reference'
 
 module Necropsy
   module Analyzers
@@ -19,12 +20,15 @@ module Necropsy
 
           payload = load_payload(source, project.root)
           observation = ObservationPolicy.metadata(payload)
-          alive = alive_ids_from_payload(graph, payload).map do |node_id|
+          node_ids, line_diagnostics = alive_ids_from_payload(graph, payload)
+          observation = observation.merge(line_diagnostics) unless line_diagnostics.empty?
+          alive = node_ids.map do |node_id|
             node = graph.nodes.lookup(node_id).node
             details = node ? "Coverband executed #{node.file}:#{node.line}" : "Coverband marked #{node_id} as executed"
             AliveEvidence.new(
               node_id: node_id,
-              evidence: evidence(kind: :alive, details: details, metadata: observation)
+              evidence: evidence(kind: :alive, details: details,
+                                 metadata: observation.merge('node_reference' => node_id))
             )
           end
 
@@ -70,15 +74,24 @@ module Necropsy
         end
 
         def alive_ids_from_payload(graph, payload)
-          executed_nodes = Array(payload['executed'] || payload['nodes'])
+          structured = payload['node_references'] if payload.key?('node_references')
+          malformed = []
+          executed_nodes = RuntimeReference.preferred(
+            structured: structured,
+            legacy: payload['executed'] || payload['nodes']
+          ).map do |reference|
+            normalized = RuntimeReference.normalize(reference)
+            next normalized if normalized
 
-          files = coverage_files(payload)
-          by_line = graph.method_nodes.select do |node|
-            executed_lines = lines_for(files, node.file)
-            executed_lines.any? { |line| line.between?(node.line, node.end_line) }
+            malformed << { 'kind' => 'node', 'reference' => reference }
+            reference
           end
 
-          (executed_nodes + by_line.map(&:graph_id)).uniq
+          files = coverage_files(payload)
+          by_line, diagnostics = line_references(graph, files)
+          diagnostics['malformed_references'] = malformed unless malformed.empty?
+
+          [(executed_nodes + by_line).uniq, diagnostics]
         end
 
         def coverage_files(payload)
@@ -135,15 +148,40 @@ module Necropsy
           left.merge(right) { |_file, left_lines, right_lines| (left_lines + right_lines).uniq }
         end
 
-        def lines_for(files, relative_file)
-          exact = files[relative_file] || files[File.join('.', relative_file)]
-          return exact if exact
+        def line_references(graph, files)
+          definition_ids = []
+          line_ambiguities = []
+          path_ambiguities = []
+          graph.method_nodes.group_by(&:file).sort.each do |relative_file, definitions|
+            paths = matching_coverage_paths(files, relative_file)
+            next if paths.empty?
 
-          files.each do |file, lines|
-            return lines if file.end_with?("/#{relative_file}")
+            path_ambiguities << { 'file' => relative_file, 'coverage_paths' => paths } if paths.length > 1
+            paths.flat_map { |path| files.fetch(path) }.uniq.sort.each do |line|
+              matches = definitions.select { |definition| line.between?(definition.line, definition.end_line) }
+              definition_ids.concat(matches.map(&:graph_id))
+              next unless matches.length > 1
+
+              line_ambiguities << {
+                'file' => relative_file,
+                'line' => line,
+                'definition_ids' => matches.map(&:graph_id).sort
+              }
+            end
           end
 
-          []
+          diagnostics = {}
+          diagnostics['path_ambiguities'] = path_ambiguities unless path_ambiguities.empty?
+          diagnostics['line_ambiguities'] = line_ambiguities unless line_ambiguities.empty?
+          [definition_ids.uniq.sort, diagnostics]
+        end
+
+        def matching_coverage_paths(files, relative_file)
+          exact = [relative_file, File.join('.', relative_file)].select { |path| files.key?(path) }
+          return exact.sort unless exact.empty?
+
+          suffix = "/#{relative_file}"
+          files.keys.select { |path| path.end_with?(suffix) }.sort
         end
       end
     end

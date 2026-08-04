@@ -29,6 +29,21 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
     end
   end
 
+  it 'preserves malformed structured references for graph diagnostics' do
+    graph = graph_with(nodes: [node('Sample#live')])
+    reference = { 'file' => 'app/sample.rb', 'line' => 3 }
+    payload = { 'node_references' => [reference] }
+
+    with_project(files: { 'coverband.json' => JSON.generate(payload) }) do |root|
+      result = described_class.new('source' => 'coverband.json').analyze(graph, project_for(root))
+
+      expect(result.alive_evidences.map(&:node_id)).to eq([reference])
+      expect(result.observation.dig('coverband', 'malformed_references')).to eq(
+        [{ 'kind' => 'node', 'reference' => reference }]
+      )
+    end
+  end
+
   it 'maps line-count arrays and hashes back to methods by relative file' do
     first = node('Sample#first', file: 'app/sample.rb', line: 2, end_line: 4)
     second = node('Sample#second', file: 'app/sample.rb', line: 8, end_line: 10)
@@ -55,6 +70,49 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
       result = described_class.new('source' => 'coverband.yml').analyze(graph, project_for(root))
 
       expect(result.alive_evidences.map(&:node_id)).to eq([live.id])
+    end
+  end
+
+  it 'maps one executed span to every matching physical definition and records ambiguity' do
+    first = node(
+      'Sample#run', definition_id: 'def:v1:first', body_digest: 'first', ordinal: 1,
+                    file: 'app/sample.rb', line: 3, end_line: 5
+    )
+    second = node(
+      'Sample#run', definition_id: 'def:v1:second', body_digest: 'second', ordinal: 1,
+                    file: 'app/sample.rb', line: 3, end_line: 6
+    )
+    graph = graph_with(nodes: [second, first])
+
+    with_project(files: { 'coverband.yml' => { 'files' => { 'app/sample.rb' => [3] } }.to_yaml }) do |root|
+      result = described_class.new('source' => 'coverband.yml').analyze(graph, project_for(root))
+
+      expect(result.alive_evidences.map(&:node_id)).to contain_exactly(first.graph_id, second.graph_id)
+      expect(result.observation.dig('coverband', 'line_ambiguities')).to contain_exactly(
+        'file' => 'app/sample.rb', 'line' => 3, 'definition_ids' => [first.graph_id, second.graph_id].sort
+      )
+    end
+  end
+
+  it 'merges every deterministic suffix match instead of using the first coverage path' do
+    first = node('Sample#first', file: 'app/sample.rb', line: 2, end_line: 2)
+    second = node('Sample#second', file: 'app/sample.rb', line: 8, end_line: 8)
+    graph = graph_with(nodes: [first, second])
+    payload = {
+      'files' => {
+        '/first/root/app/sample.rb' => [2],
+        '/second/root/app/sample.rb' => [8]
+      }
+    }
+
+    with_project(files: { 'coverband.yml' => payload.to_yaml }) do |root|
+      result = described_class.new('source' => 'coverband.yml').analyze(graph, project_for(root))
+
+      expect(result.alive_evidences.map(&:node_id)).to contain_exactly(first.graph_id, second.graph_id)
+      expect(result.observation.dig('coverband', 'path_ambiguities')).to contain_exactly(
+        'file' => 'app/sample.rb',
+        'coverage_paths' => ['/first/root/app/sample.rb', '/second/root/app/sample.rb']
+      )
     end
   end
 

@@ -24,11 +24,64 @@ RSpec.describe Necropsy::Analyzers::Dynamic::TracePointCollector do
 
       payload = YAML.load_file(output)
       expect(payload.fetch('nodes')).to include('TracePointCollectorSample#run', 'TracePointCollectorSample#helper')
+      expect(payload.fetch('node_references')).to include(
+        include('symbol_id' => 'TracePointCollectorSample#run', 'file' => 'runner.rb', 'line' => be_a(Integer))
+      )
       expect(payload.fetch('edges')).to include(
         'caller_id' => 'TracePointCollectorSample#run',
         'callee_id' => 'TracePointCollectorSample#helper'
       )
+      expect(payload.fetch('edge_references')).to include(
+        include(
+          'caller_id' => include('symbol_id' => 'TracePointCollectorSample#run', 'file' => 'runner.rb'),
+          'callee_id' => include('symbol_id' => 'TracePointCollectorSample#helper', 'file' => 'runner.rb')
+        )
+      )
     end
+  end
+
+  it 'keeps reopened runtime locations distinct in structured records' do
+    with_project(files: {
+                   'first.rb' => "class ReopenedTrace\n  def run = :first\nend\n",
+                   'second.rb' => "class ReopenedTrace\n  def run = :second\nend\n"
+                 }) do |root|
+      output = File.join(root, 'trace.yml')
+
+      described_class.record(root: root, output: output) do
+        load File.join(root, 'first.rb')
+        ReopenedTrace.new.run
+        load File.join(root, 'second.rb')
+        ReopenedTrace.new.run
+      end
+
+      payload = YAML.load_file(output)
+      references = payload.fetch('node_references').select { |reference| reference['symbol_id'] == 'ReopenedTrace#run' }
+      expect(payload.fetch('nodes').count('ReopenedTrace#run')).to eq(1)
+      expect(references.map { |reference| reference['file'] }).to contain_exactly('first.rb', 'second.rb')
+    end
+  end
+
+  it 'merges structured nodes and edges by location' do
+    collector = described_class.new(root: '/repo', output: '/tmp/trace.yml')
+    target = { 'symbol_id' => 'Target#call', 'file' => 'lib/target.rb', 'line' => 1 }
+    first = { 'symbol_id' => 'Reopened#run', 'file' => 'lib/a.rb', 'line' => 2 }
+    second = { 'symbol_id' => 'Reopened#run', 'file' => 'lib/a.rb', 'line' => 30 }
+    left = {
+      'nodes' => ['Reopened#run'], 'node_references' => [first],
+      'edges' => [{ 'caller_id' => 'Reopened#run', 'callee_id' => 'Target#call' }],
+      'edge_references' => [{ 'caller_id' => first, 'callee_id' => target }], 'observation' => {}
+    }
+    right = {
+      'nodes' => ['Reopened#run'], 'node_references' => [second],
+      'edges' => [{ 'caller_id' => 'Reopened#run', 'callee_id' => 'Target#call' }],
+      'edge_references' => [{ 'caller_id' => second, 'callee_id' => target }], 'observation' => {}
+    }
+
+    merged = collector.send(:merge_payload, left, right)
+
+    expect(merged.fetch('node_references')).to contain_exactly(first, second)
+    expect(merged.fetch('edge_references').map { |edge| edge.fetch('caller_id') }).to contain_exactly(first, second)
+    expect(merged.fetch('edges').length).to eq(1)
   end
 
   it 'keeps call stacks isolated between threads' do

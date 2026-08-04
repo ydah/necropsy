@@ -41,6 +41,46 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageImporter do
     end
   end
 
+  it 'prefers structured node and edge references while preserving distinct locations' do
+    first = { 'symbol_id' => 'Reopened#run', 'file' => 'lib/a.rb', 'line' => 2 }
+    second = { 'symbol_id' => 'Reopened#run', 'file' => 'lib/b.rb', 'line' => 3 }
+    target = { 'definition_id' => 'def:v1:target', 'symbol_id' => 'Target#call' }
+    payload = {
+      'nodes' => ['Reopened#run'],
+      'node_references' => [first, second],
+      'edges' => [{ 'caller_id' => 'Reopened#run', 'callee_id' => 'Target#call' }],
+      'edge_references' => [
+        { 'caller_id' => first, 'callee_id' => target },
+        { 'caller_id' => second, 'callee_id' => target }
+      ]
+    }
+
+    with_project(files: { 'coverage.json' => payload.to_json }) do |root|
+      result = described_class.new('source' => 'coverage.json').analyze(nil, project_for(root))
+
+      expect(result.alive_evidences.map(&:node_id)).to contain_exactly(first, second)
+      expect(result.edge_evidences.map(&:caller_id)).to contain_exactly(first, second)
+      expect(result.edge_evidences.map(&:callee_id)).to eq([target, target])
+      expect(result.edge_evidences.first.evidence.metadata).to include(
+        'caller_reference' => first,
+        'callee_reference' => target
+      )
+    end
+  end
+
+  it 'retains malformed structured references as unmatched evidence with a diagnostic' do
+    malformed = { 'file' => 'lib/missing_symbol.rb', 'line' => 'not-a-line' }
+
+    with_project(files: { 'coverage.yml' => { 'node_references' => [malformed] }.to_yaml }) do |root|
+      result = described_class.new('source' => 'coverage.yml').analyze(nil, project_for(root))
+
+      expect(result.alive_evidences.map(&:node_id)).to eq([malformed])
+      expect(result.observation.dig('coverage', 'malformed_references')).to include(
+        'kind' => 'node', 'reference' => malformed
+      )
+    end
+  end
+
   it 'marks a supplied v1 source revision as unverified while retaining positive evidence' do
     payload = {
       'nodes' => ['Sample#run'],

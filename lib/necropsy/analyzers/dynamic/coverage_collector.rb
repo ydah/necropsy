@@ -4,6 +4,7 @@ require 'coverage'
 require 'fileutils'
 require 'time'
 require 'yaml'
+require_relative 'runtime_reference'
 
 module Necropsy
   module Analyzers
@@ -79,8 +80,10 @@ module Necropsy
         end
 
         def write_payload(result:, started_at:, finished_at:)
+          references = executed_references(result)
           payload = {
-            'nodes' => executed_nodes(result).sort,
+            'nodes' => references.map { |reference| reference.fetch('symbol_id') }.uniq.sort,
+            'node_references' => references,
             'observation' => {
               'started_at' => started_at.iso8601,
               'finished_at' => finished_at.iso8601,
@@ -124,13 +127,15 @@ module Necropsy
         end
 
         def empty_payload?(payload)
-          Array(payload['nodes']).empty? && payload.fetch('observation', {}).empty?
+          Array(payload['nodes']).empty? && Array(payload['node_references']).empty? &&
+            payload.fetch('observation', {}).empty?
         end
 
         def merge_payload(left, right)
           observation = merge_observation(left.fetch('observation', {}), right.fetch('observation', {}))
           {
             'nodes' => (Array(left['nodes']) + Array(right['nodes'])).uniq.sort,
+            'node_references' => merge_references(left['node_references'], right['node_references']),
             'observation' => observation
           }
         end
@@ -167,16 +172,16 @@ module Necropsy
           1
         end
 
-        def executed_nodes(result)
+        def executed_references(result)
           result.flat_map do |path, coverage|
             next [] unless project_path?(path)
 
             coverage.fetch(:methods, {}).filter_map do |method_key, count|
               next unless count.to_i.positive?
 
-              node_id_for(method_key)
+              node_reference_for(path, method_key)
             end
-          end
+          end.uniq { |reference| RuntimeReference.key(reference) }.sort_by { |reference| RuntimeReference.sort_key(reference) }
         end
 
         def project_path?(path)
@@ -190,6 +195,24 @@ module Necropsy
           return nil unless owner_name
 
           "#{owner_name}#{separator}#{method_name}"
+        end
+
+        def node_reference_for(path, method_key)
+          symbol_id = node_id_for(method_key)
+          return unless symbol_id
+
+          RuntimeReference.build(
+            symbol_id: symbol_id,
+            file: RuntimeReference.relative_file(root, path),
+            line: method_key[2]
+          )
+        end
+
+        def merge_references(left, right)
+          (Array(left) + Array(right))
+            .filter_map { |reference| RuntimeReference.normalize(reference) }
+            .uniq { |reference| RuntimeReference.key(reference) }
+            .sort_by { |reference| RuntimeReference.sort_key(reference) }
         end
 
         def owner_and_separator(owner)
