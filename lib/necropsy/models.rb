@@ -30,6 +30,13 @@ module Necropsy
       alias_method :data_new, :new
 
       def new(*values, **attributes)
+        compatible_new(*values, **attributes)
+      end
+      alias_method :[], :new
+
+      private
+
+      def compatible_new(*values, **attributes)
         return data_new(*values, **attributes) unless values.length == 10 && attributes.empty?
 
         id, kind, file, line, end_line, defined_via, owner, name, test, visibility = values
@@ -39,7 +46,7 @@ module Necropsy
         )
       end
 
-      private :data_new
+      private :data_new, :compatible_new
     end
 
     def initialize(id:, kind:, file:, line:, end_line:, defined_via:, owner:, name:, test:, visibility:,

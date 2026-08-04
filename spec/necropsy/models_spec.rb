@@ -39,15 +39,30 @@ RSpec.describe 'Necropsy model objects' do
     end
 
     it 'keeps the legacy positional constructor compatible' do
-      legacy = described_class.new(
+      values = [
         'Sample#render', :instance_method, 'sample.rb', 1, 2,
         :def, 'Sample', 'render', false, :private
-      )
+      ]
+      via_new = described_class.new(*values)
+      via_brackets = described_class[*values]
 
-      expect(legacy).to have_attributes(
+      expect(via_brackets).to eq(via_new)
+      expect(via_new).to have_attributes(
         id: 'Sample#render', symbol_id: 'Sample#render', definition_id: 'Sample#render',
         body_digest: nil, ordinal: 0, kind: :instance_method, file: 'sample.rb', line: 1,
         end_line: 2, defined_via: :def, owner: 'Sample', name: 'render', test: false, visibility: :private
+      )
+    end
+
+    it 'keeps the complete physical positional constructor compatible' do
+      values = [
+        'Sample#render', 'Sample#render', 'def:v1:physical', 'body-digest', 2,
+        :instance_method, 'sample.rb', 1, 2, :def, 'Sample', 'render', false, :private
+      ]
+
+      expect(described_class[*values]).to eq(described_class.new(*values))
+      expect(described_class.new(*values)).to have_attributes(
+        symbol_id: 'Sample#render', definition_id: 'def:v1:physical', body_digest: 'body-digest', ordinal: 2
       )
     end
 
