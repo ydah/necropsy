@@ -2,7 +2,18 @@
 
 RSpec.describe Necropsy::CallGraph do
   def unresolved_blocker(message:, scope_kind: :message, scope_value: message, domain: :runtime,
-                         receiver_kind: :unknown, caller_kind: :instance_method, original_message: nil)
+                         receiver_kind: :unknown, caller_kind: :instance_method, original_message: nil,
+                         include_private: nil)
+    metadata = {
+      'message' => message,
+      'caller_domain' => domain.to_s,
+      'receiver_kind' => receiver_kind.to_s,
+      'caller_kind' => caller_kind.to_s,
+      'original_message' => original_message,
+      'file' => 'app/router.rb',
+      'line' => 8
+    }
+    metadata['include_private'] = include_private unless include_private.nil?
     Necropsy::Blocker.new(
       kind: :unknown_dispatch,
       scope_kind: scope_kind,
@@ -10,15 +21,7 @@ RSpec.describe Necropsy::CallGraph do
       source: :name_resolution,
       reason: 'target set is incomplete',
       suggested_action: :review_receiver_flow,
-      metadata: {
-        'message' => message,
-        'caller_domain' => domain.to_s,
-        'receiver_kind' => receiver_kind.to_s,
-        'caller_kind' => caller_kind.to_s,
-        'original_message' => original_message,
-        'file' => 'app/router.rb',
-        'line' => 8
-      }
+      metadata: metadata
     )
   end
 
@@ -352,8 +355,9 @@ RSpec.describe Necropsy::CallGraph do
   it 'supports namespace scope and public-send visibility' do
     public_target = node('Billing::Handler#call', owner: 'Billing::Handler', name: 'call')
     protected_target = node('Billing::Fallback#call', owner: 'Billing::Fallback', name: 'call', visibility: :protected)
+    private_target = node('Billing::Private#call', owner: 'Billing::Private', name: 'call', visibility: :private)
     other_target = node('Shipping::Handler#call', owner: 'Shipping::Handler', name: 'call')
-    graph = graph_with(nodes: [public_target, protected_target, other_target])
+    graph = graph_with(nodes: [public_target, protected_target, private_target, other_target])
     blocker = unresolved_blocker(
       message: 'call', scope_kind: :namespace, scope_value: 'Billing', receiver_kind: :unknown,
       original_message: 'public_send'
@@ -362,7 +366,33 @@ RSpec.describe Necropsy::CallGraph do
 
     expect(graph.matching_blockers(public_target)).to eq([blocker])
     expect(graph.matching_blockers(protected_target)).to eq([])
+    expect(graph.matching_blockers(private_target)).to eq([])
     expect(graph.matching_blockers(other_target)).to eq([])
+  end
+
+  it 'matches private targets only for reflective APIs that can access them' do
+    private_target = node('Target#call', owner: 'Target', name: 'call', visibility: :private)
+    policies = {
+      'send' => true,
+      '__send__' => true,
+      'method' => true,
+      'public_send' => false,
+      'respond_to?' => false,
+      'regular_call' => false
+    }
+
+    policies.each do |original_message, expected|
+      graph = graph_with(nodes: [private_target])
+      graph.add_blocker(unresolved_blocker(message: 'call', original_message: original_message))
+
+      expect(graph.matching_blockers(private_target).any?).to eq(expected), original_message
+    end
+
+    graph = graph_with(nodes: [private_target])
+    graph.add_blocker(
+      unresolved_blocker(message: 'call', original_message: 'respond_to?', include_private: true)
+    )
+    expect(graph.matching_blockers(private_target).any?).to eq(true)
   end
 
   it 'does not apply test-only unresolved dispatch to production definitions' do

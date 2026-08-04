@@ -103,6 +103,7 @@ RSpec.describe Necropsy::Diagnostics do
         'scope_kind' => 'owner', 'reason' => match(/exceeding the configured ambiguity limit/)
       )
       expect(diagnostics.render(why_payload)).to include(
+        'Blocked: Sample#call',
         'Blocker: unknown_dispatch at app/router.rb:31 caller=Sample::Router#route',
         'Scope: owner=["Sample"] message=call',
         'Reason: Dispatch call has 5 candidates'

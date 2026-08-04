@@ -321,6 +321,49 @@ RSpec.describe Necropsy::Runner do
     expect(limited.graph.blockers.first.metadata).to include('candidate_count' => 5, 'ambiguity_limit' => 4)
   end
 
+  it 'blocks private targets when reflective dispatch exceeds the ambiguity limit' do
+    reflective_calls = {
+      '__send__' => 'receiver.__send__(:hidden)',
+      'method' => 'receiver.method(:hidden)',
+      'respond_to?_private' => 'receiver.respond_to?(:hidden, true)'
+    }
+    handlers = 5.times.map do |index|
+      "class Handler#{index}; private; def hidden; end; end"
+    end.join("\n")
+    common = { cache: { enabled: false }, entry_points: { extra: ['Caller#run'] } }
+
+    reflective_calls.each do |api, invocation|
+      source = <<~RUBY
+        #{handlers}
+        class Caller
+          def run(receiver)
+            #{invocation}
+          end
+        end
+      RUBY
+      limited = analyze_fixture(
+        files: { "app/#{api}.rb" => source },
+        config: common.merge(resolution: { ambiguity_limit: 4 })
+      )
+      unlimited = analyze_fixture(
+        files: { "app/#{api}.rb" => source },
+        config: common.merge(resolution: { ambiguity_limit: 'unlimited' })
+      )
+
+      limited_targets = limited.findings.select { |finding| finding.node.name == 'hidden' }
+      unlimited_targets = unlimited.findings.select { |finding| finding.node.name == 'hidden' }
+      limited_unreachable = limited_targets.select { |finding| finding.classification == :unreachable }.to_set(&:node)
+      unlimited_unreachable = unlimited_targets.select { |finding| finding.classification == :unreachable }.to_set(&:node)
+      limited_high = limited_targets.select { |finding| finding.at_least?(:high) }.to_set(&:node)
+      unlimited_high = unlimited_targets.select { |finding| finding.at_least?(:high) }.to_set(&:node)
+
+      expect(limited_targets).to all(have_attributes(classification: :blocked, confidence: :low)), api
+      expect(limited_unreachable).to be_subset(unlimited_unreachable), api
+      expect(limited_high).to be_subset(unlimited_high), api
+      expect(unlimited_targets).to eq([]), api
+    end
+  end
+
   def render_targets_for(report, message)
     report.graph.edges.filter_map do |edge|
       edge.callee_id if report.graph.nodes.fetch(edge.callee_id).name == message

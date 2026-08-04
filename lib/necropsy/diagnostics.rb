@@ -176,7 +176,8 @@ module Necropsy
     end
 
     def render_dead(payload)
-      lines = ["Dead: #{payload.dig('node', 'id')}"]
+      heading = payload['status'] == 'blocked' ? 'Blocked' : 'Dead'
+      lines = ["#{heading}: #{payload.dig('node', 'id')}"]
       lines << "Classification: #{payload['classification']}" if payload['classification']
       nearest = payload['nearest_alive']
       lines << if nearest

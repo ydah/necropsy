@@ -101,7 +101,7 @@ module Necropsy
           caller = graph.nodes[site.caller_id]
           owner_scope = receiver_hints(site)
           owner_scope = [caller&.owner].compact if owner_scope.empty? && site.receiver_kind != :unknown
-          {
+          metadata = {
             'caller_id' => site.caller_id,
             'caller_kind' => caller&.kind&.to_s,
             'caller_domain' => site.test ? 'test' : 'runtime',
@@ -118,6 +118,9 @@ module Necropsy
             'reason_code' => reason_code.to_s,
             'original_message' => site.metadata['original_message'] || site.metadata[:original_message]
           }
+          return metadata unless site.metadata.key?('include_private') || site.metadata.key?(:include_private)
+
+          metadata.merge('include_private' => site.metadata.fetch('include_private') { site.metadata[:include_private] })
         end
 
         def receiver_hints(site)

@@ -315,6 +315,9 @@ RSpec.describe Necropsy::AstScanner do
                 items.map(&:decorate)
                 method(:fallback)
                 respond_to?(:available?)
+                items.method(:private_fallback)
+                items.respond_to?(:private_available?, true)
+                items.respond_to?(:public_available?, false)
                 try(:optional!)
               end
             end
@@ -328,10 +331,24 @@ RSpec.describe Necropsy::AstScanner do
           ['Child#dispatch', 'decorate'],
           ['Child#dispatch', 'fallback'],
           ['Child#dispatch', 'available?'],
+          ['Child#dispatch', 'private_fallback'],
+          ['Child#dispatch', 'private_available?'],
+          ['Child#dispatch', 'public_available?'],
           ['Child#dispatch', 'optional!']
         )
         super_site = scan.call_sites.find { |site| site.caller_id == 'Child#render' && site.receiver_kind == :super }
         expect(super_site).not_to be_nil
+
+        references = scan.call_sites.select { |site| site.metadata['symbol_reference'] }
+        expect(references.find { |site| site.message == 'private_fallback' }.metadata).to include(
+          'original_message' => 'method'
+        )
+        expect(references.find { |site| site.message == 'private_available?' }.metadata).to include(
+          'original_message' => 'respond_to?', 'include_private' => true
+        )
+        expect(references.find { |site| site.message == 'public_available?' }.metadata).to include(
+          'original_message' => 'respond_to?', 'include_private' => false
+        )
       end
     end
 

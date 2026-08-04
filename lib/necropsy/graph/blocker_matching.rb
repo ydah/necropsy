@@ -43,6 +43,7 @@ module Necropsy
         metadata['caller_kind'] || metadata[:caller_kind],
         metadata['receiver_kind'] || metadata[:receiver_kind],
         metadata['original_message'] || metadata[:original_message],
+        metadata.fetch('include_private') { metadata[:include_private] },
         blocker.message&.to_s,
         blocker.reason.to_s
       ].freeze
@@ -87,7 +88,8 @@ module Necropsy
       receiver_kind = (metadata['receiver_kind'] || metadata[:receiver_kind])&.to_sym
       original_message = (metadata['original_message'] || metadata[:original_message])&.to_s
       return node.visibility == :public if original_message == 'public_send'
-      return true if original_message == 'send'
+      return true if %w[send __send__ method].include?(original_message)
+      return true if original_message == 'respond_to?' && (metadata['include_private'] || metadata[:include_private]) == true
       return true if %i[implicit self super].include?(receiver_kind)
 
       node.visibility != :private

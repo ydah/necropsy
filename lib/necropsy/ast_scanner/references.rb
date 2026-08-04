@@ -46,7 +46,8 @@ module Necropsy
         context,
         receiver_kind: receiver[:kind],
         receiver_name: receiver[:name],
-        candidates: receiver[:candidates]
+        candidates: receiver[:candidates],
+        metadata: symbol_reference_metadata(node)
       )
     end
 
@@ -64,7 +65,8 @@ module Necropsy
       )
     end
 
-    def record_reference_call(caller_id, message, node, context, receiver_kind:, receiver_name: nil, candidates: [])
+    def record_reference_call(caller_id, message, node, context, receiver_kind:, receiver_name: nil, candidates: [],
+                              metadata: {})
       call_sites << CallSite.new(
         caller_id: caller_id,
         message: message.to_s,
@@ -74,8 +76,17 @@ module Necropsy
         line: node.location.start_line,
         test: context.test,
         dynamic: false,
-        metadata: { 'symbol_reference' => true, 'receiver_candidates' => Array(candidates) }
+        metadata: { 'symbol_reference' => true, 'receiver_candidates' => Array(candidates) }.merge(metadata)
       )
+    end
+
+    def symbol_reference_metadata(node)
+      metadata = { 'original_message' => node.name.to_s }
+      return metadata unless node.name == :respond_to?
+
+      include_private = literal_value(arguments(node)[1])
+      metadata['include_private'] = include_private unless include_private.nil?
+      metadata
     end
   end
 end
