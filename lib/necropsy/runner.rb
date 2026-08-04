@@ -18,11 +18,8 @@ module Necropsy
 
       apply_entry_points(graph, project)
       configured_analyzers.each do |configured_analyzer|
-        analyzer = analyzer_for_pruning(configured_analyzer, rta_pruning)
-        graph.add_profile(analyzer.profile)
-        result = analyzer.analyze(graph, project)
-        graph.apply_result(result)
-        rta_results << result if analyzer.profile.name == :rta
+        profile, result = run_analyzer(graph, project, configured_analyzer, rta_pruning)
+        rta_results << result if profile&.name == :rta && result
       end
       rta_results.each { |result| graph.reconcile_rta_result(result) } if rta_pruning == :legacy
 
@@ -51,6 +48,39 @@ module Necropsy
       return analyzer unless analyzer.is_a?(Analyzers::Static::RTA)
 
       analyzer.with_pruning(mode)
+    end
+
+    def run_analyzer(graph, project, configured_analyzer, rta_pruning)
+      analyzer = analyzer_for_pruning(configured_analyzer, rta_pruning)
+      profile = analyzer.profile
+      raise TypeError, "#{analyzer.class} returned an invalid analyzer profile" unless profile.is_a?(AnalyzerProfile)
+
+      graph.add_profile(profile)
+      result = analyzer.analyze(graph, project)
+      graph.apply_result(result)
+      [profile, result]
+    rescue StandardError => e
+      graph.add_blocker(analyzer_failure_blocker(analyzer || configured_analyzer, profile, e))
+      [profile, nil]
+    end
+
+    def analyzer_failure_blocker(analyzer, profile, error)
+      analyzer_name = profile&.name&.to_s || analyzer.class.name
+      Blocker.new(
+        kind: :analyzer_failure,
+        scope_kind: :global,
+        scope_value: '*',
+        source: analyzer_name,
+        reason: "Analyzer #{analyzer_name} failed: #{error.class}: #{error.message}",
+        suggested_action: :fix_analyzer,
+        metadata: {
+          'analyzer' => analyzer_name,
+          'analyzer_class' => analyzer.class.name,
+          'caller_domain' => 'runtime',
+          'error_class' => error.class.name,
+          'error_message' => error.message
+        }
+      )
     end
 
     def apply_entry_points(graph, project)

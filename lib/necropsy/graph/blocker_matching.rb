@@ -82,7 +82,7 @@ module Necropsy
     end
 
     def blocker_visibility_matches?(blocker, node)
-      return true if blocker.kind.to_sym == :parse_incomplete
+      return true if %i[analyzer_failure parse_incomplete].include?(blocker.kind.to_sym)
 
       metadata = blocker.metadata
       receiver_kind = (metadata['receiver_kind'] || metadata[:receiver_kind])&.to_sym
