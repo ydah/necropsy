@@ -38,6 +38,19 @@ RSpec.describe 'Necropsy model objects' do
       expect(physical.fingerprint(:unreachable)).to eq(legacy.fingerprint(:unreachable))
     end
 
+    it 'keeps the legacy positional constructor compatible' do
+      legacy = described_class.new(
+        'Sample#render', :instance_method, 'sample.rb', 1, 2,
+        :def, 'Sample', 'render', false, :private
+      )
+
+      expect(legacy).to have_attributes(
+        id: 'Sample#render', symbol_id: 'Sample#render', definition_id: 'Sample#render',
+        body_digest: nil, ordinal: 0, kind: :instance_method, file: 'sample.rb', line: 1,
+        end_line: 2, defined_via: :def, owner: 'Sample', name: 'render', test: false, visibility: :private
+      )
+    end
+
     it 'treats block entry nodes as non-method nodes' do
       file_node = node('file:app.rb', kind: :block_entry, owner: nil, name: 'app.rb')
 

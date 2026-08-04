@@ -56,4 +56,17 @@ RSpec.describe Necropsy::DefinitionIndex do
     expect(index.fetch('Missing#run', :fallback)).to eq(:fallback)
     expect(index.fetch('Missing#run') { |identifier| identifier }).to eq('Missing#run')
   end
+
+  it 'does not let a legacy graph key shadow a physical definition with the same logical id' do
+    legacy = node('Sample#run', file: 'lib/legacy.rb')
+    physical = physical_definition('def:v1:physical', file: 'lib/physical.rb', line: 2)
+    index = described_class.new([legacy, physical])
+
+    expect(index.lookup('Sample#run')).to have_attributes(
+      status: :ambiguous,
+      definitions: contain_exactly(legacy, physical)
+    )
+    expect { index['Sample#run'] }.to raise_error(described_class::AmbiguousDefinitionError)
+    expect(index.lookup('def:v1:physical')).to have_attributes(status: :exact, node: physical)
+  end
 end

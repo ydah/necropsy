@@ -63,18 +63,16 @@ module Necropsy
     end
 
     def lookup(identifier)
+      definitions = definitions_for(identifier)
+      unless definitions.empty?
+        status = definitions.one? ? :unique : :ambiguous
+        return Lookup.new(identifier: identifier, status: status, definitions: definitions)
+      end
+
       exact_match = exact(identifier)
       return Lookup.new(identifier: identifier, status: :exact, definitions: [exact_match].freeze) if exact_match
 
-      definitions = definitions_for(identifier)
-      status = if definitions.empty?
-                 :missing
-               elsif definitions.one?
-                 :unique
-               else
-                 :ambiguous
-               end
-      Lookup.new(identifier: identifier, status: status, definitions: definitions)
+      Lookup.new(identifier: identifier, status: :missing, definitions: definitions)
     end
 
     def [](identifier)

@@ -26,6 +26,22 @@ module Necropsy
     :test,
     :visibility
   ) do
+    class << self
+      alias_method :data_new, :new
+
+      def new(*values, **attributes)
+        return data_new(*values, **attributes) unless values.length == 10 && attributes.empty?
+
+        id, kind, file, line, end_line, defined_via, owner, name, test, visibility = values
+        data_new(
+          id: id, kind: kind, file: file, line: line, end_line: end_line, defined_via: defined_via,
+          owner: owner, name: name, test: test, visibility: visibility
+        )
+      end
+
+      private :data_new
+    end
+
     def initialize(id:, kind:, file:, line:, end_line:, defined_via:, owner:, name:, test:, visibility:,
                    symbol_id: id, definition_id: id, body_digest: nil, ordinal: 0)
       super
