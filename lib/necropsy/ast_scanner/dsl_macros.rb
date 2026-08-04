@@ -47,30 +47,26 @@ module Necropsy
 
       symbol_arguments(node).each do |name|
         kind, separator = method_kind_and_separator(context)
-        nodes << Node.new(
-          id: "#{context.owner}#{separator}#{name}",
+        add_definition(
+          symbol_id: "#{context.owner}#{separator}#{name}",
           kind: kind,
-          file: context.relative_file,
-          line: node.location.start_line,
-          end_line: node.location.end_line,
+          source_node: node,
+          context: context,
           defined_via: node.name,
           owner: context.owner,
           name: name,
-          test: context.test,
           visibility: context.visibility
         )
         next unless %i[attr_writer attr_accessor].include?(node.name)
 
-        nodes << Node.new(
-          id: "#{context.owner}#{separator}#{name}=",
+        add_definition(
+          symbol_id: "#{context.owner}#{separator}#{name}=",
           kind: kind,
-          file: context.relative_file,
-          line: node.location.start_line,
-          end_line: node.location.end_line,
+          source_node: node,
+          context: context,
           defined_via: node.name,
           owner: context.owner,
           name: "#{name}=",
-          test: context.test,
           visibility: context.visibility
         )
       end
@@ -87,20 +83,18 @@ module Necropsy
         generated_name = delegated_method_name(name, target, prefix)
         kind, separator = method_kind_and_separator(context)
         id = "#{context.owner}#{separator}#{generated_name}"
-        nodes << Node.new(
-          id: id,
+        definition = add_definition(
+          symbol_id: id,
           kind: kind,
-          file: context.relative_file,
-          line: node.location.start_line,
-          end_line: node.location.end_line,
+          source_node: node,
+          context: context,
           defined_via: :delegate,
           owner: context.owner,
           name: generated_name,
-          test: context.test,
           visibility: context.visibility
         )
-        record_delegate_target(id, target, node, context) if target
-        record_delegated_message(id, name, node, context)
+        record_delegate_target(definition.graph_id, target, node, context) if target
+        record_delegated_message(definition.graph_id, name, node, context)
       end
       true
     end
@@ -121,20 +115,18 @@ module Necropsy
       definitions.each do |generated_name, delegated_name|
         kind, separator = method_kind_and_separator(context)
         id = "#{context.owner}#{separator}#{generated_name}"
-        nodes << Node.new(
-          id: id,
+        definition = add_definition(
+          symbol_id: id,
           kind: kind,
-          file: context.relative_file,
-          line: node.location.start_line,
-          end_line: node.location.end_line,
+          source_node: node,
+          context: context,
           defined_via: node.name,
           owner: context.owner,
           name: generated_name,
-          test: context.test,
           visibility: context.visibility
         )
-        record_delegate_target(id, target, node, context)
-        record_delegated_message(id, delegated_name, node, context)
+        record_delegate_target(definition.graph_id, target, node, context)
+        record_delegated_message(definition.graph_id, delegated_name, node, context)
       end
       true
     end

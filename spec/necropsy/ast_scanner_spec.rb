@@ -7,7 +7,10 @@ RSpec.describe Necropsy::AstScanner do
     let(:project_root) { create_project(files: files, config: config) }
     let(:config) { nil }
     let(:nodes_by_id) { scan.nodes.to_h { |node| [node.id, node] } }
-    let(:call_pairs) { scan.call_sites.map { |site| [site.caller_id, site.message] } }
+    let(:nodes_by_graph_id) { scan.nodes.to_h { |node| [node.graph_id, node] } }
+    let(:call_pairs) do
+      scan.call_sites.map { |site| [nodes_by_graph_id.fetch(site.caller_id).id, site.message] }
+    end
 
     context 'with Ruby method-definition forms' do
       let(:files) do
@@ -131,8 +134,11 @@ RSpec.describe Necropsy::AstScanner do
       end
 
       it 'records uncertainty around unresolved dynamic dispatch' do
-        expect(scan.uncertainties.fetch('ScannerChild#dispatch')).to include(match(/Dynamic dispatch/))
-        expect(scan.uncertainties.fetch('ScannerChild#method_missing')).to include('ScannerChild defines method_missing')
+        dispatch = nodes_by_id.fetch('ScannerChild#dispatch')
+        missing = nodes_by_id.fetch('ScannerChild#method_missing')
+
+        expect(scan.uncertainties.fetch(dispatch.graph_id)).to include(match(/Dynamic dispatch/))
+        expect(scan.uncertainties.fetch(missing.graph_id)).to include('ScannerChild defines method_missing')
       end
     end
 
@@ -245,7 +251,8 @@ RSpec.describe Necropsy::AstScanner do
       end
 
       it 'adds superclass namespaces after lexical candidates' do
-        site = scan.call_sites.find { |candidate| candidate.caller_id == 'ConstantChild#run' }
+        caller_id = nodes_by_id.fetch('ConstantChild#run').graph_id
+        site = scan.call_sites.find { |candidate| candidate.caller_id == caller_id }
 
         expect(site.metadata.fetch('receiver_candidates')).to include('ConstantParent::Service')
       end
@@ -336,7 +343,8 @@ RSpec.describe Necropsy::AstScanner do
           ['Child#dispatch', 'public_available?'],
           ['Child#dispatch', 'optional!']
         )
-        super_site = scan.call_sites.find { |site| site.caller_id == 'Child#render' && site.receiver_kind == :super }
+        caller_id = nodes_by_id.fetch('Child#render').graph_id
+        super_site = scan.call_sites.find { |site| site.caller_id == caller_id && site.receiver_kind == :super }
         expect(super_site).not_to be_nil
 
         references = scan.call_sites.select { |site| site.metadata['symbol_reference'] }

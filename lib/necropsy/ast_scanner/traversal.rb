@@ -5,11 +5,9 @@ module Necropsy
     private
 
     def copy_module_function_call_sites
-      module_functions = nodes.select { |node| node.defined_via == :module_function }
-      copies = module_functions.flat_map do |node|
-        instance_id = "#{node.owner}##{node.name}"
-        call_sites.select { |site| site.caller_id == instance_id }.map do |site|
-          site.with(caller_id: node.id, metadata: site.metadata.merge('module_function' => true))
+      copies = module_function_sources.flat_map do |copy_id, source_id|
+        call_sites.select { |site| site.caller_id == source_id }.map do |site|
+          site.with(caller_id: copy_id, metadata: site.metadata.merge('module_function' => true))
         end
       end
       call_sites.concat(copies)
@@ -17,22 +15,36 @@ module Necropsy
 
     def scan_file(file)
       relative = project.relative_path(file)
-      root_id = "file:#{relative}"
       test = project.test_file?(file)
-      nodes << Node.new(
-        id: root_id,
+      context = Context.new(
+        namespace: nil,
+        owner: nil,
+        current_caller_id: nil,
+        current_method_name: nil,
+        current_kind: :block_entry,
+        root_id: nil,
+        file: file,
+        relative_file: relative,
+        test: test,
+        singleton_scope: false,
+        visibility: :public,
+        module_function: false
+      )
+      result = Prism.parse(File.read(file))
+      root = add_definition(
+        symbol_id: "file:#{relative}",
         kind: :block_entry,
-        file: relative,
-        line: 1,
-        end_line: 1,
+        source_node: result.value,
+        context: context,
         defined_via: :file,
         owner: nil,
         name: relative,
-        test: test,
         visibility: :public
       )
+      root_id = root.graph_id
+      context.current_caller_id = root_id
+      context.root_id = root_id
 
-      result = Prism.parse(File.read(file))
       if result.failure?
         file_statuses[relative] = :recovered
         record_parse_errors(root_id, relative, result)
@@ -40,24 +52,9 @@ module Necropsy
         file_statuses[relative] = :complete
       end
 
-      visit(
-        result.value,
-        Context.new(
-          namespace: nil,
-          owner: nil,
-          current_caller_id: root_id,
-          current_kind: :block_entry,
-          root_id: root_id,
-          file: file,
-          relative_file: relative,
-          test: test,
-          singleton_scope: false,
-          visibility: :public,
-          module_function: false
-        )
-      )
+      visit(result.value, context)
     rescue SystemCallError, EncodingError => e
-      record_source_failure(root_id, relative, e)
+      record_source_failure(root_id || "file:#{relative}", relative, e)
     end
 
     def visit(node, context)
@@ -102,27 +99,26 @@ module Necropsy
       kind = node.receiver || context.singleton_scope ? :singleton_method : :instance_method
       separator = kind == :singleton_method ? '.' : '#'
       id = "#{owner}#{separator}#{node.name}"
-      nodes << Node.new(
-        id: id,
+      definition = add_definition(
+        symbol_id: id,
         kind: kind,
-        file: context.relative_file,
-        line: node.location.start_line,
-        end_line: node.location.end_line,
+        source_node: node,
+        context: context,
         defined_via: :def,
         owner: owner,
         name: node.name.to_s,
-        test: context.test,
         visibility: node.receiver ? :public : context.visibility
       )
       record_module_function_copy(node, context, owner) if kind == :instance_method && context.module_function
       if node.name == :method_missing
-        uncertainties[id] << "#{owner} defines method_missing"
+        uncertainties[definition.graph_id] << "#{owner} defines method_missing"
         class_record(owner)[:dynamic] = true
       end
 
       method_context = context.dup
       method_context.owner = owner
-      method_context.current_caller_id = id
+      method_context.current_caller_id = definition.graph_id
+      method_context.current_method_name = node.name.to_s
       method_context.current_kind = kind
       method_context.singleton_scope = false
       method_context.visibility = :public
@@ -159,7 +155,7 @@ module Necropsy
     end
 
     def visit_super(node, context)
-      method_name = context.current_caller_id&.split(/[.#]/)&.last
+      method_name = context.current_method_name
       if method_name
         call_sites << CallSite.new(
           caller_id: context.current_caller_id,

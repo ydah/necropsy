@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'prism'
+require_relative 'ast_scanner/definition_creation'
 require_relative 'ast_scanner/traversal'
 require_relative 'ast_scanner/value_definitions'
 require_relative 'ast_scanner/method_definitions'
@@ -50,6 +51,7 @@ module Necropsy
       :namespace,
       :owner,
       :current_caller_id,
+      :current_method_name,
       :current_kind,
       :root_id,
       :file,
@@ -72,14 +74,16 @@ module Necropsy
       @entrypoint_hints = []
       @file_statuses = {}
       @source_errors = []
+      @definition_ordinals = Hash.new(0)
+      @module_function_sources = {}
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
     end
 
     def scan
-      files.each { |file| scan_file(file) }
+      files.sort_by { |file| project.relative_path(file) }.each { |file| scan_file(file) }
       copy_module_function_call_sites
       ScanResult.new(
-        nodes: nodes.reverse.uniq(&:id).reverse,
+        nodes: nodes,
         call_sites: call_sites,
         instantiated_classes: instantiated_classes,
         uncertainties: uncertainties,
@@ -93,6 +97,6 @@ module Necropsy
     private
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
-                :entrypoint_hints, :file_statuses, :source_errors
+                :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources
   end
 end

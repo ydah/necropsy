@@ -15,30 +15,26 @@ module Necropsy
       instantiated_classes << owner
 
       symbol_arguments(node.value).each do |name|
-        nodes << Node.new(
-          id: "#{owner}##{name}",
+        add_definition(
+          symbol_id: "#{owner}##{name}",
           kind: :instance_method,
-          file: context.relative_file,
-          line: node.location.start_line,
-          end_line: node.location.end_line,
+          source_node: node,
+          context: context,
           defined_via: node.value.name == :define ? :data_define : :struct_new,
           owner: owner,
           name: name,
-          test: context.test,
           visibility: :public
         )
         next if node.value.name == :define
 
-        nodes << Node.new(
-          id: "#{owner}##{name}=",
+        add_definition(
+          symbol_id: "#{owner}##{name}=",
           kind: :instance_method,
-          file: context.relative_file,
-          line: node.location.start_line,
-          end_line: node.location.end_line,
+          source_node: node,
+          context: context,
           defined_via: :struct_new,
           owner: owner,
           name: "#{name}=",
-          test: context.test,
           visibility: :public
         )
       end

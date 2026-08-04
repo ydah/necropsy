@@ -13,23 +13,22 @@ module Necropsy
 
       kind, separator = method_kind_and_separator(context)
       id = "#{context.owner}#{separator}#{method_name}"
-      nodes << Node.new(
-        id: id,
+      definition = add_definition(
+        symbol_id: id,
         kind: kind,
-        file: context.relative_file,
-        line: node.location.start_line,
-        end_line: node.location.end_line,
+        source_node: node,
+        context: context,
         defined_via: :define_method,
         owner: context.owner,
         name: method_name,
-        test: context.test,
         visibility: context.visibility
       )
       record_module_function_copy(node, context, context.owner, method_name) if context.module_function
 
       if node.block
         block_context = context.dup
-        block_context.current_caller_id = id
+        block_context.current_caller_id = definition.graph_id
+        block_context.current_method_name = method_name
         block_context.current_kind = kind
         block_context.singleton_scope = false
         block_context.visibility = :public
@@ -47,22 +46,21 @@ module Necropsy
       return false unless owner && method_name
 
       id = "#{owner}.#{method_name}"
-      nodes << Node.new(
-        id: id,
+      definition = add_definition(
+        symbol_id: id,
         kind: :singleton_method,
-        file: context.relative_file,
-        line: node.location.start_line,
-        end_line: node.location.end_line,
+        source_node: node,
+        context: context,
         defined_via: :define_singleton_method,
         owner: owner,
         name: method_name,
-        test: context.test,
         visibility: :public
       )
       if node.block
         block_context = context.dup
         block_context.owner = owner
-        block_context.current_caller_id = id
+        block_context.current_caller_id = definition.graph_id
+        block_context.current_method_name = method_name
         block_context.current_kind = :singleton_method
         block_context.singleton_scope = false
         block_context.visibility = :public
@@ -116,13 +114,13 @@ module Necropsy
         context.module_function = true
         context.visibility = :private
       else
-        names.each { |name| promote_module_function(context, name, node.location) }
+        names.each { |name| promote_module_function(context, name, node) }
       end
       true
     end
 
     def record_module_function_copy(node, context, _owner, method_name = node.name.to_s)
-      promote_module_function(context, method_name, node.location)
+      promote_module_function(context, method_name, node)
     end
 
     def handle_alias_method(node, context)
@@ -132,7 +130,7 @@ module Necropsy
       new_name, old_name = symbol_arguments(node)
       return false unless new_name && old_name
 
-      record_alias_method(context, node.location, new_name, old_name)
+      record_alias_method(context, node, new_name, old_name)
       true
     end
 
@@ -141,32 +139,30 @@ module Necropsy
 
       new_name = node.new_name.unescaped.to_s
       old_name = node.old_name.unescaped.to_s
-      record_alias_method(context, node.location, new_name, old_name)
+      record_alias_method(context, node, new_name, old_name)
     end
 
-    def record_alias_method(context, location, new_name, old_name)
+    def record_alias_method(context, source_node, new_name, old_name)
       kind = context.singleton_scope ? :singleton_method : :instance_method
       separator = kind == :singleton_method ? '.' : '#'
       id = "#{context.owner}#{separator}#{new_name}"
-      nodes << Node.new(
-        id: id,
+      definition = add_definition(
+        symbol_id: id,
         kind: kind,
-        file: context.relative_file,
-        line: location.start_line,
-        end_line: location.end_line,
+        source_node: source_node,
+        context: context,
         defined_via: :alias_method,
         owner: context.owner,
         name: new_name,
-        test: context.test,
         visibility: context.visibility
       )
       call_sites << CallSite.new(
-        caller_id: id,
+        caller_id: definition.graph_id,
         message: old_name,
         receiver_kind: :self,
         receiver_name: context.owner,
         file: context.relative_file,
-        line: location.start_line,
+        line: source_node.location.start_line,
         test: context.test,
         dynamic: false,
         metadata: { 'original_message' => old_name, 'alias_method' => true }

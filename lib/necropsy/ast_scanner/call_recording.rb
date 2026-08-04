@@ -149,25 +149,24 @@ module Necropsy
       nodes[index] = nodes[index].with(visibility: visibility) if index
     end
 
-    def promote_module_function(context, name, location)
+    def promote_module_function(context, name, source_node)
       instance_id = "#{context.owner}##{name}"
       index = nodes.rindex { |candidate| candidate.id == instance_id }
       return unless index
 
       instance_node = nodes[index]
       nodes[index] = instance_node.with(visibility: :private)
-      nodes << Node.new(
-        id: "#{context.owner}.#{name}",
+      copy = add_definition(
+        symbol_id: "#{context.owner}.#{name}",
         kind: :singleton_method,
-        file: context.relative_file,
-        line: location.start_line,
-        end_line: location.end_line,
+        source_node: source_node,
+        context: context,
         defined_via: :module_function,
         owner: context.owner,
         name: name,
-        test: context.test,
         visibility: :public
       )
+      module_function_sources[copy.graph_id] = instance_node.graph_id
     end
   end
 end
