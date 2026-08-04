@@ -6,6 +6,7 @@ module Necropsy
   class Configuration
     DEFAULT_FAIL_ON = :high
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
+    RTA_PRUNING_MODES = %w[rank_only legacy].freeze
     TOP_LEVEL_KEYS = %w[
       analyzers frameworks entry_points ci quarantine bench cache rta resolution paths report logging implicit_callers
     ].freeze
@@ -17,7 +18,7 @@ module Necropsy
       'quarantine' => %w[days],
       'bench' => %w[precision_threshold recall_threshold],
       'cache' => %w[enabled path],
-      'rta' => %w[factory_methods],
+      'rta' => %w[factory_methods pruning],
       'resolution' => %w[ambiguity_limit],
       'paths' => %w[include exclude],
       'report' => %w[include exclude],
@@ -117,6 +118,14 @@ module Necropsy
       Array(fetch('rta', 'factory_methods') || %w[build create build_stubbed]).map(&:to_s)
     end
 
+    def rta_pruning
+      configured = fetch('rta', 'pruning')
+      mode = configured.nil? ? 'rank_only' : configured.to_s
+      return mode.to_sym if RTA_PRUNING_MODES.include?(mode)
+
+      raise Error, "rta.pruning must be one of: #{RTA_PRUNING_MODES.join(', ')}"
+    end
+
     def ambiguity_limit
       value = fetch('resolution', 'ambiguity_limit')
       return 4 if value.nil?
@@ -195,6 +204,7 @@ module Necropsy
       end
       validate_custom_analyzers!
       validate_implicit_callers!
+      rta_pruning
       ambiguity_limit
     end
 

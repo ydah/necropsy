@@ -8,7 +8,7 @@ entry points.
 Necropsy includes:
 
 - Prism-based method collection for ordinary, singleton, delegated, aliased, forwarded, and dynamically defined methods
-- static name resolution, CHA, and RTA-style filtering over instantiated classes
+- static name resolution and CHA, with rank-only RTA hints from classes instantiated in the scanned program
 - Prism-backed Rails route parsing plus callback, view, component, migration, plain Ruby, and test-suite entry points
 - `unreachable`, `unused`, and `test_only_reachable` classifications
 - confidence levels, compact JSON/YAML reports, SARIF/GitHub output, CI guardrails, dynamic collectors, and benchmarking
@@ -99,6 +99,8 @@ analyzers:
   custom:
     - class: "MyCompany::GraphqlEntryAnalyzer"
       require: "config/necropsy/graphql_entry_analyzer"
+rta:
+  pruning: rank_only # use legacy only for temporary compatibility with pre-0.2.1 edge pruning
 cache:
   enabled: true
   path: .necropsy_cache/scan.json

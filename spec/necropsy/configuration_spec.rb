@@ -16,6 +16,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.baseline_path).to eq('.necropsy_baseline.yml')
         expect(configuration.cache_enabled?).to eq(true)
         expect(configuration.factory_methods).to include('build', 'create', 'build_stubbed')
+        expect(configuration.rta_pruning).to eq(:rank_only)
         expect(configuration.ambiguity_limit).to eq(4)
         expect(configuration.cache_path).to eq('.necropsy_cache/scan.json')
         expect(configuration.include_paths).to eq([])
@@ -39,7 +40,7 @@ RSpec.describe Necropsy::Configuration do
           quarantine: { days: 7 },
           bench: { precision_threshold: 0.9, recall_threshold: 0.8 },
           cache: { enabled: false, path: 'tmp/cache.yml' },
-          rta: { factory_methods: ['spawn'] },
+          rta: { factory_methods: ['spawn'], pruning: 'legacy' },
           resolution: { ambiguity_limit: 4 },
           implicit_callers: [
             { name_pattern: '^on_', owner_ancestors: ['Framework::Base'], reason: 'framework callback' }
@@ -62,6 +63,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.cache_enabled?).to eq(false)
         expect(configuration.cache_path).to eq('tmp/cache.yml')
         expect(configuration.factory_methods).to eq(['spawn'])
+        expect(configuration.rta_pruning).to eq(:legacy)
         expect(configuration.ambiguity_limit).to eq(4)
         expect(configuration.implicit_callers.first).to include(
           name_pattern: /^on_/,
@@ -86,6 +88,17 @@ RSpec.describe Necropsy::Configuration do
 
       it 'rejects the value' do
         expect { configuration }.to raise_error(Necropsy::Error, /ambiguity_limit/)
+      end
+    end
+
+    context 'with an invalid RTA pruning mode' do
+      let(:config_data) { { rta: { pruning: 'aggressive' } } }
+
+      it 'rejects the value' do
+        expect { configuration }.to raise_error(
+          Necropsy::Error,
+          'rta.pruning must be one of: rank_only, legacy'
+        )
       end
     end
 

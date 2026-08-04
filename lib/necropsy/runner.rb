@@ -22,7 +22,7 @@ module Necropsy
         graph.apply_result(result)
         rta_results << result if analyzer.profile.name == :rta
       end
-      rta_results.each { |result| graph.reconcile_rta_result(result) }
+      rta_results.each { |result| graph.reconcile_rta_result(result) } if config.rta_pruning == :legacy
 
       reachability = Reachability::Engine.new(graph).call
       findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings

@@ -3,6 +3,14 @@
 RSpec.describe Necropsy::Analyzers::Static::RTA do
   subject(:analyzer) { described_class.new }
 
+  describe '#profile' do
+    it 'describes RTA output as rank-only evidence' do
+      expect(analyzer.profile.description).to eq(
+        'Marks constructed-class dispatch candidates as ranking and diagnostic evidence.'
+      )
+    end
+  end
+
   describe '#analyze' do
     subject(:result) { analyzer.analyze(graph, nil) }
 
@@ -34,5 +42,31 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
       expect(analyzer.implicit_messages('sort')).to include('<=>', 'each')
       expect(analyzer.implicit_messages('puts')).to eq(['to_s'])
     end
+  end
+
+  it 'keeps reachability monotonic as roots, edges, and allocations are added' do
+    reachable = lambda do |instantiated_classes: Set.new, extra_root: false, extra_edge: false|
+      caller = node('Caller#run', owner: 'Caller', name: 'run')
+      other_root = node('Other#run', owner: 'Other', name: 'run')
+      target = node('Live#render', owner: 'Live', name: 'render')
+      extra = node('Extra#work', owner: 'Extra', name: 'work')
+      site = call_site(caller_id: caller.id, message: 'render', receiver_kind: :unknown)
+      graph = graph_with(
+        nodes: [caller, other_root, target, extra],
+        call_sites: [site],
+        instantiated_classes: instantiated_classes
+      )
+      graph.add_entry_point(caller.id, :main_script)
+      graph.add_entry_point(other_root.id, :main_script) if extra_root
+      graph.add_edge(caller.id, extra.id, evidence) if extra_edge
+      graph.apply_result(analyzer.analyze(graph, nil))
+      Necropsy::Reachability::Engine.new(graph).call.runtime_alive.to_set
+    end
+
+    baseline = reachable.call
+
+    expect(baseline - reachable.call(extra_root: true)).to be_empty
+    expect(baseline - reachable.call(extra_edge: true)).to be_empty
+    expect(baseline - reachable.call(instantiated_classes: Set['Live'])).to be_empty
   end
 end

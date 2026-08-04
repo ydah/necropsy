@@ -144,7 +144,7 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.resolve_call_site(site, rta: true).map(&:id)).to eq(['Parent#render'])
   end
 
-  it 'uses RTA results to remove broader standard static edges for the same call site' do
+  it 'supports legacy reconciliation of broader standard static edges for the same call site' do
     caller = node('Caller#run', owner: 'Caller', name: 'run')
     base = node('Base#render', owner: 'Base', name: 'render')
     live = node('Live#render', owner: 'Live', name: 'render')

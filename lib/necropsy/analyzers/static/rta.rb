@@ -41,7 +41,7 @@ module Necropsy
             name: :rta,
             kind: :static,
             soundness: :partial,
-            description: 'Narrows instance dispatch to classes that are constructed in the scanned program.'
+            description: 'Marks constructed-class dispatch candidates as ranking and diagnostic evidence.'
           )
         end
 
