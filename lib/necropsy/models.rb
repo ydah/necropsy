@@ -52,6 +52,33 @@ module Necropsy
 
       values.is_a?(Array) ? values : [values]
     end
+
+    def canonical(value)
+      case value
+      when nil
+        'nil'
+      when true, false, Numeric
+        "#{value.class}:#{value}"
+      when Symbol
+        "symbol:#{canonical_string(value)}"
+      when String
+        "string:#{canonical_string(value)}"
+      when Array
+        "array:[#{value.map { |item| canonical(item) }.join(',')}]"
+      when Hash
+        pairs = value.map { |key, item| [canonical(key), canonical(item)] }.sort_by(&:first)
+        "hash:{#{pairs.map { |key, item| "#{key}=#{item}" }.join(',')}}"
+      else
+        return canonical(value.to_h) if value.respond_to?(:to_h)
+
+        "#{value.class}:#{canonical_string(value)}"
+      end
+    end
+
+    def canonical_string(value)
+      string = value.to_s
+      "#{string.bytesize}:#{string}"
+    end
   end
   private_constant :ModelNormalization
 
@@ -350,9 +377,9 @@ module Necropsy
     def initialize(analyzer:, kind:, weight:, details:, metadata:, evidence_id: nil, producer: nil,
                    producer_version: nil, grade: nil, relation: nil, source: nil, assumptions: [], scope: nil)
       grade = grade.to_sym if grade.respond_to?(:to_sym)
-      raise ArgumentError, "invalid evidence grade: #{grade.inspect}" if grade && !EVIDENCE_GRADES.include?(grade)
+      raise ArgumentError, "invalid evidence grade: #{grade.inspect}" unless grade.nil? || EVIDENCE_GRADES.include?(grade)
 
-      evidence_id = ModelNormalization.identifier(evidence_id, 'evidence_id') if evidence_id
+      evidence_id = ModelNormalization.identifier(evidence_id, 'evidence_id') unless evidence_id.nil?
       assumptions = ModelNormalization.string_list(assumptions, 'assumption')
       if grade.nil? && provenance_present?(evidence_id, producer, producer_version, relation, source, assumptions, scope)
         raise ArgumentError, 'evidence grade may be nil only for legacy evidence'
@@ -382,7 +409,7 @@ module Necropsy
     private
 
     def provenance_present?(evidence_id, producer, producer_version, relation, source, assumptions, scope)
-      [evidence_id, producer, producer_version, relation, source, scope].any? || assumptions.any?
+      [evidence_id, producer, producer_version, relation, source, scope].any? { |value| !value.nil? } || assumptions.any?
     end
   end
 
@@ -638,10 +665,7 @@ module Necropsy
     def normalize_resolutions(values)
       ModelNormalization.list(values).map do |value|
         normalize_resolution_record(value)
-      end.sort_by do |record|
-        resolution = record.resolution
-        [record.identity_key, resolution.status.to_s, resolution.target_definition_ids, resolution.evidence_ids]
-      end.freeze
+      end.sort_by { |record| ModelNormalization.canonical(record.to_h) }.freeze
     end
 
     def normalize_resolution_record(value)

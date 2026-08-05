@@ -214,17 +214,22 @@ RSpec.describe 'structured analysis models' do
     end
 
     it 'rejects invalid grades and nil grades on provenance-aware evidence' do
-      expect do
-        described_class.new(
-          analyzer: :spec, kind: :call_edge, weight: 1.0, details: 'bad', metadata: {}, grade: :likely
-        )
-      end.to raise_error(ArgumentError, /grade/)
-      expect do
-        described_class.new(
-          analyzer: :spec, kind: :call_edge, weight: 1.0, details: 'bad', metadata: {},
-          producer: :spec, grade: nil
-        )
-      end.to raise_error(ArgumentError, /legacy/)
+      [:likely, false].each do |grade|
+        expect do
+          described_class.new(
+            analyzer: :spec, kind: :call_edge, weight: 1.0, details: 'bad', metadata: {}, grade: grade
+          )
+        end.to raise_error(ArgumentError, /grade/)
+      end
+
+      %i[producer source scope].each do |attribute|
+        expect do
+          described_class.new(
+            analyzer: :spec, kind: :call_edge, weight: 1.0, details: 'bad', metadata: {},
+            grade: nil, **{ attribute => false }
+          )
+        end.to raise_error(ArgumentError, /legacy/)
+      end
     end
   end
 
@@ -310,7 +315,32 @@ RSpec.describe 'structured analysis models' do
       )
 
       expect(forward.resolutions).to eq(reverse.resolutions)
-      expect(forward.resolutions.map(&:producer)).to eq(%w[first second])
+      expect(forward.resolutions.map(&:producer)).to contain_exactly('first', 'second')
+    end
+
+    it 'orders mixed producer versions and complete record contents deterministically' do
+      legacy = Necropsy::ResolutionRecord.new(resolution: resolution, producer: :spec)
+      versioned = Necropsy::ResolutionRecord.new(
+        resolution: resolution, producer: :spec, producer_version: '1'
+      )
+      scoped = %w[b* a*].map do |pattern|
+        Necropsy::ResolutionRecord.new(
+          resolution: Necropsy::Resolution.new(
+            call_site_id: resolution.call_site_id,
+            target_definition_ids: [],
+            status: :unknown,
+            unknown_scope: { scope_kind: :message, scope_value: pattern, match: :glob }
+          ),
+          producer: :spec,
+          producer_version: '2'
+        )
+      end
+      attributes = { edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {} }
+
+      forward = described_class.new(**attributes, resolutions: [legacy, versioned, *scoped])
+      reverse = described_class.new(**attributes, resolutions: [*scoped.reverse, versioned, legacy])
+
+      expect(reverse.resolutions).to eq(forward.resolutions)
     end
   end
 end
