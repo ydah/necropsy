@@ -104,12 +104,16 @@ RSpec.describe 'Necropsy model objects' do
       expect(result.uncertainties).to eq({})
       expect(result.observation).to eq({})
       expect(result.blockers).to eq([])
+      expect(result.resolutions).to eq([])
+      expect(result.evidences).to eq([])
     end
 
     it 'keeps legacy custom analyzer construction compatible' do
       result = described_class.new(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {})
 
       expect(result.blockers).to eq([])
+      expect(result.resolutions).to be_nil
+      expect(result.evidences).to eq([])
     end
   end
 
