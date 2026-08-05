@@ -8,6 +8,7 @@ All notable changes to Necropsy are documented in this file.
 - Record structured call-site resolution, scoped blockers, evidence grades, and analyzer provenance, with conservative adaptation for existing custom static analyzers.
 - Store graph evidence once and expose exact, conservative, and scope-filtered observed views while preserving conservative reachability and the existing nested edge JSON.
 - Separate runtime, test, and external roots; library mode now protects public and protected APIs from dead-code findings, with optional conservative roots for every production file.
+- Separate analysis, repository reference, and report scopes so output filters cannot remove callers from the graph; reference-only Ruby definitions are not reported, and narrowed scans expose entry-point and symlink diagnostics.
 
 ## 0.2.1 - 2026-08-04
 

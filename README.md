@@ -136,6 +136,8 @@ implicit_callers:
     owner_ancestors: ["RuboCop::Cop::Base"]
     reason: "RuboCop Commissioner callback"
 paths:
+  analyze: ["**/*.rb", "Rakefile", "**/*.rake", "bin/*", "exe/*", "*.gemspec"]
+  reference: ["**/*"]
   exclude: ["app/legacy/**/*.rb"]
 report:
   include: ["app/**", "lib/**"]
@@ -155,8 +157,8 @@ logging:
   verbose: false
 ```
 
-The scan cache is invalidated when scanned Ruby files or configuration values
-change.
+The scan cache is invalidated when analyzed Ruby files, reference files, or
+configuration values change.
 
 `analysis.world: application` uses executable, framework, and configured roots.
 Use `library` when callers may live outside the repository: every non-test
@@ -179,11 +181,24 @@ Ruby VM hooks and common protocol methods receive lower confidence because
 their callers may not appear in source. Add `implicit_callers` rules for
 framework or application callbacks; `owner_ancestors` is optional.
 
-`paths.include` narrows the source files used to construct the call graph and
-can remove executables, tests, routes, and other entry points. Use
-`report.include` and `report.exclude` when the full project should be analyzed
-but only selected application paths should be reported. Necropsy warns when a
-configured `paths.include` excludes detected entry-point files.
+Source discovery has three independent scopes. `paths.analyze` selects Ruby
+definitions eligible for findings. `paths.reference` defaults to the whole
+repository and keeps Ruby callers outside the analysis scope in the graph;
+definitions found only there are never reported as dead-code findings. It also
+inventories non-Ruby files for conservative reference checks. `report.include`
+and `report.exclude` only filter output and never remove graph nodes or edges.
+When `paths.analyze` is omitted, the existing conventional Ruby source set
+(`*.rb`, `*.rake`, the root `Rakefile` and gem specifications, and Ruby
+executables directly under `bin/` or `exe/`) remains the analysis scope.
+
+`paths.exclude` continues to remove files from the analysis scope, while the
+legacy `paths.include` key remains an alias for `paths.analyze`. Narrowing the
+analysis scope can hide entry points, so reports include scope diagnostics and
+Necropsy warns when detected executables, tests, routes, or task files are left
+outside it. Repository discovery rejects symlinks and paths that resolve outside
+the project root. If `paths.reference` excludes non-test Ruby files that may
+contain callers, findings are conservatively `blocked` and the report lists the
+excluded count and sample until the reference scope is expanded.
 
 Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 `edges` with `caller_id`/`callee_id`, and an `observation` hash. SARIF and
