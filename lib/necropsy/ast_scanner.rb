@@ -20,10 +20,12 @@ module Necropsy
     :class_infos,
     :entrypoint_hints,
     :file_statuses,
-    :source_errors
+    :source_errors,
+    :source_domains,
+    :scope_diagnostics
   ) do
     def initialize(nodes:, call_sites:, instantiated_classes:, uncertainties:, class_infos:, entrypoint_hints:,
-                   file_statuses: {}, source_errors: [])
+                   file_statuses: {}, source_errors: [], source_domains: {}, scope_diagnostics: {})
       super
     end
   end
@@ -64,9 +66,11 @@ module Necropsy
       keyword_init: true
     )
 
-    def initialize(project:, files:)
+    def initialize(project:, files:, source_domains: nil, scope_diagnostics: {})
       @project = project
       @files = files
+      @source_domains = source_domains || files.to_h { |file| [project.relative_path(file), :analyze] }
+      @scope_diagnostics = scope_diagnostics
       @nodes = []
       @call_sites = []
       @instantiated_classes = Set.new
@@ -94,7 +98,9 @@ module Necropsy
         class_infos: class_infos,
         entrypoint_hints: entrypoint_hints.uniq,
         file_statuses: file_statuses,
-        source_errors: source_errors
+        source_errors: source_errors,
+        source_domains: source_domains,
+        scope_diagnostics: scope_diagnostics
       )
     end
 
@@ -102,6 +108,6 @@ module Necropsy
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
-                :deferred_module_functions, :call_site_ordinals
+                :deferred_module_functions, :call_site_ordinals, :source_domains, :scope_diagnostics
   end
 end

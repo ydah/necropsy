@@ -31,6 +31,7 @@ module Necropsy
       def findings
         graph.method_nodes.filter_map do |node|
           next if node.test
+          next unless graph.analyze_source?(node.file)
 
           blockers = graph.matching_blockers(node)
           classification = classification_for(node, blockers)

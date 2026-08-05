@@ -12,7 +12,7 @@ module Necropsy
       RouteContext = Struct.new(:modules, :resource, :controller, keyword_init: true)
 
       def apply(graph, project)
-        return unless project.config.rails_enabled?
+        return unless project.config.rails_enabled?(reference_files: project.reference_files)
 
         referenced_view_methods = view_method_names(project)
         graph.method_nodes.each do |node|
@@ -55,12 +55,12 @@ module Necropsy
 
       def route_entry_points(project)
         routes = File.join(project.root, 'config/routes.rb')
-        parse_route_file(project.root, routes, seen: {}, concerns: {})
+        parse_route_file(project, routes, seen: {}, concerns: {})
       end
 
-      def parse_route_file(root, path, seen:, concerns:)
-        expanded = File.expand_path(path, root)
-        return [] unless File.exist?(expanded)
+      def parse_route_file(project, path, seen:, concerns:)
+        expanded = File.expand_path(path, project.root)
+        return [] unless project.reference_file?(expanded)
         return [] if seen[expanded]
 
         seen[expanded] = true
@@ -71,7 +71,7 @@ module Necropsy
         parse_route_statements(
           result.value.statements,
           source: source,
-          root: root,
+          project: project,
           seen: seen,
           concerns: concerns,
           context: RouteContext.new(modules: [], resource: nil)
@@ -80,17 +80,18 @@ module Necropsy
         []
       end
 
-      def parse_route_statements(statements, source:, root:, seen:, concerns:, context:)
+      def parse_route_statements(statements, source:, project:, seen:, concerns:, context:)
         Array(statements&.body).flat_map do |statement|
-          parse_route_statement(statement, source: source, root: root, seen: seen, concerns: concerns,
+          parse_route_statement(statement, source: source, project: project, seen: seen, concerns: concerns,
                                            context: context)
         end.compact.uniq
       end
 
-      def parse_route_statement(statement, source:, root:, seen:, concerns:, context:)
+      def parse_route_statement(statement, source:, project:, seen:, concerns:, context:)
         unless statement.is_a?(Prism::CallNode)
           return statement.child_nodes.compact.flat_map do |child|
-            parse_route_statement(child, source: source, root: root, seen: seen, concerns: concerns, context: context)
+            parse_route_statement(child, source: source, project: project, seen: seen, concerns: concerns,
+                                         context: context)
           end
         end
 
@@ -102,8 +103,8 @@ module Necropsy
         end
 
         targets = route_targets(call_source, context)
-        targets.concat(route_file_targets(call_source, root, seen, concerns))
-        targets.concat(concern_targets(call_source, context, root, seen, concerns))
+        targets.concat(route_file_targets(call_source, project, seen, concerns))
+        targets.concat(concern_targets(call_source, context, project, seen, concerns))
         return targets unless statement.block
 
         child_context = nested_route_context(call_source, context)
@@ -111,7 +112,7 @@ module Necropsy
           parse_route_statements(
             statement.block.body,
             source: source,
-            root: root,
+            project: project,
             seen: seen,
             concerns: concerns,
             context: child_context
@@ -207,13 +208,18 @@ module Necropsy
         end
       end
 
-      def route_file_targets(line, root, seen, concerns)
+      def route_file_targets(line, project, seen, concerns)
         return [] unless (match = line.match(/\bdraw\s+:?["']?([a-zA-Z_]\w*)/))
 
-        parse_route_file(root, File.join(root, "config/routes/#{match[1]}.rb"), seen: seen, concerns: concerns)
+        parse_route_file(
+          project,
+          File.join(project.root, "config/routes/#{match[1]}.rb"),
+          seen: seen,
+          concerns: concerns
+        )
       end
 
-      def concern_targets(line, context, root, seen, concerns)
+      def concern_targets(line, context, project, seen, concerns)
         target_context = concern_context(line, context)
         concern_names(line).flat_map do |name|
           statements, source = concerns[name]
@@ -222,7 +228,7 @@ module Necropsy
           parse_route_statements(
             statements,
             source: source,
-            root: root,
+            project: project,
             seen: seen,
             concerns: concerns,
             context: target_context
@@ -332,7 +338,9 @@ module Necropsy
       end
 
       def view_files(project)
-        Dir.glob(File.join(project.root, '{app/views,app/components}/**/*')).select { |path| File.file?(path) }
+        project.reference_files.select do |path|
+          project.relative_path(path).start_with?('app/views/', 'app/components/')
+        end
       end
 
       def view_source(path)

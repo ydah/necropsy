@@ -16,6 +16,7 @@ module Necropsy
       rta_pruning = normalize_rta_pruning(rta_pruning)
       project = Project.new(root: root, config: config)
       graph = CallGraph.new(project.scan_result, ambiguity_limit: config.ambiguity_limit)
+      project.scope_blockers.each { |blocker| graph.add_blocker(blocker) }
       rta_results = []
 
       apply_entry_points(graph, project)

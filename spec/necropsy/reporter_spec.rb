@@ -22,6 +22,40 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'with analysis-scope diagnostics' do
+      let(:format) { :human }
+      let(:graph) do
+        result = scan_result(
+          nodes: [],
+          scope_diagnostics: {
+            'analyze_file_count' => 1,
+            'reference_file_count' => 3,
+            'reference_only_ruby_files' => ['exe/tool'],
+            'potential_callers_outside_reference' => {
+              'count' => 2,
+              'runtime_count' => 1,
+              'samples' => ['app/caller.rb', 'spec/caller_spec.rb']
+            },
+            'potential_entry_points_outside_analyze' => [
+              { 'file' => 'exe/tool', 'reference_status' => 'reference_only' }
+            ],
+            'ignored_symlinks' => ['linked/outside.rb']
+          }
+        )
+        Necropsy::CallGraph.new(result)
+      end
+      let(:report) { report_with_findings([], graph: graph) }
+
+      it 'makes narrowed analysis and safely ignored paths visible' do
+        expect(rendered).to include(
+          'Analysis scope: analyzed Ruby=1, reference files=3, reference-only Ruby=1',
+          'Potential callers outside reference: 2 (runtime=1): app/caller.rb, spec/caller_spec.rb',
+          'Potential entry point outside analysis: exe/tool [reference_only]',
+          'Ignored symlink: linked/outside.rb'
+        )
+      end
+    end
+
     context 'with partially matched dynamic evidence' do
       let(:format) { :human }
       let(:report) do

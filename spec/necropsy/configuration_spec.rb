@@ -23,6 +23,8 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.quarantine_expiry).to eq(:warn)
         expect(configuration.cache_path).to eq('.necropsy_cache/scan.json')
         expect(configuration.include_paths).to eq([])
+        expect(configuration.analyze_paths).to eq([])
+        expect(configuration.reference_paths).to eq(['**/*'])
         expect(configuration.exclude_paths).to eq([])
         expect(configuration.report_include_paths).to eq([])
         expect(configuration.report_exclude_paths).to eq([])
@@ -49,6 +51,7 @@ RSpec.describe Necropsy::Configuration do
           implicit_callers: [
             { name_pattern: '^on_', owner_ancestors: ['Framework::Base'], reason: 'framework callback' }
           ],
+          paths: { analyze: ['lib/**'], reference: ['**/*'] },
           report: { include: ['app/**'], exclude: ['app/legacy/**'] }
         }
       end
@@ -78,8 +81,49 @@ RSpec.describe Necropsy::Configuration do
           owner_ancestors: ['Framework::Base'],
           reason: 'framework callback'
         )
+        expect(configuration.analyze_paths).to eq(['lib/**'])
+        expect(configuration.include_paths).to eq(['lib/**'])
+        expect(configuration.reference_paths).to eq(['**/*'])
         expect(configuration.report_include_paths).to eq(['app/**'])
         expect(configuration.report_exclude_paths).to eq(['app/legacy/**'])
+      end
+    end
+
+    context 'with legacy include paths' do
+      let(:config_data) { { paths: { include: ['app/**'], exclude: ['app/generated/**'] } } }
+
+      it 'uses include as an analyze-scope compatibility alias' do
+        expect(configuration.analyze_paths).to eq(['app/**'])
+        expect(configuration.include_paths).to eq(['app/**'])
+        expect(configuration).to be_legacy_include_paths
+        expect(configuration.reference_paths).to eq(['**/*'])
+      end
+    end
+
+    context 'with Rails auto-detection' do
+      let(:files) { { 'Gemfile.lock' => "    rails (8.0.0)\n", 'lib/example.rb' => '' } }
+
+      it 'detects Rails from a safely inventoried Gemfile by default' do
+        expect(configuration).to be_rails_enabled
+      end
+
+      context 'when the Gemfile is outside the reference scope' do
+        let(:config_data) { { paths: { reference: ['lib/**'] } } }
+
+        it 'does not enable Rails heuristics' do
+          expect(configuration).not_to be_rails_enabled
+        end
+      end
+    end
+
+    it 'does not auto-detect Rails through a Gemfile.lock symlink outside the repository' do
+      Dir.mktmpdir do |outside|
+        outside_gemfile = File.join(outside, 'Gemfile.lock')
+        File.write(outside_gemfile, "    rails (8.0.0)\n")
+        root = create_project
+        File.symlink(outside_gemfile, File.join(root, 'Gemfile.lock'))
+
+        expect(described_class.load(root: root)).not_to be_rails_enabled
       end
     end
 

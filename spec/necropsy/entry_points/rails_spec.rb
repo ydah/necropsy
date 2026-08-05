@@ -149,6 +149,61 @@ RSpec.describe Necropsy::EntryPoints::Rails do
         expect(entrypoints).not_to include('Admin::WidgetsController#index')
       end
     end
+
+    context 'when route and view files are outside the reference scope' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'config/routes.rb' => "get 'widgets', to: 'widgets#index'\n",
+            'app/views/widgets/index.html.erb' => '<%= widget_title %>'
+          },
+          config: { frameworks: ['rails'], paths: { reference: ['lib/**'] } }
+        )
+      end
+      let(:nodes) do
+        [
+          node('WidgetsController#index', owner: 'WidgetsController', name: 'index'),
+          node(
+            'WidgetsHelper#widget_title',
+            file: 'app/helpers/widgets_helper.rb',
+            owner: 'WidgetsHelper',
+            name: 'widget_title'
+          )
+        ]
+      end
+
+      it 'does not derive entry points from excluded references' do
+        expect(entrypoints).not_to include('WidgetsController#index', 'WidgetsHelper#widget_title')
+      end
+    end
+
+    it 'does not read route or view symlinks that resolve outside the repository' do
+      Dir.mktmpdir do |outside|
+        outside_route = File.join(outside, 'routes.rb')
+        outside_view = File.join(outside, 'index.html.erb')
+        File.write(outside_route, "get 'widgets', to: 'widgets#index'\n")
+        File.write(outside_view, '<%= widget_title %>')
+        root = create_project(config: { frameworks: ['rails'] })
+        FileUtils.mkdir_p(File.join(root, 'config'))
+        FileUtils.mkdir_p(File.join(root, 'app/views/widgets'))
+        File.symlink(outside_route, File.join(root, 'config/routes.rb'))
+        File.symlink(outside_view, File.join(root, 'app/views/widgets/index.html.erb'))
+        scoped_graph = graph_with(nodes: [
+                                    node('WidgetsController#index', owner: 'WidgetsController', name: 'index'),
+                                    node(
+                                      'WidgetsHelper#widget_title',
+                                      file: 'app/helpers/widgets_helper.rb',
+                                      owner: 'WidgetsHelper',
+                                      name: 'widget_title'
+                                    )
+                                  ])
+
+        described_class.new.apply(scoped_graph, project_for(root))
+
+        ids = scoped_graph.entry_points.map(&:node_id)
+        expect(ids).not_to include('WidgetsController#index', 'WidgetsHelper#widget_title')
+      end
+    end
   end
 
   def route_nodes

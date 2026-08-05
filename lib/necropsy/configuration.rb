@@ -25,7 +25,7 @@ module Necropsy
       'cache' => %w[enabled path],
       'rta' => %w[factory_methods pruning],
       'resolution' => %w[ambiguity_limit],
-      'paths' => %w[include exclude],
+      'paths' => %w[analyze reference include exclude],
       'report' => %w[include exclude],
       'logging' => %w[verbose]
     }.freeze
@@ -89,10 +89,13 @@ module Necropsy
       Array(data['frameworks']).map(&:to_s)
     end
 
-    def rails_enabled?
+    def rails_enabled?(reference_files: nil)
       return true if frameworks.include?('rails')
 
-      gemfiles = [File.join(root, 'Gemfile.lock'), File.join(root, 'Gemfile')]
+      reference_files ||= Project.new(root: root, config: self).reference_files
+      gemfiles = reference_files.select do |file|
+        %w[Gemfile.lock Gemfile].include?(relative_root_file(file))
+      end
       gemfiles.any? { |file| File.exist?(file) && File.read(file).match?(/(?:^|\s)rails(?:\s|\z|,)/) }
     end
 
@@ -178,8 +181,23 @@ module Necropsy
       raise Error, 'resolution.ambiguity_limit must be a positive integer or unlimited'
     end
 
+    def analyze_paths
+      configured = fetch('paths', 'analyze')
+      configured = fetch('paths', 'include') if configured.nil?
+      Array(configured).map(&:to_s)
+    end
+
+    def reference_paths
+      configured = fetch('paths', 'reference')
+      Array(configured.nil? ? ['**/*'] : configured).map(&:to_s)
+    end
+
     def include_paths
-      Array(fetch('paths', 'include')).map(&:to_s)
+      analyze_paths
+    end
+
+    def legacy_include_paths?
+      !fetch('paths', 'include').nil? && fetch('paths', 'analyze').nil?
     end
 
     def exclude_paths
@@ -209,6 +227,15 @@ module Necropsy
     end
 
     private
+
+    def relative_root_file(file)
+      expanded = File.expand_path(file)
+      return unless File.dirname(expanded) == root
+
+      File.basename(expanded)
+    rescue ArgumentError
+      nil
+    end
 
     def fetch(*keys)
       current = data

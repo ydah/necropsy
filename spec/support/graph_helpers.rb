@@ -55,14 +55,16 @@ module GraphHelpers
   end
 
   def scan_result(nodes:, call_sites: [], instantiated_classes: Set.new, uncertainties: {}, class_infos: [],
-                  entrypoint_hints: [])
+                  entrypoint_hints: [], source_domains: {}, scope_diagnostics: {})
     Necropsy::ScanResult.new(
       nodes: nodes,
       call_sites: call_sites,
       instantiated_classes: instantiated_classes,
       uncertainties: Hash.new { |hash, key| hash[key] = [] }.merge(uncertainties),
       class_infos: class_infos,
-      entrypoint_hints: entrypoint_hints
+      entrypoint_hints: entrypoint_hints,
+      source_domains: source_domains,
+      scope_diagnostics: scope_diagnostics
     )
   end
 

@@ -8,7 +8,8 @@ module Necropsy
     include ResolutionStore
 
     attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
-                :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors
+                :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors, :source_domains,
+                :scope_diagnostics
 
     def initialize(scan_result, ambiguity_limit: 4)
       @nodes = DefinitionIndex.new
@@ -23,6 +24,10 @@ module Necropsy
         [file.to_s, status.to_sym]
       end
       @source_errors = scan_result.source_errors.dup
+      @source_domains = scan_result.source_domains.to_h do |file, domain|
+        [file.to_s, domain.to_sym]
+      end
+      @scope_diagnostics = scan_result.scope_diagnostics.dup
       @ambiguity_limit = ambiguity_limit
       @blockers = []
       initialize_blocker_indexes
@@ -220,6 +225,10 @@ module Necropsy
       file_statuses.filter_map { |file, status| file unless status == :complete }.sort
     end
 
+    def analyze_source?(file)
+      source_domains.fetch(file.to_s, :analyze) == :analyze
+    end
+
     def source_incompleteness
       {
         'incomplete_files' => incomplete_files.length,
@@ -362,6 +371,8 @@ module Necropsy
         'blockers' => blockers.map(&:to_h),
         'file_statuses' => file_statuses.transform_values(&:to_s),
         'source_errors' => source_errors.map(&:to_h),
+        'source_domains' => source_domains.transform_values(&:to_s),
+        'scope_diagnostics' => scope_diagnostics,
         'observation' => observation
       }
     end

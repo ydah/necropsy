@@ -16,7 +16,7 @@ module Necropsy
       end
 
       def self.write(report, path:)
-        findings = report.findings.map do |finding|
+        findings = report.dead_methods(min_confidence: :low).map do |finding|
           {
             'fingerprint' => finding.fingerprint,
             'classification' => finding.classification.to_s,

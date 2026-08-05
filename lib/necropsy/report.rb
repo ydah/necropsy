@@ -70,6 +70,7 @@ module Necropsy
       definition_resolution = graph.observation['definition_resolution']
       result['definition_resolution'] = definition_resolution if definition_resolution
       result['source_incompleteness'] = graph.source_incompleteness if graph.incomplete_files.any?
+      result['analysis_scope'] = graph.scope_diagnostics unless graph.scope_diagnostics.empty?
       result
     end
 

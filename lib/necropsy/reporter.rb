@@ -44,6 +44,7 @@ module Necropsy
       append_dynamic_diagnostic(lines)
       append_definition_resolution_diagnostic(lines)
       append_source_diagnostic(lines)
+      append_analysis_scope_diagnostic(lines)
 
       findings.group_by(&:classification).sort_by do |classification, _|
         classification.to_s
@@ -139,6 +140,28 @@ module Necropsy
         errors.each do |error|
           lines << "Incomplete source: #{error['file']}:#{error['line']} [#{error['type']}] #{error['message']}"
         end
+      end
+    end
+
+    def append_analysis_scope_diagnostic(lines)
+      diagnostic = report.diagnostics['analysis_scope']
+      return unless diagnostic
+
+      reference_only = Array(diagnostic['reference_only_ruby_files'])
+      excluded_callers = diagnostic['potential_callers_outside_reference'] || {}
+      lines << "Analysis scope: analyzed Ruby=#{diagnostic.fetch('analyze_file_count')}, " \
+               "reference files=#{diagnostic.fetch('reference_file_count')}, " \
+               "reference-only Ruby=#{reference_only.length}"
+      if excluded_callers.fetch('count', 0).positive?
+        lines << "Potential callers outside reference: #{excluded_callers.fetch('count')} " \
+                 "(runtime=#{excluded_callers.fetch('runtime_count', 0)}): " \
+                 "#{Array(excluded_callers['samples']).join(', ')}"
+      end
+      Array(diagnostic['potential_entry_points_outside_analyze']).each do |entry|
+        lines << "Potential entry point outside analysis: #{entry.fetch('file')} [#{entry.fetch('reference_status')}]"
+      end
+      Array(diagnostic['ignored_symlinks']).each do |file|
+        lines << "Ignored symlink: #{file}"
       end
     end
 

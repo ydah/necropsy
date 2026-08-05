@@ -7,6 +7,7 @@ module Necropsy
     EXCLUDED_DIRECTORIES = %w[
       .bundle
       .git
+      .necropsy_cache
       coverage
       doc
       node_modules
@@ -23,30 +24,123 @@ module Necropsy
     end
 
     def scan_result
-      @scan_result ||= Cache::ScanCache.new(project: self).fetch(ruby_files) do
-        AstScanner.new(project: self, files: ruby_files).scan
+      @scan_result ||= Cache::ScanCache.new(project: self).fetch(cache_files) do
+        AstScanner.new(
+          project: self,
+          files: scan_files,
+          source_domains: source_domains,
+          scope_diagnostics: scope_diagnostics
+        ).scan
       end
     end
 
     def ruby_files
       @ruby_files ||= begin
-        globbed = Dir.glob(File.join(root, '**', '*.rb'))
-        special = %w[Rakefile].map { |name| File.join(root, name) }.select { |file| File.file?(file) }
-        rake = Dir.glob(File.join(root, '**', '*.rake'))
-        executables = Dir.glob(File.join(root, '{bin,exe}', '*')).select { |file| File.file?(file) }
-        gemspecs = Dir.glob(File.join(root, '*.gemspec'))
-        candidates = (globbed + special + rake + executables + gemspecs).uniq
-        candidates.select! { |file| analyzable_file?(file) }
-        warn_excluded_entry_points(candidates) if config.include_paths.any?
-        candidates.select! { |file| included_path?(relative_path(file)) } if config.include_paths.any?
+        candidates = if config.analyze_paths.any?
+                       ruby_candidates.dup
+                     else
+                       default_analyze_candidates.dup
+                     end
+        warn_excluded_entry_points(candidates) if config.analyze_paths.any? || config.exclude_paths.any?
+        candidates.select! { |file| analyzed_path?(relative_path(file)) } if config.analyze_paths.any?
         candidates.reject! { |file| excluded_path?(relative_path(file)) }
         candidates.sort
       end
     end
 
+    def reference_files
+      @reference_files ||= repository_files.select do |file|
+        config.reference_paths.any? { |pattern| path_matches?(pattern, relative_path(file)) }
+      end.sort
+    end
+
+    def reference_ruby_files
+      @reference_ruby_files ||= reference_files.select { |file| ruby_source?(file) }
+    end
+
+    def reference_file?(file)
+      reference_file_set.include?(File.expand_path(file, root))
+    rescue ArgumentError
+      false
+    end
+
+    def scan_files
+      @scan_files ||= (ruby_files + reference_ruby_files).uniq
+    end
+
+    def cache_files
+      @cache_files ||= (scan_files + reference_files).uniq
+    end
+
+    def scan_inventory_key
+      {
+        'ignored_symlinks' => ignored_symlinks.sort,
+        'ruby_files_outside_scopes' => ruby_files_outside_scopes.map { |file| relative_path(file) }
+      }
+    end
+
+    def source_domains
+      @source_domains ||= begin
+        analyzed = ruby_files.to_set
+        scan_files.to_h do |file|
+          [relative_path(file), analyzed.include?(file) ? :analyze : :reference]
+        end
+      end
+    end
+
+    def scope_diagnostics
+      @scope_diagnostics ||= begin
+        analyzed = ruby_files.to_set
+        references = reference_ruby_files.to_set
+        reference_only = (references - analyzed).map { |file| relative_path(file) }.sort
+        excluded_callers = ruby_files_outside_scopes.map { |file| relative_path(file) }
+        runtime_excluded_callers = excluded_callers.reject { |file| test_source_path?(file) }
+        potential = ruby_candidates.filter_map do |file|
+          next if analyzed.include?(file)
+          next unless potential_entry_point_path?(relative_path(file))
+
+          {
+            'file' => relative_path(file),
+            'reference_status' => references.include?(file) ? 'reference_only' : 'excluded'
+          }
+        end.sort_by { |entry| entry.fetch('file') }
+        {
+          'analyze_file_count' => ruby_files.length,
+          'reference_file_count' => reference_files.length,
+          'reference_only_ruby_files' => reference_only,
+          'potential_callers_outside_reference' => {
+            'count' => excluded_callers.length,
+            'runtime_count' => runtime_excluded_callers.length,
+            'samples' => excluded_callers.first(20)
+          },
+          'potential_entry_points_outside_analyze' => potential,
+          'ignored_symlinks' => ignored_symlinks.sort
+        }.tap { warn_excluded_callers(runtime_excluded_callers) }
+      end
+    end
+
+    def scope_blockers
+      excluded = scope_diagnostics.fetch('potential_callers_outside_reference')
+      return [] unless excluded.fetch('runtime_count').positive?
+
+      [Blocker.new(
+        kind: :reference_scope_incomplete,
+        scope_kind: :global,
+        scope_value: '*',
+        source: :source_discovery,
+        reason: "paths.reference excludes #{excluded.fetch('runtime_count')} non-test Ruby caller candidates",
+        suggested_action: :expand_reference_scope,
+        metadata: {
+          'caller_domain' => 'runtime',
+          'excluded_file_count' => excluded.fetch('count'),
+          'excluded_runtime_file_count' => excluded.fetch('runtime_count'),
+          'files' => excluded.fetch('samples')
+        }
+      )]
+    end
+
     def test_file?(file)
-      relative = relative_path(file)
-      relative.start_with?('spec/', 'test/')
+      test_source_path?(relative_path(file))
     end
 
     def relative_path(file)
@@ -59,25 +153,99 @@ module Necropsy
 
     private
 
-    def analyzable_file?(file)
-      relative_parts = relative_path(file).split(File::SEPARATOR)
-      return false if EXCLUDED_DIRECTORIES.include?(relative_parts.first)
+    def test_source_path?(relative)
+      relative.start_with?('spec/', 'test/')
+    end
 
-      ruby_source?(file)
+    def repository_files
+      @repository_files ||= begin
+        @ignored_symlinks = Set.new
+        entries = Dir.glob(File.join(root, '**', '*'), File::FNM_DOTMATCH).sort
+        entries.filter_map do |file|
+          next if excluded_repository_path?(file)
+          next if cache_output_path?(file)
+
+          if symlink_path?(file) || !real_path_within_root?(file)
+            @ignored_symlinks << relative_path(file) if File.symlink?(file) || File.file?(file)
+            next
+          end
+
+          file if File.file?(file)
+        rescue ArgumentError, SystemCallError
+          nil
+        end
+      end
+    end
+
+    def ruby_candidates
+      @ruby_candidates ||= repository_files.select { |file| ruby_source?(file) }
+    end
+
+    def reference_file_set
+      @reference_file_set ||= reference_files.to_set
+    end
+
+    def ruby_files_outside_scopes
+      @ruby_files_outside_scopes ||= (ruby_candidates.to_set - scan_files.to_set).to_a.sort
+    end
+
+    def default_analyze_candidates
+      @default_analyze_candidates ||= ruby_candidates.select do |file|
+        relative = relative_path(file)
+        next false if relative.split(File::SEPARATOR).any? { |part| part.start_with?('.') }
+
+        relative.end_with?('.rb', '.rake') || relative == 'Rakefile' ||
+          relative.match?(%r{\A(?:bin|exe)/[^/]+\z}) || relative.match?(%r{\A[^/]+\.gemspec\z})
+      end
+    end
+
+    def ignored_symlinks
+      repository_files unless defined?(@ignored_symlinks)
+      @ignored_symlinks
+    end
+
+    def excluded_repository_path?(file)
+      relative_parts = relative_path(file).split(File::SEPARATOR)
+      EXCLUDED_DIRECTORIES.include?(relative_parts.first)
+    rescue ArgumentError
+      true
+    end
+
+    def cache_output_path?(file)
+      File.expand_path(file) == File.expand_path(config.cache_path, root)
     rescue ArgumentError
       false
+    end
+
+    def symlink_path?(file)
+      current = file
+      until current == root
+        return true if File.symlink?(current)
+
+        parent = File.dirname(current)
+        return true if parent == current
+
+        current = parent
+      end
+      false
+    end
+
+    def real_path_within_root?(file)
+      real_root = @real_root ||= File.realpath(root)
+      real_file = File.realpath(file)
+      real_file == real_root || real_file.start_with?("#{real_root}#{File::SEPARATOR}")
     end
 
     def ruby_source?(file)
       return true if file.end_with?('.rb', '.rake', '.gemspec') || File.basename(file) == 'Rakefile'
 
-      File.open(file, &:readline).match?(/\A#!.*\bruby\b/)
-    rescue EOFError, SystemCallError, EncodingError
+      File.binread(file, 256).match?(/\A\#![^\r\n]*\bruby\b/n)
+    rescue SystemCallError
       false
     end
 
-    def included_path?(relative)
-      config.include_paths.any? { |pattern| path_matches?(pattern, relative) }
+    def analyzed_path?(relative)
+      config.analyze_paths.any? { |pattern| path_matches?(pattern, relative) }
     end
 
     def excluded_path?(relative)
@@ -85,21 +253,44 @@ module Necropsy
     end
 
     def path_matches?(pattern, relative)
-      File.fnmatch?(pattern, relative, File::FNM_PATHNAME | File::FNM_EXTGLOB) ||
-        File.fnmatch?(File.join(pattern, '**', '*'), relative, File::FNM_PATHNAME | File::FNM_EXTGLOB)
+      flags = File::FNM_PATHNAME | File::FNM_EXTGLOB | File::FNM_DOTMATCH
+      File.fnmatch?(pattern, relative, flags) || File.fnmatch?(File.join(pattern, '**', '*'), relative, flags)
     end
 
     def warn_excluded_entry_points(candidates)
       excluded = candidates.filter_map do |file|
         relative = relative_path(file)
-        relative if potential_entry_point_path?(relative) && !included_path?(relative)
+        relative if potential_entry_point_path?(relative) && !ruby_files_include_candidate?(relative)
       end
       return if excluded.empty?
 
       sample = excluded.sort.first(5)
       suffix = excluded.length > sample.length ? " and #{excluded.length - sample.length} more" : ''
-      warn "Necropsy paths.include excludes potential entry points: #{sample.join(', ')}#{suffix}. " \
+      scope = excluded_scope_label
+      warn "Necropsy #{scope} excludes potential entry points: #{sample.join(', ')}#{suffix}. " \
            'Use report.include to filter findings without narrowing analysis.'
+    end
+
+    def warn_excluded_callers(files)
+      return if files.empty?
+
+      sample = files.first(5)
+      suffix = files.length > sample.length ? " and #{files.length - sample.length} more" : ''
+      warn 'Necropsy paths.reference excludes Ruby files that may contain runtime callers: ' \
+           "#{sample.join(', ')}#{suffix}. Findings are blocked until the reference scope is expanded."
+    end
+
+    def excluded_scope_label
+      return 'paths.include' if config.legacy_include_paths?
+      return 'paths.analyze/paths.exclude' if config.analyze_paths.any? && config.exclude_paths.any?
+      return 'paths.exclude' if config.exclude_paths.any?
+
+      'paths.analyze'
+    end
+
+    def ruby_files_include_candidate?(relative)
+      included = config.analyze_paths.none? || analyzed_path?(relative)
+      included && !excluded_path?(relative)
     end
 
     def potential_entry_point_path?(relative)

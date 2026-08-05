@@ -63,7 +63,10 @@ module Necropsy
       end
 
       def gem_names(project)
-        Dir.glob(File.join(project.root, '*.gemspec')).filter_map do |path|
+        project.reference_files.filter_map do |path|
+          relative = project.relative_path(path)
+          next unless relative.match?(%r{\A[^/]+\.gemspec\z})
+
           File.read(path)[/\.name\s*=\s*["']([^"']+)["']/, 1]
         rescue SystemCallError, EncodingError
           nil

@@ -6,7 +6,7 @@ require 'json'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 9
+      VERSION = 10
 
       def initialize(project:)
         @project = project
@@ -78,6 +78,7 @@ module Necropsy
       def cache_metadata(files)
         {
           'files' => file_metadata(files),
+          'inventory' => project.scan_inventory_key,
           'configuration' => project.config.scan_cache_key
         }
       end
@@ -91,7 +92,9 @@ module Necropsy
           'class_infos' => result.class_infos.map(&:to_h),
           'entrypoint_hints' => result.entrypoint_hints.map(&:to_h),
           'file_statuses' => result.file_statuses.transform_values(&:to_s),
-          'source_errors' => result.source_errors.map(&:to_h)
+          'source_errors' => result.source_errors.map(&:to_h),
+          'source_domains' => result.source_domains.transform_values(&:to_s),
+          'scope_diagnostics' => result.scope_diagnostics
         }
       end
 
@@ -104,7 +107,9 @@ module Necropsy
           class_infos: Array(data['class_infos']).map { |info| deserialize_class_info(info) },
           entrypoint_hints: Array(data['entrypoint_hints']).map { |entry| deserialize_entry_point(entry) },
           file_statuses: (data['file_statuses'] || {}).transform_values(&:to_sym),
-          source_errors: Array(data['source_errors']).map { |error| deserialize_source_error(error) }
+          source_errors: Array(data['source_errors']).map { |error| deserialize_source_error(error) },
+          source_domains: (data['source_domains'] || {}).transform_values(&:to_sym),
+          scope_diagnostics: data['scope_diagnostics'] || {}
         )
       end
 

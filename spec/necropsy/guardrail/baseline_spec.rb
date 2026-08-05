@@ -34,4 +34,20 @@ RSpec.describe Necropsy::Guardrail::Baseline do
     expect(baseline.count_at_least(:high)).to eq(1)
     expect(baseline.count_at_least(:low)).to eq(2)
   end
+
+  it 'writes only findings visible in report scope' do
+    included = finding(id: 'Included#dead', file: 'lib/included.rb')
+    excluded = finding(id: 'Excluded#dead', file: 'app/excluded.rb')
+    graph = graph_with(nodes: [included.node, excluded.node])
+    report = Necropsy::Report.new(
+      root: '/repo', graph: graph, findings: [included, excluded], report_include_paths: ['lib/**']
+    )
+    path = File.join(Dir.mktmpdir, '.necropsy_baseline.yml')
+
+    described_class.write(report, path: path)
+
+    expect(YAML.load_file(path).fetch('findings').map { |entry| entry.fetch('node_id') }).to eq(
+      ['Included#dead']
+    )
+  end
 end
