@@ -200,6 +200,16 @@ the project root. If `paths.reference` excludes non-test Ruby files that may
 contain callers, findings are conservatively `blocked` and the report lists the
 excluded count and sample until the reference scope is expanded.
 
+For otherwise actionable candidates, Necropsy also scans reference-scope files
+that are not Ruby. Unexplained method names in templates, YAML, GraphQL SDL, and
+scheduler configuration become `unparsed_external_reference` blockers with the
+matching file, line, and snippet. Common names such as `call` or `run` require a
+review more often because safety takes precedence over yield; benchmark results
+identify formats that merit a dedicated parser. The scanner is a portable Ruby
+fallback with no `rg` dependency. It ignores comments, generated/tool metadata,
+binary formats, and files larger than 1 MiB; bounded skip counts and samples
+remain visible in report diagnostics.
+
 Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 `edges` with `caller_id`/`callee_id`, and an `observation` hash. SARIF and
 GitHub Actions annotations are available via `--format sarif` and
