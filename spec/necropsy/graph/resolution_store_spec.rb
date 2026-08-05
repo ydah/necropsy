@@ -76,6 +76,38 @@ RSpec.describe Necropsy::ResolutionStore do
     expect(graph.edges).to eq([])
   end
 
+  it 'keeps residual blockers distinct across assumptions and known targets' do
+    caller = node('Caller#run')
+    first_target = node('First#render', owner: 'First', name: 'render')
+    second_target = node('Second#render', owner: 'Second', name: 'render')
+    residual_target = node('Residual#render', owner: 'Residual', name: 'render')
+    site = call_site(caller_id: caller.graph_id, message: 'render', call_site_id: 'call:v1:residual-identity')
+    graph = graph_with(nodes: [caller, first_target, second_target, residual_target], call_sites: [site])
+    first = resolution_record(
+      site_id: site.call_site_id,
+      targets: [first_target.graph_id],
+      status: :partial,
+      assumptions: ['autoload=eager'],
+      scope: unknown_scope
+    )
+    second = resolution_record(
+      site_id: site.call_site_id,
+      targets: [second_target.graph_id],
+      status: :partial,
+      assumptions: ['autoload=lazy'],
+      scope: unknown_scope
+    )
+
+    apply_resolutions(graph, first, second)
+
+    blockers = graph.blockers.select { |blocker| blocker.kind == :partial_dispatch }
+    expect(blockers.length).to eq(2)
+    expect(blockers.map { |blocker| blocker.metadata.fetch('resolution_record_id') }.uniq.length).to eq(2)
+    expect(graph.matching_blockers(first_target).length).to eq(1)
+    expect(graph.matching_blockers(second_target).length).to eq(1)
+    expect(graph.matching_blockers(residual_target).length).to eq(2)
+  end
+
   it 'keeps unknown glob scopes as blockers without materializing candidate edges' do
     caller = node('Caller#run')
     matching = node('Renderer#render_pdf', owner: 'Renderer', name: 'render_pdf')
@@ -103,8 +135,9 @@ RSpec.describe Necropsy::ResolutionStore do
     caller = node('Caller#run')
     first_target = node('First#render', owner: 'First', name: 'render')
     second_target = node('Second#render', owner: 'Second', name: 'render')
+    unrelated_target = node('Unrelated#render', owner: 'Unrelated', name: 'render')
     site = call_site(caller_id: caller.graph_id, message: 'render', call_site_id: 'call:v1:conflict')
-    graph = graph_with(nodes: [caller, first_target, second_target], call_sites: [site])
+    graph = graph_with(nodes: [caller, first_target, second_target, unrelated_target], call_sites: [site])
     graph.add_edge(caller.graph_id, first_target.graph_id, evidence)
     graph.add_edge(caller.graph_id, second_target.graph_id, evidence)
     first = resolution_record(site_id: site.call_site_id, targets: [first_target.graph_id], status: :complete,
@@ -118,7 +151,37 @@ RSpec.describe Necropsy::ResolutionStore do
     expect(conflict.fetch('target_definition_ids')).to eq([first_target.graph_id, second_target.graph_id])
     expect(graph.resolution_records.length).to eq(2)
     expect(graph.blockers.map(&:kind)).to include(:resolution_conflict)
+    expect(graph.matching_blockers(first_target).map(&:kind)).to include(:resolution_conflict)
+    expect(graph.matching_blockers(second_target).map(&:kind)).to include(:resolution_conflict)
+    expect(graph.matching_blockers(unrelated_target).map(&:kind)).not_to include(:resolution_conflict)
     expect(graph.edges.map(&:callee_id)).to contain_exactly(first_target.graph_id, second_target.graph_id)
+  end
+
+  it 'keeps targetless conflicts diagnostic-only while residual scopes remain blocking' do
+    caller = node('Caller#run')
+    target = node('Target#render', owner: 'Target', name: 'render')
+    site = call_site(caller_id: caller.graph_id, message: 'render', call_site_id: 'call:v1:targetless-conflict')
+    graph = graph_with(nodes: [caller, target], call_sites: [site])
+    first = resolution_record(
+      site_id: site.call_site_id,
+      targets: [],
+      status: :unknown,
+      scope: unknown_scope(value: 'render')
+    )
+    second = resolution_record(
+      site_id: site.call_site_id,
+      targets: [],
+      status: :unknown,
+      scope: unknown_scope(value: 'render_*', match: :glob)
+    )
+
+    apply_resolutions(graph, first, second)
+
+    expect(graph.resolution_conflicts.map { |conflict| conflict.fetch('kind') }).to include(
+      'same_producer_divergence'
+    )
+    expect(graph.blockers.map(&:kind)).not_to include(:resolution_conflict)
+    expect(graph.blockers.map(&:kind)).to all(eq(:unknown_dispatch))
   end
 
   it 'detects producer divergence and partial targets outside a complete set' do
@@ -204,5 +267,161 @@ RSpec.describe Necropsy::ResolutionStore do
     )
     expect(graph.blockers.map(&:kind)).to include(:resolution_invalid)
     expect(graph.observation.fetch('call_site_resolutions')).to include('issue_count' => 2)
+  end
+
+  it 'refreshes resolution issues, blockers, and diagnostics when a missing target is added' do
+    caller = node('Caller#run')
+    missing = node('Missing#render', owner: 'Missing', name: 'render')
+    site = call_site(caller_id: caller.graph_id, message: 'render', call_site_id: 'call:v1:late-target')
+    graph = graph_with(nodes: [caller], call_sites: [site])
+    record = resolution_record(site_id: site.call_site_id, targets: [missing.graph_id], status: :complete)
+
+    apply_resolutions(graph, record)
+    expect(graph.resolution_issues.map { |issue| issue.fetch('kind') }).to eq(['unknown_target_definition'])
+    expect(graph.matching_blockers(missing).map(&:kind)).to eq([:resolution_invalid])
+
+    graph.add_node(missing)
+
+    expect(graph.resolution_issues).to eq([])
+    expect(graph.blockers.map(&:kind)).not_to include(:resolution_invalid)
+    expect(graph.observation.fetch('call_site_resolutions')).to include('issue_count' => 0)
+  end
+
+  it 'preserves reflective call visibility metadata on residual blockers' do
+    caller = node('Caller#run')
+    public_target = node('Public#render', owner: 'Public', name: 'render')
+    protected_target = node('Protected#render', owner: 'Protected', name: 'render', visibility: :protected)
+    private_target = node('Private#render', owner: 'Private', name: 'render', visibility: :private)
+    record_for = lambda do |site|
+      resolution_record(site_id: site.call_site_id, targets: [], status: :unknown, scope: unknown_scope)
+    end
+
+    public_send_site = call_site(
+      caller_id: caller.graph_id,
+      message: 'render',
+      call_site_id: 'call:v1:public-send',
+      metadata: { 'original_message' => 'public_send' }
+    )
+    public_send_graph = graph_with(
+      nodes: [caller, public_target, protected_target, private_target],
+      call_sites: [public_send_site]
+    )
+    apply_resolutions(public_send_graph, record_for.call(public_send_site))
+
+    expect(public_send_graph.matching_blockers(public_target).map(&:kind)).to eq([:unknown_dispatch])
+    expect(public_send_graph.matching_blockers(protected_target)).to eq([])
+    expect(public_send_graph.matching_blockers(private_target)).to eq([])
+
+    send_site = call_site(
+      caller_id: caller.graph_id,
+      message: 'render',
+      call_site_id: 'call:v1:send',
+      metadata: { 'original_message' => 'send' }
+    )
+    send_graph = graph_with(nodes: [caller, private_target], call_sites: [send_site])
+    apply_resolutions(send_graph, record_for.call(send_site))
+    expect(send_graph.matching_blockers(private_target).map(&:kind)).to eq([:unknown_dispatch])
+
+    respond_to_site = call_site(
+      caller_id: caller.graph_id,
+      message: 'render',
+      call_site_id: 'call:v1:respond-to',
+      metadata: { 'original_message' => 'respond_to?', 'include_private' => true }
+    )
+    respond_to_graph = graph_with(nodes: [caller, private_target], call_sites: [respond_to_site])
+    apply_resolutions(respond_to_graph, record_for.call(respond_to_site))
+    expect(respond_to_graph.matching_blockers(private_target).map(&:kind)).to eq([:unknown_dispatch])
+  end
+
+  it 'keeps duplicated test call sites test-only and message-scoped' do
+    first_caller = node('FirstSpec#run', file: 'spec/first_spec.rb', test: true)
+    second_caller = node('SecondSpec#run', file: 'spec/second_spec.rb', test: true)
+    production_target = node('Target#render', owner: 'Target', name: 'render')
+    site_id = 'call:v1:duplicate-test'
+    sites = [
+      call_site(caller_id: first_caller.graph_id, message: 'render', call_site_id: site_id, test: true),
+      call_site(caller_id: second_caller.graph_id, message: 'render', call_site_id: site_id, test: true)
+    ]
+    graph = graph_with(nodes: [first_caller, second_caller, production_target], call_sites: sites)
+    record = resolution_record(site_id: site_id, targets: [], status: :complete)
+
+    apply_resolutions(graph, record)
+
+    blocker = graph.blockers.find { |candidate| candidate.kind == :resolution_invalid }
+    expect(graph.resolution_issues.map { |issue| issue.fetch('kind') }).to eq(['ambiguous_call_site'])
+    expect(blocker).to have_attributes(scope_kind: :message, scope_value: 'render')
+    expect(blocker.caller_domain).to eq(:test)
+    expect(graph.matching_blockers(production_target)).to eq([])
+    expect(graph.matching_blockers(production_target, caller_domain: :test)).to eq([blocker])
+  end
+
+  it 'bounds fail-closed blockers for highly ambiguous mixed-domain call sites' do
+    target = node('Target#message_0', owner: 'Target', name: 'message_0')
+    site_id = 'call:v1:mixed-ambiguous'
+    sites = 20.times.map do |index|
+      call_site(
+        caller_id: "Caller#{index}#run",
+        message: "message_#{index}",
+        call_site_id: site_id,
+        test: index.odd?
+      )
+    end
+    graph = graph_with(nodes: [target], call_sites: sites)
+
+    apply_resolutions(graph, resolution_record(site_id: site_id, targets: [], status: :complete))
+
+    blockers = graph.blockers.select { |blocker| blocker.kind == :resolution_invalid }
+    expect(blockers.length).to eq(2)
+    expect(blockers.map(&:scope_kind).uniq).to eq([:global])
+    expect(blockers.map(&:caller_domain)).to contain_exactly(:runtime, :test)
+    expect(graph.matching_blockers(target).map(&:kind)).to eq([:resolution_invalid])
+    expect(graph.matching_blockers(target, caller_domain: :test).map(&:kind)).to eq([:resolution_invalid])
+  end
+
+  it 'canonicalizes mixed key types deterministically without collapsing them' do
+    graph = graph_with(nodes: [])
+    forward = { a: 1, 'a' => 2 }
+    reverse = { 'a' => 2, a: 1 }
+
+    expect(graph.send(:canonical_payload, forward)).to eq(graph.send(:canonical_payload, reverse))
+    expect(graph.send(:canonical_payload, forward)).not_to eq(
+      graph.send(:canonical_payload, { 'a' => 2 })
+    )
+  end
+
+  it 'turns cyclic, deeply nested, and oversized malformed records into bounded invalid diagnostics' do
+    graph = graph_with(nodes: [])
+    cyclic = { 'status' => 'invalid' }
+    cyclic['cycle'] = cyclic
+    deeply_nested = { 'status' => 'invalid' }
+    cursor = deeply_nested
+    500.times do
+      child = {}
+      cursor['child'] = child
+      cursor = child
+    end
+    oversized = { 'status' => 'invalid', 'items' => Array.new(20_000, 'item') }
+    result_type = Struct.new(
+      :edge_evidences,
+      :alive_evidences,
+      :uncertainties,
+      :observation,
+      :blockers,
+      :resolutions,
+      keyword_init: true
+    )
+    result = result_type.new(
+      edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [],
+      resolutions: [cyclic, deeply_nested, oversized]
+    )
+
+    expect do
+      graph.apply_result(result)
+    end.not_to raise_error
+
+    expect(graph.resolution_issues.length).to eq(3)
+    expect(graph.resolution_issues.map { |issue| issue.fetch('kind') }.uniq).to eq(['malformed_resolution'])
+    expect(graph.blockers.map(&:kind)).to include(:resolution_invalid)
+    expect(graph.observation.fetch('call_site_resolutions')).to include('issue_count' => 3)
   end
 end

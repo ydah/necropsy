@@ -51,8 +51,8 @@ module Necropsy
       @lookup_chain_cache = nil
       @owner_ancestor_cache = nil
       added = nodes.add(node)
-      rebuild_blocker_indexes if @blockers.any?
       register_duplicate_definition_blocker(node.symbol_id) if @duplicate_blockers_initialized
+      refresh_resolution_derived_state
       added
     end
 
@@ -484,7 +484,7 @@ module Necropsy
 
     def source_domain(file)
       source_nodes = nodes.values.select { |node| node.file == file }
-      return :runtime if source_nodes.empty?
+      return file.start_with?('spec/', 'test/') ? :test : :runtime if source_nodes.empty?
 
       source_nodes.all?(&:test) ? :test : :runtime
     end

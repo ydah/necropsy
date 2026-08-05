@@ -325,6 +325,43 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph).to have_received(:blocker_matches_node?).once
   end
 
+  it 'does not scan graph nodes while indexing message-bearing owner blockers' do
+    target = node('Target#call', owner: 'Target', name: 'call')
+    graph = graph_with(nodes: [target], class_infos: [class_info('Target')])
+    allow(graph).to receive(:method_nodes).and_call_original
+    blockers = 100.times.map do |index|
+      unresolved_blocker(
+        message: "other_#{index}",
+        scope_kind: :owner,
+        scope_value: ["Owner#{index}"],
+        receiver_kind: :instance
+      )
+    end
+    matching = unresolved_blocker(
+      message: 'call', scope_kind: :owner, scope_value: ['Target'], receiver_kind: :instance
+    )
+
+    [*blockers, matching].each { |blocker| graph.add_blocker(blocker) }
+    allow(graph).to receive(:blocker_matches_node?).and_call_original
+
+    expect(graph).not_to have_received(:method_nodes)
+    expect(graph.matching_blockers(target)).to eq([matching])
+    expect(graph).to have_received(:blocker_matches_node?).once
+  end
+
+  it 'matches message-less owner blockers against nodes added later without rebuilding indexes' do
+    graph = graph_with(nodes: [], class_infos: [class_info('Target')])
+    blocker = scope_blocker(:owner, 'Target')
+    graph.add_blocker(blocker)
+    allow(graph).to receive(:initialize_blocker_indexes).and_call_original
+
+    target = node('Target#call', owner: 'Target', name: 'call')
+    graph.add_node(target)
+
+    expect(graph).not_to have_received(:initialize_blocker_indexes)
+    expect(graph.matching_blockers(target)).to eq([blocker])
+  end
+
   it 'indexes exact blockers for every supported scope kind' do
     target = node(
       'Billing::Handler#call', owner: 'Billing::Handler', name: 'call', file: 'app/billing/handler.rb'

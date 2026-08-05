@@ -34,7 +34,7 @@ module Necropsy
       @exact_blockers_by_scope = Hash.new do |scopes, kind|
         scopes[kind] = Hash.new { |values, value| values[value] = [] }
       end
-      @exact_owner_blockers_by_node = Hash.new { |hash, key| hash[key] = [] }
+      @unmessaged_exact_owner_blockers = []
       @glob_blockers_by_scope = Hash.new { |scopes, kind| scopes[kind] = [] }
     end
 
@@ -42,15 +42,11 @@ module Necropsy
       removed = @blockers.select(&)
       return if removed.empty?
 
-      @blockers -= removed
-      rebuild_blocker_indexes
-    end
-
-    def rebuild_blocker_indexes
-      initialize_blocker_indexes
-      retained = @blockers
-      @blockers = []
-      retained.each { |blocker| add_blocker(blocker) }
+      removed.each do |blocker|
+        @blockers.delete(blocker)
+        @blocker_keys.delete(blocker_key(blocker))
+        unindex_blocker(blocker)
+      end
     end
 
     def index_blocker(blocker)
@@ -59,21 +55,39 @@ module Necropsy
       if match == :glob
         @glob_blockers_by_scope[kind] << blocker
       else
-        Array(blocker.scope_value).compact.each do |value|
-          @exact_blockers_by_scope[kind][value.to_s] << blocker
+        messages = blocker_index_messages(blocker).compact
+        if messages.any?
+          messages.each { |message| @blockers_by_message[message] << blocker }
+        elsif kind == :owner
+          @unmessaged_exact_owner_blockers << blocker
+        else
+          exact_scope_values(blocker).each { |value| @exact_blockers_by_scope[kind][value] << blocker }
         end
       end
+    end
 
-      if match == :exact && kind == :message
-        blocker_index_messages(blocker).each { |message| @blockers_by_message[message] << blocker if message }
+    def unindex_blocker(blocker)
+      kind = blocker.scope_kind.to_sym
+      if blocker_scope_match(blocker) == :glob
+        @glob_blockers_by_scope[kind].delete(blocker)
+        return
       end
-      index_exact_owner_blocker(blocker) if match == :exact && kind == :owner
+
+      messages = blocker_index_messages(blocker).compact
+      if messages.any?
+        messages.each { |message| @blockers_by_message[message].delete(blocker) }
+      elsif kind == :owner
+        @unmessaged_exact_owner_blockers.delete(blocker)
+      else
+        exact_scope_values(blocker).each { |value| @exact_blockers_by_scope[kind][value].delete(blocker) }
+      end
     end
 
     def blocker_candidates(node)
       candidates = []
       candidates.concat(@blockers_by_message.fetch(node.name, []))
       candidates.concat(exact_scope_blocker_candidates(node))
+      candidates.concat(unmessaged_owner_blocker_candidates(node))
       candidates.concat(glob_scope_blocker_candidates(node))
       candidates.uniq
     end
@@ -83,7 +97,6 @@ module Necropsy
       candidates.concat(@exact_blockers_by_scope[:definition].fetch(node.graph_id, []))
       candidates.concat(@exact_blockers_by_scope[:symbol].fetch(node.symbol_id, []))
       candidates.concat(@exact_blockers_by_scope[:message].fetch(node.name, []))
-      candidates.concat(@exact_owner_blockers_by_node.fetch([node.kind, node.owner.to_s], [])) if node.owner
       namespace_scope_values(node.owner).each do |namespace|
         candidates.concat(@exact_blockers_by_scope[:namespace].fetch(namespace, []))
       end
@@ -92,13 +105,9 @@ module Necropsy
       candidates
     end
 
-    def index_exact_owner_blocker(blocker)
-      method_nodes.each do |node|
-        next unless Array(blocker.scope_value).any? do |owner|
-          blocker_owner_matches?(blocker, node, owner.to_s)
-        end
-
-        @exact_owner_blockers_by_node[[node.kind, node.owner.to_s]] << blocker
+    def unmessaged_owner_blocker_candidates(node)
+      @unmessaged_exact_owner_blockers.select do |blocker|
+        exact_scope_values(blocker).any? { |owner| blocker_owner_matches?(blocker, node, owner) }
       end
     end
 
@@ -118,6 +127,10 @@ module Necropsy
       return [blocker.message&.to_s] unless blocker.scope_kind.to_sym == :symbol
 
       Array(blocker.scope_value).map { |symbol_id| logical_method_name(symbol_id) }.uniq
+    end
+
+    def exact_scope_values(blocker)
+      Array(blocker.scope_value).compact.map(&:to_s)
     end
 
     def logical_method_name(symbol_id)
@@ -143,6 +156,11 @@ module Necropsy
         metadata['call_site_id'] || metadata[:call_site_id],
         metadata['producer'] || metadata[:producer],
         metadata['producer_version'] || metadata[:producer_version],
+        metadata['resolution_record_id'] || metadata[:resolution_record_id],
+        canonical_key_value(metadata['assumptions'] || metadata[:assumptions]),
+        canonical_key_value(
+          metadata['known_target_definition_ids'] || metadata[:known_target_definition_ids]
+        ),
         blocker_scope_match(blocker).to_s,
         metadata.fetch('include_private') { metadata[:include_private] },
         blocker.message&.to_s,
@@ -151,14 +169,9 @@ module Necropsy
     end
 
     def canonical_key_value(value)
-      case value
-      when Array
-        value.map { |item| canonical_key_value(item) }.sort_by(&:to_s)
-      when Hash
-        value.keys.sort_by(&:to_s).map { |key| [key.to_s, canonical_key_value(value.fetch(key))] }
-      else
-        value.to_s
-      end
+      BoundedCanonicalizer.dump(value)
+    rescue BoundedCanonicalizer::Error => e
+      "canonicalization_error:#{value.class}:#{e.class}:#{e.message}"
     end
 
     def blocker_matches_node?(blocker, node)
@@ -188,7 +201,7 @@ module Necropsy
 
     def blocker_known_targets(blocker)
       metadata = blocker.metadata
-      Array(metadata['known_target_definition_ids'] || metadata[:known_target_definition_ids])
+      Array(metadata['known_target_definition_ids'] || metadata[:known_target_definition_ids]).map(&:to_s)
     end
 
     def blocker_message_matches?(blocker, node)

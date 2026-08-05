@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
-require 'json'
+require 'digest'
 
 module Necropsy
   module ResolutionStore
     DIAGNOSTIC_SAMPLE_LIMIT = 5
+    INVALID_SCOPE_LIMIT = 8
     RESOLUTION_STATUSES = %i[complete partial unknown].freeze
 
     def resolution_records(call_site_id = nil)
@@ -32,6 +33,7 @@ module Necropsy
 
     def initialize_resolution_store
       @resolution_records_by_key = {}
+      @malformed_resolution_issues = {}
       @call_sites_by_id = call_sites.group_by(&:call_site_id)
     end
 
@@ -46,24 +48,55 @@ module Necropsy
     def store_resolution_record(record)
       record = ResolutionRecord.from_h(record) unless record.is_a?(ResolutionRecord)
       @resolution_records_by_key[resolution_record_key(record)] = record
-    rescue KeyError, ArgumentError, NoMethodError => e
+    rescue KeyError, ArgumentError, NoMethodError, BoundedCanonicalizer::Error, SystemStackError => e
       store_malformed_resolution_issue(record, e)
     end
 
     def store_malformed_resolution_issue(record, error)
-      @malformed_resolution_issues ||= {}
       payload = {
         'kind' => 'malformed_resolution',
-        'record' => record.respond_to?(:to_h) ? record.to_h : record.to_s,
+        'record' => malformed_record_payload(record),
         'error_class' => error.class.name,
-        'error_message' => error.message
+        'error_message' => bounded_error_message(error)
       }
       @malformed_resolution_issues[canonical_payload(payload)] = payload
+    end
+
+    def malformed_record_payload(record)
+      value = record.respond_to?(:to_h) ? record.to_h : record
+      canonical = BoundedCanonicalizer.dump(
+        value,
+        max_depth: 32,
+        max_items: 2_000,
+        max_string_bytes: 16_384,
+        max_total_bytes: 65_536
+      )
+      {
+        'type' => record.class.name.to_s,
+        'canonical_bytes' => canonical.bytesize,
+        'canonical_sha256' => Digest::SHA256.hexdigest(canonical)
+      }
+    rescue StandardError, SystemStackError => e
+      {
+        'unavailable_type' => record.class.name.to_s,
+        'canonicalization_error' => e.class.name,
+        'message' => bounded_error_message(e)
+      }
+    end
+
+    def bounded_error_message(error)
+      error.message.to_s.byteslice(0, 500).to_s
+    rescue StandardError, SystemStackError
+      'unavailable'
     end
 
     def resolution_record_key(record)
       [record.resolution.call_site_id, record.producer, record.producer_version.to_s,
        canonical_payload(record.assumptions), canonical_payload(record.resolution.to_h)]
+    end
+
+    def resolution_record_identity(record)
+      "resolution:v1:#{Digest::SHA256.hexdigest(canonical_payload(record.to_h))}"
     end
 
     def sorted_resolution_records
@@ -76,10 +109,16 @@ module Necropsy
       observation['call_site_resolutions'] = resolution_diagnostic
     end
 
+    def refresh_resolution_derived_state
+      return if @resolution_records_by_key.empty? && @malformed_resolution_issues.empty?
+
+      rebuild_resolution_derived_state
+    end
+
     def resolution_blockers
       blockers = sorted_resolution_records.filter_map { |record| residual_resolution_blocker(record) }
-      blockers.concat(resolution_conflicts.map { |conflict| resolution_conflict_blocker(conflict) })
-      blockers.concat(resolution_issues.map { |issue| invalid_resolution_blocker(issue) })
+      blockers.concat(resolution_conflicts.flat_map { |conflict| resolution_conflict_blockers(conflict) })
+      blockers.concat(resolution_issues.flat_map { |issue| invalid_resolution_blockers(issue) })
       blockers.sort_by { |blocker| canonical_payload(blocker.to_h) }
     end
 
@@ -119,6 +158,7 @@ module Necropsy
         'call_site_id' => site.call_site_id,
         'producer' => record.producer,
         'producer_version' => record.producer_version,
+        'resolution_record_id' => resolution_record_identity(record),
         'assumptions' => record.assumptions,
         'known_target_definition_ids' => record.resolution.target_definition_ids,
         'caller_id' => site.caller_id,
@@ -129,9 +169,20 @@ module Necropsy
         'file' => site.file,
         'line' => site.line,
         'scope_match' => scope.match.to_s
-      }
+      }.merge(call_site_visibility_metadata(site))
       metadata['message'] = site.message unless %i[message symbol].include?(scope.scope_kind)
       metadata
+    end
+
+    def call_site_visibility_metadata(site)
+      metadata = site&.metadata || {}
+      result = {}
+      original_message = metadata['original_message'] || metadata[:original_message]
+      result['original_message'] = original_message.to_s if original_message
+      if metadata.key?('include_private') || metadata.key?(:include_private)
+        result['include_private'] = metadata.fetch('include_private') { metadata[:include_private] }
+      end
+      result
     end
 
     def compute_resolution_conflicts
@@ -195,7 +246,7 @@ module Necropsy
       issues = sorted_resolution_records.flat_map do |record|
         resolution_reference_issues(record)
       end
-      issues.concat((@malformed_resolution_issues || {}).values)
+      issues.concat(@malformed_resolution_issues.values)
       issues.uniq { |issue| canonical_payload(issue) }
             .sort_by { |issue| canonical_payload(issue) }
             .freeze
@@ -228,54 +279,82 @@ module Necropsy
       }.merge(details)
     end
 
-    def resolution_conflict_blocker(conflict)
-      site = unique_call_site(conflict.fetch('call_site_id'))
-      scope_kind, scope_value = blocker_scope_for_site(site)
-      Blocker.new(
-        kind: :resolution_conflict,
-        scope_kind: scope_kind,
-        scope_value: scope_value,
-        source: :resolution_store,
-        reason: "Conflicting call-site resolutions: #{conflict.fetch('kind')}",
-        suggested_action: :review_analyzers,
-        metadata: resolution_store_metadata(site).merge(
-          'conflict_kind' => conflict.fetch('kind'),
-          'producers' => conflict.fetch('producers'),
-          'target_definition_ids' => conflict.fetch('target_definition_ids')
+    def resolution_conflict_blockers(conflict)
+      target_ids = Array(conflict['target_definition_ids']).map(&:to_s).uniq.sort
+      return [] if target_ids.empty?
+
+      blocker_contexts(conflict.fetch('call_site_id')).map do |context|
+        Blocker.new(
+          kind: :resolution_conflict,
+          scope_kind: :definition,
+          scope_value: target_ids,
+          source: :resolution_store,
+          reason: "Conflicting call-site resolutions: #{conflict.fetch('kind')}",
+          suggested_action: :review_analyzers,
+          metadata: resolution_store_metadata(context, include_message: false).merge(
+            'conflict_kind' => conflict.fetch('kind'),
+            'producers' => conflict.fetch('producers'),
+            'target_definition_ids' => target_ids
+          )
         )
-      )
+      end
     end
 
-    def invalid_resolution_blocker(issue)
-      site = unique_call_site(issue['call_site_id'])
-      scope_kind, scope_value = blocker_scope_for_site(site)
-      Blocker.new(
-        kind: :resolution_invalid,
-        scope_kind: scope_kind,
-        scope_value: scope_value,
-        source: :resolution_store,
-        reason: "Invalid call-site resolution reference: #{issue.fetch('kind')}",
-        suggested_action: :fix_analyzer,
-        metadata: resolution_store_metadata(site).merge('resolution_issue' => issue)
-      )
+    def invalid_resolution_blockers(issue)
+      blocker_contexts(issue['call_site_id']).map do |context|
+        include_message = context.fetch(:scope_kind) == :message
+        Blocker.new(
+          kind: :resolution_invalid,
+          scope_kind: context.fetch(:scope_kind),
+          scope_value: context.fetch(:scope_value),
+          source: :resolution_store,
+          reason: "Invalid call-site resolution reference: #{issue.fetch('kind')}",
+          suggested_action: :fix_analyzer,
+          metadata: resolution_store_metadata(context, include_message: include_message).merge(
+            'resolution_issue' => issue
+          )
+        )
+      end
     end
 
-    def blocker_scope_for_site(site)
-      site ? [:message, site.message] : [:global, '*']
+    def blocker_contexts(call_site_id)
+      sites = @call_sites_by_id.fetch(call_site_id.to_s, [])
+      return [unknown_blocker_context] if sites.empty?
+
+      grouped = sites.group_by { |site| [site.test ? :test : :runtime, site.message.to_s] }
+      if grouped.length <= INVALID_SCOPE_LIMIT
+        return grouped.sort_by { |key, _sites| key.map(&:to_s) }
+                      .map { |key, values| site_blocker_context(key, values) }
+      end
+
+      sites.group_by { |site| site.test ? :test : :runtime }.sort_by { |domain, _| domain.to_s }.map do |domain, values|
+        { site: values.first, domain: domain, scope_kind: :global, scope_value: '*' }
+      end
     end
 
-    def resolution_store_metadata(site)
-      {
+    def unknown_blocker_context
+      { site: nil, domain: :runtime, scope_kind: :global, scope_value: '*' }
+    end
+
+    def site_blocker_context(key, sites)
+      domain, message = key
+      { site: sites.first, domain: domain, scope_kind: :message, scope_value: message }
+    end
+
+    def resolution_store_metadata(context, include_message: true)
+      site = context.fetch(:site)
+      metadata = {
         'resolution_store' => true,
         'call_site_id' => site&.call_site_id,
         'caller_id' => site&.caller_id,
-        'caller_domain' => site&.test ? 'test' : 'runtime',
-        'message' => site&.message,
+        'caller_domain' => context.fetch(:domain).to_s,
         'receiver_kind' => site&.receiver_kind&.to_s,
         'file' => site&.file,
         'line' => site&.line,
         'scope_match' => 'exact'
-      }
+      }.merge(call_site_visibility_metadata(site))
+      metadata['message'] = site.message if include_message && site
+      metadata
     end
 
     def resolution_store_blocker?(blocker)
@@ -300,22 +379,7 @@ module Necropsy
     end
 
     def canonical_payload(value)
-      JSON.generate(canonical_resolution_value(value))
-    end
-
-    def canonical_resolution_value(value)
-      case value
-      when Hash
-        value.keys.sort_by(&:to_s).to_h do |key|
-          [key.to_s, canonical_resolution_value(value.fetch(key))]
-        end
-      when Array
-        value.map { |item| canonical_resolution_value(item) }
-      when Symbol
-        value.to_s
-      else
-        value
-      end
+      BoundedCanonicalizer.dump(value)
     end
   end
 end
