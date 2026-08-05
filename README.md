@@ -99,6 +99,9 @@ nodes, edges, evidence, and entry points are needed in machine-readable output.
 Example configuration:
 
 ```yaml
+analysis:
+  world: application # application | library
+  load_roots: known # known | all
 analyzers:
   static: [name_resolution, cha, rta]
   dynamic:
@@ -154,6 +157,14 @@ logging:
 
 The scan cache is invalidated when scanned Ruby files or configuration values
 change.
+
+`analysis.world: application` uses executable, framework, and configured roots.
+Use `library` when callers may live outside the repository: every non-test
+public or protected method becomes an `external` root, while private methods
+remain eligible for review. `analysis.load_roots: all` is an opt-in conservative
+mode that treats every non-test Ruby file top level as a runtime root when load
+status cannot be established. Root domain, reason, and provenance are included
+in graph JSON and `why` paths.
 
 When a call receiver cannot be resolved exactly, Necropsy conservatively keeps
 up to `resolution.ambiguity_limit` same-name candidates alive. The default of

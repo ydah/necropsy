@@ -7,6 +7,7 @@ All notable changes to Necropsy are documented in this file.
 - Preserve repeated and reopened Ruby definitions as distinct physical graph nodes while retaining logical method names for compatibility; ambiguous runtime references no longer silently select one definition.
 - Record structured call-site resolution, scoped blockers, evidence grades, and analyzer provenance, with conservative adaptation for existing custom static analyzers.
 - Store graph evidence once and expose exact, conservative, and scope-filtered observed views while preserving conservative reachability and the existing nested edge JSON.
+- Separate runtime, test, and external roots; library mode now protects public and protected APIs from dead-code findings, with optional conservative roots for every production file.
 
 ## 0.2.1 - 2026-08-04
 
