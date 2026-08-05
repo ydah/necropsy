@@ -26,14 +26,14 @@ module Necropsy
 
       def hexdigest(value)
         reset_state
-        output = DigestOutput.new(max_total_bytes)
+        output = DigestOutput.new(byte_budget)
         process([[:value, value, 0, output]])
         output.hexdigest
       end
 
       def hexdigest_payload(values)
         reset_state
-        output = DigestOutput.new(max_total_bytes)
+        output = DigestOutput.new(byte_budget)
         output.write('[')
         values.each_with_index do |value, index|
           count_item!
@@ -46,11 +46,12 @@ module Necropsy
 
       private
 
-      attr_reader :max_depth, :max_items, :max_scalar_bytes, :max_total_bytes, :active_containers
+      attr_reader :max_depth, :max_items, :max_scalar_bytes, :max_total_bytes, :active_containers, :byte_budget
 
       def reset_state
         @active_containers = {}
         @items = 0
+        @byte_budget = ByteBudget.new(max_total_bytes)
       end
 
       def process(stack)
@@ -139,7 +140,7 @@ module Necropsy
 
       def process_hash_next(stack, value, iterator, pairs, depth, output)
         key, item = iterator.next
-        pair = StringOutput.new(max_total_bytes)
+        pair = StringOutput.new(byte_budget)
         pair.write('[')
         stack << [:hash_pair_complete, value, iterator, pairs, depth, output, pair]
         stack << [:raw, pair, ']']
@@ -230,16 +231,13 @@ module Necropsy
       end
 
       class DigestOutput
-        def initialize(limit)
-          @limit = limit
-          @bytes = 0
+        def initialize(budget)
+          @budget = budget
           @digest = Digest::SHA256.new
         end
 
         def write(value)
-          @bytes += value.bytesize
-          raise LimitExceeded, "Canonical payload exceeds maximum size #{@limit}" if @bytes > @limit
-
+          @budget.consume(value.bytesize)
           @digest.update(value.b)
         end
 
@@ -249,19 +247,30 @@ module Necropsy
       end
 
       class StringOutput
-        def initialize(limit)
-          @limit = limit
+        def initialize(budget)
+          @budget = budget
           @value = String.new(encoding: Encoding::BINARY)
         end
 
         def write(value)
-          raise LimitExceeded, "Canonical payload exceeds maximum size #{@limit}" if @value.bytesize + value.bytesize > @limit
-
+          @budget.consume(value.bytesize)
           @value << value.b
         end
 
         def to_s
           @value
+        end
+      end
+
+      class ByteBudget
+        def initialize(limit)
+          @limit = limit
+          @bytes = 0
+        end
+
+        def consume(bytes)
+          @bytes += bytes
+          raise LimitExceeded, "Canonical payload exceeds maximum size #{@limit}" if @bytes > @limit
         end
       end
     end

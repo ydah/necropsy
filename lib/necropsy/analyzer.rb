@@ -1,41 +1,15 @@
 # frozen_string_literal: true
 
 require 'digest'
+require_relative 'bounded_canonicalizer'
 
 module Necropsy
   module EvidenceIdentity
     module_function
 
     def generate(attributes)
-      "evidence:v1:#{Digest::SHA256.hexdigest(canonical(attributes))}"
+      "evidence:v1:#{Digest::SHA256.hexdigest(BoundedCanonicalizer.dump(attributes))}"
     end
-
-    def canonical(value)
-      case value
-      when nil
-        'nil'
-      when true, false, Numeric
-        "#{value.class}:#{value}"
-      when Symbol
-        "symbol:#{canonical_string(value.to_s)}"
-      when String
-        "string:#{canonical_string(value)}"
-      when Array
-        "array:[#{value.map { |item| canonical(item) }.join(',')}]"
-      when Hash
-        pairs = value.map { |key, item| [canonical(key), canonical(item)] }.sort_by(&:first)
-        "hash:{#{pairs.map { |key, item| "#{key}=#{item}" }.join(',')}}"
-      else
-        return canonical(value.to_h) if value.respond_to?(:to_h)
-
-        "#{value.class}:#{canonical_string(value.to_s)}"
-      end
-    end
-
-    def canonical_string(value)
-      "#{value.bytesize}:#{value}"
-    end
-    private_class_method :canonical, :canonical_string
   end
   private_constant :EvidenceIdentity
 
@@ -84,6 +58,9 @@ module Necropsy
       producer_version ||= analyzer_profile.version
       relation ||= kind
       assumptions = analyzer_profile.assumptions if assumptions.nil?
+      producer_version ||= 'unversioned'
+      source ||= { 'type' => 'analyzer', 'producer' => producer.to_s }
+      scope ||= {}
       record = Evidence.new(
         analyzer: analyzer, kind: kind, weight: weight, details: details, metadata: metadata,
         producer: producer, producer_version: producer_version, grade: grade, relation: relation,
@@ -110,7 +87,7 @@ module Necropsy
           evidence_ids: result_evidences(evidences).filter_map(&:evidence_id)
         ),
         producer: analyzer_profile.name,
-        producer_version: analyzer_profile.version,
+        producer_version: analyzer_profile.version || 'unversioned',
         assumptions: analyzer_profile.assumptions
       )
     end

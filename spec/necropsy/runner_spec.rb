@@ -41,6 +41,32 @@ class LegacyWeightedRunnerAnalyzer < Necropsy::Analyzer
   end
 end
 
+class CyclicMetadataRunnerAnalyzer < Necropsy::Analyzer
+  def analyze(*)
+    cyclic = {}
+    cyclic['self'] = cyclic
+    send(:evidence, kind: :call_edge, details: 'cyclic metadata', metadata: cyclic)
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :cyclic_metadata, kind: :static, soundness: :partial, description: 'cyclic metadata', version: '1'
+    )
+  end
+end
+
+class InvalidMessageRunnerAnalyzer < Necropsy::Analyzer
+  def analyze(*)
+    raise "\xFF".b + ('x' * 10_000)
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :invalid_message, kind: :static, soundness: :partial, description: 'invalid message', version: '1'
+    )
+  end
+end
+
 RSpec.describe Necropsy::Runner do
   let(:rta_source) do
     <<~RUBY
@@ -96,6 +122,30 @@ RSpec.describe Necropsy::Runner do
     end
   end
 
+  it 'turns cyclic analyzer metadata into a bounded failure blocker' do
+    with_project(files: { 'app/sample.rb' => 'class RunnerSample; def dead; end; end' }) do |root|
+      report = described_class.new(root: root, analyzers: [CyclicMetadataRunnerAnalyzer.new]).analyze
+      blocker = report.graph.blockers.find { |candidate| candidate.kind == :analyzer_failure }
+
+      expect(blocker).to have_attributes(source: 'cyclic_metadata')
+      expect(blocker.metadata.fetch('error_class')).to eq('Necropsy::BoundedCanonicalizer::CycleError')
+      expect { report.to_json(include_graph: true) }.not_to raise_error
+    end
+  end
+
+  it 'bounds and sanitizes invalid analyzer failure messages for JSON output' do
+    with_project(files: { 'app/sample.rb' => 'class RunnerSample; def dead; end; end' }) do |root|
+      report = described_class.new(root: root, analyzers: [InvalidMessageRunnerAnalyzer.new]).analyze
+      blocker = report.graph.blockers.find { |candidate| candidate.kind == :analyzer_failure }
+      message = blocker.metadata.fetch('error_message')
+
+      expect(message.encoding).to eq(Encoding::UTF_8)
+      expect(message).to be_valid_encoding
+      expect(message.bytesize).to be <= (Necropsy::Runner::ANALYZER_ERROR_MESSAGE_BYTES + 3)
+      expect { report.to_json(include_graph: true) }.not_to raise_error
+    end
+  end
+
   it 'loads custom analyzer classes from configuration' do
     with_project(
       files: { 'app/sample.rb' => 'class RunnerCustomSample; def dead; end; end' },
@@ -138,6 +188,7 @@ RSpec.describe Necropsy::Runner do
 
     expect(resolutions.first).to eq(resolutions.last)
     expect(resolutions.first).to include(satisfy { |status, targets| status == :partial && targets.one? })
+    expect(reports.first.graph.resolution_records.map(&:producer_version).uniq).to eq(['unversioned'])
     expect(findings.first).to eq(findings.last)
     expect(findings.first).to include(['Other#call', :blocked])
   end

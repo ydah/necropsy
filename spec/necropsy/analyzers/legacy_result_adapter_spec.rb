@@ -42,7 +42,13 @@ RSpec.describe Necropsy::Analyzers::LegacyResultAdapter do
       target_definition_ids: [target.graph_id],
       status: :partial
     )
-    expect(adapted.edge_evidences).to eq([edge])
+    normalized = adapted.edge_evidences.fetch(0).evidence
+    expect(normalized).to have_attributes(
+      producer: :legacy_custom, producer_version: '2', grade: :heuristic,
+      relation: :call_edge, assumptions: ['legacy_contract']
+    )
+    expect(normalized.evidence_id).to match(/\Aevidence:v1:[0-9a-f]{64}\z/)
+    expect(record.resolution.evidence_ids).to eq([normalized.evidence_id])
   end
 
   it 'adapts a legacy empty result to unknown without using evidence weight' do
@@ -71,6 +77,26 @@ RSpec.describe Necropsy::Analyzers::LegacyResultAdapter do
     resolution = adapt(graph, analyzer_result(edge_evidences: [edge])).resolutions.first.resolution
 
     expect(resolution).to have_attributes(target_definition_ids: [target.graph_id], status: :partial)
+  end
+
+  it 'does not attach an explicit call-site ID to an edge from another physical caller' do
+    first_caller = node('FirstCaller#run')
+    second_caller = node('SecondCaller#run')
+    target = node('Target#call')
+    site = call_site(caller_id: first_caller.graph_id, message: 'call', call_site_id: 'call:v1:owned')
+    graph = graph_with(nodes: [first_caller, second_caller, target], call_sites: [site])
+    edge = Necropsy::EdgeEvidence.new(
+      caller_id: second_caller.graph_id,
+      callee_id: target.graph_id,
+      evidence: evidence(
+        analyzer: :legacy_custom,
+        metadata: { 'call_site_id' => site.call_site_id }
+      )
+    )
+
+    resolution = adapt(graph, analyzer_result(edge_evidences: [edge])).resolutions.first.resolution
+
+    expect(resolution).to have_attributes(target_definition_ids: [], status: :unknown)
   end
 
   it 'does not guess when legacy call-site fields match more than one physical site' do
@@ -127,9 +153,39 @@ RSpec.describe Necropsy::Analyzers::LegacyResultAdapter do
     forward = adapt(graph, result)
     reverse = adapt(graph, result.with(evidences: [existing], edge_evidences: [edge].reverse))
 
-    expect(forward.evidences).to contain_exactly(existing, edge.evidence, alive_record)
+    expect(forward.evidences.map(&:analyzer)).to contain_exactly(:existing, :legacy_custom, :legacy_custom)
+    expect(forward.evidences).to all(satisfy { |record| record.grade && record.evidence_id })
     expect(reverse.evidences).to eq(forward.evidences)
-    expect(forward.alive_evidences).to eq([alive])
+    expect(forward.alive_evidences.map(&:node_id)).to eq([alive.node_id])
+    expect(forward.alive_evidences.first.evidence).to have_attributes(
+      grade: :heuristic, producer: :legacy_custom, producer_version: '2'
+    )
+  end
+
+  it 'normalizes a shared legacy evidence object independently for edge and alive relations' do
+    caller = node('Caller#run')
+    target = node('Target#call')
+    site = call_site(caller_id: caller.graph_id, message: 'call', call_site_id: 'call:v1:shared-evidence')
+    graph = graph_with(nodes: [caller, target], call_sites: [site])
+    shared = evidence(analyzer: :legacy_custom, metadata: site.to_h.except('call_site_id'))
+    result = analyzer_result(
+      edge_evidences: [
+        Necropsy::EdgeEvidence.new(caller_id: caller.graph_id, callee_id: target.graph_id, evidence: shared)
+      ],
+      alive_evidences: [Necropsy::AliveEvidence.new(node_id: target.graph_id, evidence: shared)],
+      evidences: [shared]
+    )
+
+    adapted = adapt(graph, result)
+    edge_record = adapted.edge_evidences.first.evidence
+    alive_record = adapted.alive_evidences.first.evidence
+
+    expect(edge_record).to have_attributes(relation: :call_edge)
+    expect(alive_record).to have_attributes(relation: :alive)
+    expect(edge_record.scope).to include('call_site_id' => site.call_site_id)
+    expect(alive_record.scope).to eq('node_reference' => target.graph_id)
+    expect(alive_record.evidence_id).not_to eq(edge_record.evidence_id)
+    expect(adapted.evidences).to contain_exactly(edge_record, alive_record)
   end
 
   it 'orders adapted records and collected evidence independently of legacy edge order' do

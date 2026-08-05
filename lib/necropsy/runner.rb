@@ -2,6 +2,8 @@
 
 module Necropsy
   class Runner
+    ANALYZER_ERROR_MESSAGE_BYTES = 500
+
     attr_reader :root, :config, :analyzers
 
     def initialize(root:, config_path: nil, analyzers: nil)
@@ -67,21 +69,31 @@ module Necropsy
 
     def analyzer_failure_blocker(analyzer, profile, error)
       analyzer_name = profile&.name&.to_s || analyzer.class.name
+      error_message = safe_error_message(error)
       Blocker.new(
         kind: :analyzer_failure,
         scope_kind: :global,
         scope_value: '*',
         source: analyzer_name,
-        reason: "Analyzer #{analyzer_name} failed: #{error.class}: #{error.message}",
+        reason: "Analyzer #{analyzer_name} failed: #{error.class}: #{error_message}",
         suggested_action: :fix_analyzer,
         metadata: {
           'analyzer' => analyzer_name,
           'analyzer_class' => analyzer.class.name,
           'caller_domain' => 'runtime',
           'error_class' => error.class.name,
-          'error_message' => error.message
+          'error_message' => error_message
         }
       )
+    end
+
+    def safe_error_message(error)
+      message = error.message.to_s.encode(Encoding::UTF_8, invalid: :replace, undef: :replace, replace: "\uFFFD")
+      return message if message.bytesize <= ANALYZER_ERROR_MESSAGE_BYTES
+
+      "#{message.byteslice(0, ANALYZER_ERROR_MESSAGE_BYTES).to_s.scrub}\u2026"
+    rescue StandardError, SystemStackError
+      'unavailable'
     end
 
     def apply_entry_points(graph, project)

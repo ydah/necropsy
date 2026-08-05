@@ -77,6 +77,13 @@ RSpec.describe Necropsy::DefinitionIdentity do
     end.to raise_error(described_class::UnsupportedTypeError)
   end
 
+  it 'enforces the aggregate digest work budget before later hash entries' do
+    payload = { 'first' => 'a' * 20, 'second' => 'b' * 20, 'sentinel' => Object.new }
+    digest = described_class::CanonicalDigest.new(max_total_bytes: 100)
+
+    expect { digest.hexdigest(payload) }.to raise_error(described_class::LimitExceeded, /maximum size/)
+  end
+
   it 'distinguishes identical definitions by ordinal' do
     body_digest = described_class.body_digest(parse_definition("def call; :ok; end\n"))
     attributes = {

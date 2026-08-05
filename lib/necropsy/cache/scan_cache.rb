@@ -6,7 +6,7 @@ require 'json'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 7
+      VERSION = 8
 
       def initialize(project:)
         @project = project

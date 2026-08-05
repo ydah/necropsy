@@ -384,6 +384,9 @@ module Necropsy
       if grade.nil? && provenance_present?(evidence_id, producer, producer_version, relation, source, assumptions, scope)
         raise ArgumentError, 'evidence grade may be nil only for legacy evidence'
       end
+      if grade && [producer, producer_version, relation, source, scope].any?(&:nil?)
+        raise ArgumentError, 'graded evidence requires producer, producer_version, relation, source, and scope'
+      end
 
       super
     end

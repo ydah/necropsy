@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 require 'digest'
-require 'json'
+require_relative 'bounded_canonicalizer'
 
 module Necropsy
   module CallSiteIdentity
@@ -45,34 +45,8 @@ module Necropsy
     end
 
     def identifier(*payload)
-      canonical = canonicalize(payload)
-      "#{PREFIX}:#{Digest::SHA256.hexdigest(JSON.generate(canonical))}"
+      "#{PREFIX}:#{Digest::SHA256.hexdigest(BoundedCanonicalizer.dump(payload))}"
     end
     private_class_method :identifier
-
-    def canonicalize(value)
-      case value
-      when Hash
-        pairs = value.map { |key, item| [canonicalize(key), canonicalize(item)] }.sort
-        ['hash', pairs]
-      when Array
-        ['array', value.map { |item| canonicalize(item) }]
-      when Symbol
-        ['symbol', value.to_s]
-      when String
-        ['string', value]
-      when Integer
-        ['integer', value.to_s]
-      when Float
-        ['float', value.to_s]
-      when true, false
-        ['boolean', value]
-      when nil
-        ['nil']
-      else
-        value.respond_to?(:to_h) ? canonicalize(value.to_h) : [value.class.name, value.to_s]
-      end
-    end
-    private_class_method :canonicalize
   end
 end

@@ -47,6 +47,7 @@ module Necropsy
     def reset_state
       @active_containers = {}
       @items = 0
+      @written_bytes = 0
     end
 
     def process(stack)
@@ -169,8 +170,8 @@ module Necropsy
     end
 
     def append(output, bytes)
-      size = output.bytesize + bytes.bytesize
-      raise LimitError, "Canonical payload exceeds maximum size #{max_total_bytes}" if size > max_total_bytes
+      @written_bytes += bytes.bytesize
+      raise LimitError, "Canonical payload exceeds maximum size #{max_total_bytes}" if @written_bytes > max_total_bytes
 
       output << bytes.b
     end

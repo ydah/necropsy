@@ -46,4 +46,12 @@ RSpec.describe Necropsy::BoundedCanonicalizer do
 
     expect(described_class.dump(nested)).to start_with('["array"')
   end
+
+  it 'enforces an aggregate work budget before visiting later hash entries' do
+    payload = { 'first' => 'a' * 20, 'second' => 'b' * 20, 'sentinel' => Object.new }
+
+    expect do
+      described_class.dump(payload, max_total_bytes: 100)
+    end.to raise_error(described_class::LimitError, /maximum size/)
+  end
 end

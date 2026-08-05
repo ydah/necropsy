@@ -65,4 +65,17 @@ RSpec.describe Necropsy::CallSiteIdentity do
       )
     end.to raise_error(ArgumentError, /invalid call site derivation/)
   end
+
+  it 'rejects cyclic legacy metadata with a bounded canonicalization error' do
+    cyclic = {}
+    cyclic['self'] = cyclic
+
+    expect do
+      described_class.legacy_id(
+        caller_definition_id: 'Legacy#run', message: 'render', receiver_kind: :unknown,
+        receiver_name: nil, file: 'lib/legacy.rb', line: 4, test: false, dynamic: false,
+        metadata: cyclic
+      )
+    end.to raise_error(Necropsy::BoundedCanonicalizer::CycleError)
+  end
 end

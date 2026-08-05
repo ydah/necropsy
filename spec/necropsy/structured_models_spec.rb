@@ -231,6 +231,19 @@ RSpec.describe 'structured analysis models' do
         end.to raise_error(ArgumentError, /legacy/)
       end
     end
+
+    it 'requires complete provenance on graded evidence' do
+      attributes = {
+        analyzer: :spec, kind: :call_edge, weight: 1.0, details: 'graded', metadata: {},
+        producer: :spec, producer_version: '1', grade: :exact, relation: :call_edge,
+        source: {}, scope: {}
+      }
+
+      %i[producer producer_version relation source scope].each do |attribute|
+        expect { described_class.new(**attributes, attribute => nil) }
+          .to raise_error(ArgumentError, /requires producer/)
+      end
+    end
   end
 
   describe Necropsy::AnalyzerProfile do

@@ -90,7 +90,7 @@ RSpec.describe Necropsy::Cache::ScanCache do
   end
 
   it 'falls back to a fresh scan when a legacy cache version is present' do
-    with_project(files: { 'app/sample.rb' => 'class LegacyCache; def run; end; end' }) do |root|
+    with_project(files: { 'app/sample.rb' => 'class LegacyCache; def run = helper; def helper; end; end' }) do |root|
       project = project_for(root)
       cache_path = File.join(root, '.necropsy_cache/scan.json')
       calls = 0
@@ -101,12 +101,18 @@ RSpec.describe Necropsy::Cache::ScanCache do
 
       described_class.new(project: project).fetch(project.ruby_files, &scan)
       payload = JSON.parse(File.read(cache_path))
+      payload.fetch('scan_result').fetch('call_sites').first['call_site_id'] = 'call:v1:legacy-canonicalizer'
       File.write(cache_path, JSON.generate(payload.merge('version' => described_class::VERSION - 1)))
       result = described_class.new(project: project).fetch(project.ruby_files, &scan)
 
       expect(calls).to eq(2)
       expect(result.file_statuses).to eq('app/sample.rb' => :complete)
-      expect(JSON.parse(File.read(cache_path)).fetch('version')).to eq(described_class::VERSION)
+      expect(result.call_sites.first.call_site_id).not_to eq('call:v1:legacy-canonicalizer')
+      rewritten = JSON.parse(File.read(cache_path))
+      expect(rewritten.fetch('version')).to eq(described_class::VERSION)
+      expect(rewritten.dig('scan_result', 'call_sites', 0, 'call_site_id')).to eq(
+        result.call_sites.first.call_site_id
+      )
     end
   end
 end
