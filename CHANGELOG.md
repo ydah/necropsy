@@ -10,6 +10,9 @@ All notable changes to Necropsy are documented in this file.
 - Separate runtime, test, and external roots; library mode now protects public and protected APIs from dead-code findings, with optional conservative roots for every production file.
 - Separate analysis, repository reference, and report scopes so output filters cannot remove callers from the graph; reference-only Ruby definitions are not reported, and narrowed scans expose entry-point and symlink diagnostics.
 - Block candidates that still appear in unparsed templates or configuration, with bounded file/line/snippet diagnostics and safe limits for common names, generated content, binary files, and oversized inputs.
+- Add `why-not` human and versioned JSON diagnostics covering physical definitions, examined calls and resolutions, blockers, world policy, external text matches, analysis failures, enabled rules, and suggested evidence.
+- Write physical-definition baseline schema v2 while continuing to read logical v1 baselines; CI now stops for an explicit review when a legacy entry maps to multiple definitions.
+- Expose legacy and physical fingerprints additively in JSON and SARIF, and show both logical-symbol and physical-definition candidate views in benchmark output.
 
 ## 0.2.1 - 2026-08-04
 

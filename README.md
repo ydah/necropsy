@@ -29,6 +29,11 @@ Create a baseline:
 bundle exec necropsy baseline --root .
 ```
 
+New baselines use schema v2 and identify each physical method definition. Existing
+schema v1 baselines remain readable. `necropsy check` migrates matches in exact ID,
+body digest, then symbol/path-hint order; if any mapping has multiple candidates it
+fails closed with a review report instead of silently accepting one definition.
+
 Run a report:
 
 ```bash
@@ -46,18 +51,29 @@ nearby alive node, and unresolved dispatch notes:
 ```bash
 bundle exec necropsy why 'MyService#call' --root .
 bundle exec necropsy why 'MyService#call' --root . --format json
+bundle exec necropsy why-not 'LegacyService#unused' --root .
+bundle exec necropsy why-not 'LegacyService#unused' --root . --format json
 bundle exec necropsy explain 'LegacyService#unused' --root .
 ```
 
 `explain` shows every confidence score component and the final confidence
-level. Missing IDs return partial-match suggestions. When a logical symbol ID
-matches multiple physical definitions, `why` and `explain` list every source
-location and an executable command using its full definition ID.
+level. `why-not` emits a refutable `necropsy.why-not.v1` artifact for candidates,
+blocked findings, and test-only definitions. It includes examined call sites and
+resolution statuses, rejected targets, blockers, world/root policy, non-Ruby
+matches, parse/analyzer failures, enabled analyzers and type providers, artifact
+digests, assumptions, risk flags, the recommended review action, and the next
+evidence to collect. Every diagnostic collection reports total, returned, and
+truncated counts, and nested metadata is bounded as well. Missing IDs return
+partial-match suggestions. When a logical symbol ID matches multiple physical
+definitions, all three diagnostic commands list every source location and an
+executable command using its full definition ID.
 
-For compatibility, the existing logical `id` and finding fingerprint remain
-stable. Reports also include `symbol_id` and `definition_id`; human, GitHub, and
-SARIF findings display or expose the full physical definition ID so reopened or
-duplicate methods can be distinguished.
+For compatibility, the existing logical `id` and `fingerprint` remain stable.
+Reports add `logical_fingerprint` and `physical_fingerprint`, while SARIF retains
+the `necropsy` partial fingerprint and adds `necropsyPhysicalDefinition`. Reports
+also include `symbol_id` and `definition_id`; human, GitHub, and SARIF findings
+display or expose the full physical definition ID so reopened or duplicate methods
+can be distinguished.
 
 Runtime artifacts remain backward compatible: collectors keep the legacy
 `nodes` and `edges` fields while adding structured `node_references` and edge
@@ -92,6 +108,11 @@ Evaluate against a gold standard:
 ```bash
 bundle exec necropsy bench --root . --gold-standard gold.yml --ablation
 ```
+
+Benchmark JSON keeps the existing logical-ID metrics and adds `identity_views`.
+The legacy view groups by `symbol_id`; the physical view lists every
+`definition_id` and both fingerprints, so duplicate definitions cannot disappear
+from review totals.
 
 JSON and YAML omit the full call graph by default. Add `--include-graph` when
 nodes, edges, evidence, and entry points are needed in machine-readable output.
