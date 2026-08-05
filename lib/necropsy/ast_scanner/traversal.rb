@@ -66,7 +66,7 @@ module Necropsy
       end
 
       visit(result.value, context)
-    rescue SystemCallError, EncodingError => e
+    rescue DefinitionIdentity::CanonicalizationError, SystemStackError, SystemCallError, EncodingError => e
       record_source_failure(root_id || "file:#{relative}", relative, e)
     end
 

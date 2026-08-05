@@ -118,6 +118,30 @@ RSpec.describe 'parse incompleteness' do
     end
   end
 
+  it 'turns identity limits into test-scoped source failures' do
+    with_project(files: { 'spec/deep_spec.rb' => "describe 'deep' do; end\n" }) do |root|
+      project = project_for(root)
+      allow(Necropsy::DefinitionIdentity).to receive(:body_digest).and_raise(
+        Necropsy::DefinitionIdentity::LimitExceeded,
+        'canonical depth exceeded'
+      )
+
+      scan = Necropsy::AstScanner.new(project: project, files: project.ruby_files).scan
+      graph = Necropsy::CallGraph.new(scan)
+
+      expect(scan.file_statuses).to eq('spec/deep_spec.rb' => :failed)
+      expect(scan.source_errors.first.type).to eq(:'Necropsy::DefinitionIdentity::LimitExceeded')
+      expect(graph.blockers).to contain_exactly(
+        have_attributes(
+          kind: :parse_incomplete,
+          scope_kind: :file,
+          scope_value: 'spec/deep_spec.rb',
+          caller_domain: :test
+        )
+      )
+    end
+  end
+
   it 'matches failed file blockers to private definitions supplied by a scan result' do
     failed = node('FailedSource#hidden', file: 'lib/failed_source.rb', visibility: :private)
     error = Necropsy::SourceError.new(
