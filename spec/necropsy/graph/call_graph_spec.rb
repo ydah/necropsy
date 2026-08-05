@@ -3,13 +3,14 @@
 RSpec.describe Necropsy::CallGraph do
   def unresolved_blocker(message:, scope_kind: :message, scope_value: message, domain: :runtime,
                          receiver_kind: :unknown, caller_kind: :instance_method, original_message: nil,
-                         include_private: nil)
+                         include_private: nil, scope_match: :exact)
     metadata = {
       'message' => message,
       'caller_domain' => domain.to_s,
       'receiver_kind' => receiver_kind.to_s,
       'caller_kind' => caller_kind.to_s,
       'original_message' => original_message,
+      'scope_match' => scope_match.to_s,
       'file' => 'app/router.rb',
       'line' => 8
     }
@@ -22,6 +23,17 @@ RSpec.describe Necropsy::CallGraph do
       reason: 'target set is incomplete',
       suggested_action: :review_receiver_flow,
       metadata: metadata
+    )
+  end
+
+  def scope_blocker(scope_kind, scope_value, scope_match: :exact)
+    Necropsy::Blocker.new(
+      kind: :unknown_dispatch,
+      scope_kind: scope_kind,
+      scope_value: scope_value,
+      source: :spec,
+      reason: 'scope is unresolved',
+      metadata: { 'caller_domain' => 'runtime', 'scope_match' => scope_match.to_s }
     )
   end
 
@@ -301,6 +313,61 @@ RSpec.describe Necropsy::CallGraph do
     end
     matching = unresolved_blocker(message: 'call')
     graph.apply_result(analyzer_result(blockers: [*unrelated, matching]))
+    allow(graph).to receive(:blocker_matches_node?).and_call_original
+
+    expect(graph.matching_blockers(target)).to eq([matching])
+    expect(graph).to have_received(:blocker_matches_node?).once
+  end
+
+  it 'indexes exact blockers for every supported scope kind' do
+    target = node(
+      'Billing::Handler#call', owner: 'Billing::Handler', name: 'call', file: 'app/billing/handler.rb'
+    )
+    other = node('Shipping::Handler#save', owner: 'Shipping::Handler', name: 'save', file: 'app/shipping/handler.rb')
+    graph = graph_with(
+      nodes: [target, other],
+      class_infos: [class_info('Billing::Handler'), class_info('Shipping::Handler')]
+    )
+    matching = [
+      scope_blocker(:definition, target.graph_id),
+      scope_blocker(:symbol, target.symbol_id),
+      scope_blocker(:message, target.name),
+      scope_blocker(:owner, target.owner),
+      scope_blocker(:namespace, 'Billing'),
+      scope_blocker(:file, target.file),
+      scope_blocker(:global, '*')
+    ]
+    matching.each { |blocker| graph.add_blocker(blocker) }
+
+    expect(graph.matching_blockers(target)).to contain_exactly(*matching)
+    expect(graph.matching_blockers(other)).to eq([matching.last])
+  end
+
+  it 'uses the glob bucket for every supported scope kind' do
+    target = node(
+      'Billing::Handler#call', owner: 'Billing::Handler', name: 'call', file: 'app/billing/handler.rb'
+    )
+    graph = graph_with(nodes: [target], class_infos: [class_info('Billing::Handler')])
+    matching = [
+      scope_blocker(:definition, 'Billing::*#ca*', scope_match: :glob),
+      scope_blocker(:symbol, 'Billing::*#ca*', scope_match: :glob),
+      scope_blocker(:message, 'ca*', scope_match: :glob),
+      scope_blocker(:owner, 'Billing::*', scope_match: :glob),
+      scope_blocker(:namespace, 'Bill*', scope_match: :glob),
+      scope_blocker(:file, 'app/**/handler.rb', scope_match: :glob),
+      scope_blocker(:global, '*', scope_match: :glob)
+    ]
+    matching.each { |blocker| graph.add_blocker(blocker) }
+
+    expect(graph.matching_blockers(target)).to contain_exactly(*matching)
+  end
+
+  it 'does not scan unrelated exact definition blockers during a match' do
+    target = node('Target#call', owner: 'Target', name: 'call')
+    graph = graph_with(nodes: [target])
+    100.times { |index| graph.add_blocker(scope_blocker(:definition, "Missing#{index}#call")) }
+    matching = scope_blocker(:definition, target.graph_id)
+    graph.add_blocker(matching)
     allow(graph).to receive(:blocker_matches_node?).and_call_original
 
     expect(graph.matching_blockers(target)).to eq([matching])

@@ -4,6 +4,7 @@ module Necropsy
   class CallGraph
     include DynamicEvidenceTracking
     include BlockerMatching
+    include ResolutionStore
 
     attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
                 :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors
@@ -22,8 +23,7 @@ module Necropsy
       @source_errors = scan_result.source_errors.dup
       @ambiguity_limit = ambiguity_limit
       @blockers = []
-      @blocker_keys = Set.new
-      @blockers_by_message = Hash.new { |hash, key| hash[key] = [] }
+      initialize_blocker_indexes
       @entry_points = []
       @profiles = []
       @uncertainties = scan_result.uncertainties.to_h do |node_id, messages|
@@ -31,6 +31,7 @@ module Necropsy
       end
       @dynamic_alive = {}
       @observation = {}
+      initialize_resolution_store
       @descendants = {}
       @duplicate_blockers_initialized = false
       scan_result.nodes.each { |node| add_node(node) }
@@ -50,6 +51,7 @@ module Necropsy
       @lookup_chain_cache = nil
       @owner_ancestor_cache = nil
       added = nodes.add(node)
+      rebuild_blocker_indexes if @blockers.any?
       register_duplicate_definition_blocker(node.symbol_id) if @duplicate_blockers_initialized
       added
     end
@@ -86,6 +88,7 @@ module Necropsy
       Array(result.respond_to?(:blockers) ? result.blockers : []).each { |blocker| add_blocker(blocker) }
       observation.merge!(result.observation) { |_key, left, right| merge_observation(left, right) }
       record_dynamic_evidence(result, alive_matches, edge_matches) if dynamic_result
+      register_result_resolutions(result)
     end
 
     def add_profile(profile)
@@ -294,6 +297,8 @@ module Necropsy
         'class_infos' => class_infos.values.map(&:to_h),
         'instantiated_classes' => instantiated_classes.to_a.sort,
         'profiles' => profiles.map(&:to_h),
+        'resolutions' => resolution_records.map(&:to_h),
+        'resolution_conflicts' => resolution_conflicts,
         'blockers' => blockers.map(&:to_h),
         'file_statuses' => file_statuses.transform_values(&:to_s),
         'source_errors' => source_errors.map(&:to_h),

@@ -23,8 +23,9 @@ module GraphHelpers
   end
 
   def call_site(caller_id:, message:, receiver_kind: :implicit, receiver_name: nil, file: 'app/models/sample.rb',
-                line: 1, test: false, dynamic: false, metadata: {})
+                line: 1, test: false, dynamic: false, metadata: {}, call_site_id: nil)
     Necropsy::CallSite.new(
+      call_site_id: call_site_id,
       caller_id: caller_id,
       message: message,
       receiver_kind: receiver_kind,
@@ -90,13 +91,16 @@ module GraphHelpers
     )
   end
 
-  def analyzer_result(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [])
+  def analyzer_result(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [],
+                      resolutions: nil, evidences: [])
     Necropsy::AnalyzerResult.new(
       edge_evidences: edge_evidences,
       alive_evidences: alive_evidences,
       uncertainties: Hash.new { |hash, key| hash[key] = [] }.merge(uncertainties),
       observation: observation,
-      blockers: blockers
+      blockers: blockers,
+      resolutions: resolutions,
+      evidences: evidences
     )
   end
 

@@ -11,7 +11,7 @@ module Necropsy
       return blocker unless @blocker_keys.add?(key)
 
       @blockers << blocker
-      blocker_index_messages(blocker).each { |message| @blockers_by_message[message] << blocker }
+      index_blocker(blocker)
       blocker
     end
 
@@ -21,13 +21,22 @@ module Necropsy
       node = node_or_id.is_a?(Node) ? node_or_id : nodes[node_or_id]
       return [] unless node
 
-      candidates = @blockers_by_message.fetch(node.name, []) + @blockers_by_message.fetch(nil, [])
-      candidates.select do |blocker|
+      blocker_candidates(node).select do |blocker|
         blocker.caller_domain == caller_domain.to_sym && blocker_matches_node?(blocker, node)
       end
     end
 
     private
+
+    def initialize_blocker_indexes
+      @blocker_keys = Set.new
+      @blockers_by_message = Hash.new { |hash, key| hash[key] = [] }
+      @exact_blockers_by_scope = Hash.new do |scopes, kind|
+        scopes[kind] = Hash.new { |values, value| values[value] = [] }
+      end
+      @exact_owner_blockers_by_node = Hash.new { |hash, key| hash[key] = [] }
+      @glob_blockers_by_scope = Hash.new { |scopes, kind| scopes[kind] = [] }
+    end
 
     def remove_blockers_matching(&)
       removed = @blockers.select(&)
@@ -38,14 +47,74 @@ module Necropsy
     end
 
     def rebuild_blocker_indexes
-      @blocker_keys = Set.new
-      @blockers_by_message = Hash.new { |hash, key| hash[key] = [] }
+      initialize_blocker_indexes
       retained = @blockers
       @blockers = []
       retained.each { |blocker| add_blocker(blocker) }
     end
 
+    def index_blocker(blocker)
+      kind = blocker.scope_kind.to_sym
+      match = blocker_scope_match(blocker)
+      if match == :glob
+        @glob_blockers_by_scope[kind] << blocker
+      else
+        Array(blocker.scope_value).compact.each do |value|
+          @exact_blockers_by_scope[kind][value.to_s] << blocker
+        end
+      end
+
+      if match == :exact && kind == :message
+        blocker_index_messages(blocker).each { |message| @blockers_by_message[message] << blocker if message }
+      end
+      index_exact_owner_blocker(blocker) if match == :exact && kind == :owner
+    end
+
+    def blocker_candidates(node)
+      candidates = []
+      candidates.concat(@blockers_by_message.fetch(node.name, []))
+      candidates.concat(exact_scope_blocker_candidates(node))
+      candidates.concat(glob_scope_blocker_candidates(node))
+      candidates.uniq
+    end
+
+    def exact_scope_blocker_candidates(node)
+      candidates = []
+      candidates.concat(@exact_blockers_by_scope[:definition].fetch(node.graph_id, []))
+      candidates.concat(@exact_blockers_by_scope[:symbol].fetch(node.symbol_id, []))
+      candidates.concat(@exact_blockers_by_scope[:message].fetch(node.name, []))
+      candidates.concat(@exact_owner_blockers_by_node.fetch([node.kind, node.owner.to_s], [])) if node.owner
+      namespace_scope_values(node.owner).each do |namespace|
+        candidates.concat(@exact_blockers_by_scope[:namespace].fetch(namespace, []))
+      end
+      candidates.concat(@exact_blockers_by_scope[:file].fetch(node.file.to_s, []))
+      candidates.concat(@exact_blockers_by_scope[:global].values.flatten)
+      candidates
+    end
+
+    def index_exact_owner_blocker(blocker)
+      method_nodes.each do |node|
+        next unless Array(blocker.scope_value).any? do |owner|
+          blocker_owner_matches?(blocker, node, owner.to_s)
+        end
+
+        @exact_owner_blockers_by_node[[node.kind, node.owner.to_s]] << blocker
+      end
+    end
+
+    def namespace_scope_values(owner)
+      parts = owner.to_s.split('::')
+      parts.length.times.map { |index| parts.first(index + 1).join('::') }
+    end
+
+    def glob_scope_blocker_candidates(node)
+      @glob_blockers_by_scope.values.flatten.select do |blocker|
+        blocker_glob_scope_matches_node?(blocker, node)
+      end
+    end
+
     def blocker_index_messages(blocker)
+      return Array(blocker.scope_value).compact.map(&:to_s) if blocker.scope_kind.to_sym == :message
       return [blocker.message&.to_s] unless blocker.scope_kind.to_sym == :symbol
 
       Array(blocker.scope_value).map { |symbol_id| logical_method_name(symbol_id) }.uniq
@@ -71,6 +140,10 @@ module Necropsy
         metadata['caller_kind'] || metadata[:caller_kind],
         metadata['receiver_kind'] || metadata[:receiver_kind],
         metadata['original_message'] || metadata[:original_message],
+        metadata['call_site_id'] || metadata[:call_site_id],
+        metadata['producer'] || metadata[:producer],
+        metadata['producer_version'] || metadata[:producer_version],
+        blocker_scope_match(blocker).to_s,
         metadata.fetch('include_private') { metadata[:include_private] },
         blocker.message&.to_s,
         blocker.reason.to_s
@@ -89,8 +162,10 @@ module Necropsy
     end
 
     def blocker_matches_node?(blocker, node)
+      return false if blocker_known_targets(blocker).include?(node.graph_id)
       return false unless blocker_message_matches?(blocker, node)
       return false unless blocker_visibility_matches?(blocker, node)
+      return blocker_glob_scope_matches_node?(blocker, node) if blocker_scope_match(blocker) == :glob
 
       values = Array(blocker.scope_value).compact.map(&:to_s)
       case blocker.scope_kind.to_sym
@@ -111,10 +186,48 @@ module Necropsy
       end
     end
 
+    def blocker_known_targets(blocker)
+      metadata = blocker.metadata
+      Array(metadata['known_target_definition_ids'] || metadata[:known_target_definition_ids])
+    end
+
     def blocker_message_matches?(blocker, node)
       return true if blocker.scope_kind.to_sym == :symbol
+      if blocker.scope_kind.to_sym == :message && blocker_scope_match(blocker) == :glob
+        return scope_patterns(blocker).any? { |pattern| File.fnmatch?(pattern, node.name) }
+      end
 
       blocker.message.nil? || blocker.message.to_s == node.name
+    end
+
+    def blocker_scope_match(blocker)
+      value = blocker.metadata['scope_match'] || blocker.metadata[:scope_match] || :exact
+      value.to_sym
+    end
+
+    def blocker_glob_scope_matches_node?(blocker, node)
+      values = glob_scope_node_values(blocker.scope_kind.to_sym, node)
+      return true if blocker.scope_kind.to_sym == :global
+
+      scope_patterns(blocker).any? do |pattern|
+        values.any? { |value| File.fnmatch?(pattern, value, File::FNM_PATHNAME | File::FNM_EXTGLOB) }
+      end
+    end
+
+    def glob_scope_node_values(kind, node)
+      case kind
+      when :definition then [node.graph_id]
+      when :symbol then [node.symbol_id]
+      when :message then [node.name]
+      when :owner then [node.owner].compact
+      when :namespace then namespace_scope_values(node.owner)
+      when :file then [node.file]
+      else []
+      end.map(&:to_s)
+    end
+
+    def scope_patterns(blocker)
+      Array(blocker.scope_value).compact.map(&:to_s)
     end
 
     def blocker_visibility_matches?(blocker, node)
