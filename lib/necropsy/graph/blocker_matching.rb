@@ -48,7 +48,13 @@ module Necropsy
     def blocker_index_messages(blocker)
       return [blocker.message&.to_s] unless blocker.scope_kind.to_sym == :symbol
 
-      Array(blocker.scope_value).map { |symbol_id| symbol_id.to_s.split(/[.#]/).last }.uniq
+      Array(blocker.scope_value).map { |symbol_id| logical_method_name(symbol_id) }.uniq
+    end
+
+    def logical_method_name(symbol_id)
+      value = symbol_id.to_s
+      separator = value.index(/[.#]/)
+      separator ? value[(separator + 1)..] : value
     end
 
     def blocker_key(blocker)

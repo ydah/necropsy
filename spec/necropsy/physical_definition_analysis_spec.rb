@@ -272,6 +272,49 @@ RSpec.describe 'physical definition analysis' do
     expect(graph.matching_blockers(test_second)).to be_empty
   end
 
+  it 'indexes duplicate blockers by the complete legal method name' do
+    files = {
+      'lib/exact_names.rb' => <<~RUBY
+        class ExactNames
+          define_method(:'foo.bar') { :first }
+          define_method(:'foo.bar') { :second }
+
+          define_method(:'foo#bar') { :first }
+          define_method(:'foo#bar') { :second }
+
+          def ordinary; end
+          def ordinary; end
+
+          def self.singleton; end
+          def self.singleton; end
+
+          def []=(_key, _value); end
+          def []=(_key, _value); end
+        end
+      RUBY
+    }
+    symbols = ['ExactNames#foo.bar', 'ExactNames#foo#bar', 'ExactNames#ordinary',
+               'ExactNames.singleton', 'ExactNames#[]=']
+
+    with_project(files: files, config: { cache: { enabled: false } }) do |root|
+      report = Necropsy::Runner.new(root: root).analyze
+
+      symbols.each do |symbol_id|
+        definitions = report.graph.definitions_for(symbol_id)
+        expect(definitions.length).to eq(2)
+        expect(definitions).to all(
+          satisfy do |definition|
+            report.graph.matching_blockers(definition).any? do |blocker|
+              blocker.kind == :duplicate_definition && blocker.scope_value == symbol_id
+            end
+          end
+        )
+        expect(report.findings.select { |finding| finding.node.symbol_id == symbol_id }.map(&:classification).uniq)
+          .to eq([:blocked])
+      end
+    end
+  end
+
   it 'refreshes duplicate blocker metadata when a definition is added later' do
     first = physical_node('Repeated#target', 'def:v1:first', file: 'lib/first.rb')
     second = physical_node('Repeated#target', 'def:v1:second', file: 'lib/second.rb')
