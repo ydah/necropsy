@@ -5,15 +5,24 @@ require 'yaml'
 
 module Necropsy
   class Report
-    attr_reader :root, :graph, :findings, :reachability
+    SCHEMA_VERSION = 2
+    FINGERPRINT_COMPATIBILITY = {
+      'fingerprint' => 'legacy logical symbol fingerprint retained for compatibility',
+      'physical_fingerprint' => 'physical definition fingerprint for baselines and definition-level matching'
+    }.freeze
 
-    def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [])
+    attr_reader :root, :graph, :findings, :reachability, :project, :source_snapshot
+
+    def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [],
+                   project: nil, source_snapshot: nil)
       @root = root
       @graph = graph
       @findings = findings.sort_by do |finding|
         [finding.node.file, finding.node.line, finding.node.id, finding.node.definition_id]
       end
       @reachability = reachability
+      @project = project
+      @source_snapshot = source_snapshot
       @report_include_paths = report_include_paths
       @report_exclude_paths = report_exclude_paths
     end
@@ -28,6 +37,8 @@ module Necropsy
 
     def to_h(include_graph: false)
       payload = {
+        'schema_version' => SCHEMA_VERSION,
+        'compatibility' => { 'finding_fingerprints' => FINGERPRINT_COMPATIBILITY },
         'root' => root,
         'summary' => summary,
         'findings' => reported_findings.map(&:to_h)

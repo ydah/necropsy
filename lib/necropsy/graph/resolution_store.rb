@@ -7,12 +7,13 @@ module Necropsy
     DIAGNOSTIC_SAMPLE_LIMIT = 5
     INVALID_SCOPE_LIMIT = 8
     RESOLUTION_STATUSES = %i[complete partial unknown].freeze
+    EMPTY_RESOLUTION_RECORDS = [].freeze
 
     def resolution_records(call_site_id = nil)
       records = sorted_resolution_records
       return records unless call_site_id
 
-      records.select { |record| record.resolution.call_site_id == call_site_id.to_s }.freeze
+      resolution_records_by_call_site.fetch(call_site_id.to_s, EMPTY_RESOLUTION_RECORDS)
     end
 
     def resolution_status_counts
@@ -48,6 +49,8 @@ module Necropsy
     def store_resolution_record(record)
       record = ResolutionRecord.from_h(record) unless record.is_a?(ResolutionRecord)
       @resolution_records_by_key[resolution_record_key(record)] = record
+      @sorted_resolution_records = nil
+      @resolution_records_by_call_site = nil
     rescue KeyError, ArgumentError, NoMethodError, BoundedCanonicalizer::Error, SystemStackError => e
       store_malformed_resolution_issue(record, e)
     end
@@ -106,7 +109,15 @@ module Necropsy
     end
 
     def sorted_resolution_records
-      @resolution_records_by_key.values.sort_by { |record| resolution_record_key(record) }.freeze
+      @sorted_resolution_records ||= @resolution_records_by_key.values.sort_by do |record|
+        resolution_record_key(record)
+      end.freeze
+    end
+
+    def resolution_records_by_call_site
+      @resolution_records_by_call_site ||= sorted_resolution_records.group_by do |record|
+        record.resolution.call_site_id
+      end.transform_values(&:freeze).freeze
     end
 
     def rebuild_resolution_derived_state

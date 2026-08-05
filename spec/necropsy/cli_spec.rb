@@ -52,6 +52,50 @@ RSpec.describe Necropsy::CLI do
           described_class.run(['check', '--root', project_root, '--baseline', custom_path])
         end.to output("Necropsy check passed\n").to_stdout
       end
+
+      it 'fails closed with a review report for an ambiguous v1 logical baseline' do
+        repeated_root = create_project(files: {
+                                         'app/repeated.rb' => <<~RUBY
+                                           class CliRepeated
+                                             def dead
+                                             end
+
+                                             def dead
+                                               :replacement
+                                             end
+                                           end
+                                         RUBY
+                                       })
+        repeated_baseline = File.join(repeated_root, '.necropsy_baseline.yml')
+        logical_fingerprint = Digest::SHA256.hexdigest('unreachable:CliRepeated#dead')
+        File.write(repeated_baseline, {
+          'version' => 1,
+          'findings' => [{
+            'fingerprint' => logical_fingerprint,
+            'node_id' => 'CliRepeated#dead',
+            'file' => 'app/repeated.rb'
+          }]
+        }.to_yaml)
+
+        result = nil
+        expect do
+          result = described_class.run([
+                                         'check', '--root', repeated_root, '--baseline', repeated_baseline,
+                                         '--fail-on', 'low'
+                                       ])
+        end.to output(
+          /Baseline migration requires review.*CliRepeated#dead.*def:v1:.*def:v1:.*Regenerate the baseline/m
+        ).to_stdout
+        expect(result).to eq(1)
+
+        expect do
+          result = described_class.run([
+                                         'check', '--root', repeated_root, '--baseline', repeated_baseline,
+                                         '--fail-on', 'high'
+                                       ])
+        end.to output(/Baseline migration requires review.*Ambiguous mappings: 1/m).to_stdout
+        expect(result).to eq(1)
+      end
     end
 
     context 'with a gold standard relative to the process directory' do
@@ -296,6 +340,23 @@ RSpec.describe Necropsy::CLI do
         expect do
           described_class.run(['explain', 'CliDiagnostics#dead', '--root', project_root])
         end.to output(/CliDiagnostics#dead \[def:v1:[a-f0-9]+\]: unreachable.*base\(unreachable\)/m).to_stdout
+      end
+
+      it 'shows refutable why-not diagnostics in human and JSON formats' do
+        expect do
+          described_class.run(['why-not', 'CliDiagnostics#dead', '--root', project_root])
+        end.to output(
+          /Why-not \(candidate\): CliDiagnostics#dead.*Incoming call sites examined: 0.*Suggested next evidence:/m
+        ).to_stdout
+
+        output = StringIO.new
+        allow($stdout).to receive(:puts) { |value| output.puts(value) }
+        expect(described_class.run(
+                 ['why-not', 'CliDiagnostics#dead', '--root', project_root, '--format', 'json']
+               )).to eq(0)
+        expect(JSON.parse(output.string)).to include(
+          'schema_version' => 'necropsy.why-not.v1', 'state' => 'candidate'
+        )
       end
 
       it 'requires either a logical symbol or physical definition ID' do

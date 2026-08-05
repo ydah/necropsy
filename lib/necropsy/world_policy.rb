@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'digest'
+
 module Necropsy
   class WorldPolicy
     def initialize(graph:, project:)
@@ -10,6 +12,7 @@ module Necropsy
     def apply
       protect_library_surface if config.library_world?
       add_conservative_load_roots if config.load_roots == :all
+      record_policy
     end
 
     private
@@ -67,6 +70,20 @@ module Necropsy
           }
         )
       end
+    end
+
+    def record_policy
+      graph.observation['world_policy'] = {
+        'world' => config.world.to_s,
+        'load_roots' => config.load_roots.to_s,
+        'configuration_sha256' => configuration_digest
+      }
+    end
+
+    def configuration_digest
+      Digest::SHA256.hexdigest(BoundedCanonicalizer.dump(config.scan_cache_key))
+    rescue StandardError, SystemStackError
+      'unavailable'
     end
   end
 end

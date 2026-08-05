@@ -16,6 +16,7 @@ module Necropsy
     def analyze(rta_pruning: config.rta_pruning)
       rta_pruning = normalize_rta_pruning(rta_pruning)
       project = Project.new(root: root, config: config)
+      source_snapshot = project.source_snapshot
       graph = CallGraph.new(project.scan_result, ambiguity_limit: config.ambiguity_limit)
       project.scope_blockers.each { |blocker| graph.add_blocker(blocker) }
       rta_results = []
@@ -41,6 +42,8 @@ module Necropsy
         graph: graph,
         findings: findings,
         reachability: reachability,
+        project: project,
+        source_snapshot: source_snapshot,
         report_include_paths: config.report_include_paths,
         report_exclude_paths: config.report_exclude_paths
       )

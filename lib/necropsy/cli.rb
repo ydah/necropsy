@@ -56,7 +56,7 @@ module Necropsy
         record(options, argv)
       when 'coverage'
         coverage(options, argv)
-      when 'why', 'explain'
+      when 'why', 'why-not', 'explain'
         diagnose(command, options, argv)
       else
         warn "Unknown command: #{command}"
@@ -149,7 +149,11 @@ module Necropsy
       raise Error, "Unexpected arguments for #{command}: #{argv.join(' ')}" unless argv.empty?
 
       diagnostics = Diagnostics.new(analyze(options))
-      payload = command == 'why' ? diagnostics.why(node_id) : diagnostics.explain(node_id)
+      payload = case command
+                when 'why' then diagnostics.why(node_id)
+                when 'why-not' then diagnostics.why_not(node_id)
+                else diagnostics.explain(node_id)
+                end
       puts diagnostics.render(payload, format: options[:format])
       0
     end
@@ -167,7 +171,12 @@ module Necropsy
       findings = filtered_findings(report, options)
       baseline_path = File.expand_path(options[:baseline], options[:root])
       baseline = Guardrail::Baseline.load(baseline_path)
-      failures = findings.reject { |finding| baseline.include?(finding) }
+      comparison = baseline.compare(report.dead_methods(min_confidence: :low))
+      if comparison.review_required?
+        puts Reporter.render_baseline_review(comparison.review_report)
+        return 1
+      end
+      failures = findings - comparison.matched_findings
 
       baseline_count = baseline.count_at_least(options[:fail_on])
       if options[:ratchet] && findings.length > baseline_count

@@ -321,6 +321,12 @@ module Necropsy
       Digest::SHA256.hexdigest("#{classification}:#{symbol_id}")
     end
 
+    alias_method :logical_fingerprint, :fingerprint
+
+    def physical_fingerprint(classification)
+      Digest::SHA256.hexdigest("#{classification}:#{definition_id}")
+    end
+
     def to_h
       {
         'id' => id,
@@ -758,9 +764,17 @@ module Necropsy
       node.fingerprint(classification)
     end
 
+    alias_method :logical_fingerprint, :fingerprint
+
+    def physical_fingerprint
+      node.physical_fingerprint(classification)
+    end
+
     def to_h
       {
         'fingerprint' => fingerprint,
+        'logical_fingerprint' => logical_fingerprint,
+        'physical_fingerprint' => physical_fingerprint,
         'classification' => classification.to_s,
         'confidence' => confidence.to_s,
         'score' => score,

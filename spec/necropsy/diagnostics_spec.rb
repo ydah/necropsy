@@ -112,6 +112,7 @@ RSpec.describe Necropsy::Diagnostics do
         'symbol_id' => 'Repeated#run', 'definition_id' => 'def:v1:first', 'file' => 'lib/first.rb', 'line' => 3,
         'commands' => {
           'why' => 'bundle exec necropsy why def:v1:first --root /repo',
+          'why_not' => 'bundle exec necropsy why-not def:v1:first --root /repo',
           'explain' => 'bundle exec necropsy explain def:v1:first --root /repo'
         }
       },
@@ -119,6 +120,7 @@ RSpec.describe Necropsy::Diagnostics do
         'symbol_id' => 'Repeated#run', 'definition_id' => 'def:v1:second', 'file' => 'lib/second.rb', 'line' => 7,
         'commands' => {
           'why' => 'bundle exec necropsy why def:v1:second --root /repo',
+          'why_not' => 'bundle exec necropsy why-not def:v1:second --root /repo',
           'explain' => 'bundle exec necropsy explain def:v1:second --root /repo'
         }
       }
@@ -130,7 +132,8 @@ RSpec.describe Necropsy::Diagnostics do
     expect(ambiguous_diagnostics.render(payload)).to include(
       'Ambiguous symbol ID: Repeated#run',
       'Repeated#run [def:v1:first] lib/first.rb:3',
-      'why: bundle exec necropsy why def:v1:first --root /repo'
+      'why: bundle exec necropsy why def:v1:first --root /repo',
+      'why-not: bundle exec necropsy why-not def:v1:first --root /repo'
     )
   end
 

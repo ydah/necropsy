@@ -21,6 +21,15 @@ RSpec.describe 'Necropsy model objects' do
       )
     end
 
+    it 'keeps logical fingerprints stable while distinguishing physical definitions' do
+      first = node('Sample#render', definition_id: 'def:v1:first')
+      second = node('Sample#render', definition_id: 'def:v1:second')
+
+      expect(first.logical_fingerprint(:unreachable)).to eq(second.logical_fingerprint(:unreachable))
+      expect(first.physical_fingerprint(:unreachable)).not_to eq(second.physical_fingerprint(:unreachable))
+      expect(first.fingerprint(:unreachable)).to eq(first.logical_fingerprint(:unreachable))
+    end
+
     it 'keeps legacy construction and logical fingerprints compatible' do
       legacy = described_class.new(
         id: 'Sample#render', kind: :instance_method, file: 'sample.rb', line: 1, end_line: 2,

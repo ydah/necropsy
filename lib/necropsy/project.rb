@@ -1,9 +1,13 @@
 # frozen_string_literal: true
 
 require 'pathname'
+require 'digest'
 
 module Necropsy
   class Project
+    SOURCE_SNAPSHOT_MAX_BYTES = 268_435_456
+    SOURCE_SNAPSHOT_MAX_FILES = 100_000
+    SOURCE_DIGEST_CHUNK_BYTES = 65_536
     EXCLUDED_DIRECTORIES = %w[
       .bundle
       .git
@@ -83,6 +87,10 @@ module Necropsy
       }
     end
 
+    def source_snapshot
+      @source_snapshot ||= build_source_snapshot
+    end
+
     def source_domains
       @source_domains ||= begin
         analyzed = ruby_files.to_set
@@ -156,6 +164,38 @@ module Necropsy
     end
 
     private
+
+    def build_source_snapshot
+      files = cache_files.sort_by { |file| relative_path(file) }
+      return unavailable_source_snapshot('file_limit', files: files.length) if files.length > SOURCE_SNAPSHOT_MAX_FILES
+
+      total_bytes = files.sum { |file| File.size(file) }
+      return unavailable_source_snapshot('byte_limit', files: files.length, bytes: total_bytes) if total_bytes > SOURCE_SNAPSHOT_MAX_BYTES
+
+      digest = Digest::SHA256.new
+      files.each { |file| digest_source_file(digest, file) }
+      { 'status' => 'complete', 'sha256' => digest.hexdigest, 'files' => files.length, 'bytes' => total_bytes }
+    rescue SystemCallError, IOError, ArgumentError => e
+      unavailable_source_snapshot('read_error', error: e.class.name)
+    end
+
+    def digest_source_file(digest, file)
+      relative = relative_path(file).b
+      expected_bytes = File.size(file)
+      digest << [relative.bytesize].pack('Q>') << relative << [expected_bytes].pack('Q>')
+      actual_bytes = 0
+      File.open(file, 'rb') do |io|
+        while (chunk = io.read(SOURCE_DIGEST_CHUNK_BYTES))
+          actual_bytes += chunk.bytesize
+          digest << chunk
+        end
+      end
+      raise IOError, "source changed while reading #{relative}" unless actual_bytes == expected_bytes
+    end
+
+    def unavailable_source_snapshot(reason, details = {})
+      { 'status' => 'unavailable', 'sha256' => 'unavailable', 'reason' => reason }.merge(details)
+    end
 
     def test_source_path?(relative)
       relative.start_with?('spec/', 'test/')

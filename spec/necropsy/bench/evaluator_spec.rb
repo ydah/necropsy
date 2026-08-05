@@ -77,4 +77,32 @@ RSpec.describe Necropsy::Bench::Evaluator do
       expect(legacy.fetch('true_positive')).to eq(['Dead#render'])
     end
   end
+
+  it 'reports legacy logical and physical definition identity views without collapsing duplicates' do
+    first = finding(id: 'Repeated#dead', file: 'lib/repeated.rb', line: 2)
+    first = first.with(node: first.node.with(definition_id: 'def:v1:first', body_digest: 'first', ordinal: 1))
+    second = finding(id: 'Repeated#dead', file: 'lib/repeated.rb', line: 6)
+    second = second.with(node: second.node.with(definition_id: 'def:v1:second', body_digest: 'second', ordinal: 1))
+    report = report_with_findings([first, second])
+
+    with_project(files: { 'gold.yml' => { 'dead_methods' => ['Repeated#dead'] }.to_yaml }) do |root|
+      result = described_class.new(
+        report: report,
+        gold_standard_path: File.join(root, 'gold.yml'),
+        min_confidence: :low
+      ).call
+
+      expect(result.dig('identity_views', 'legacy_logical')).to include(
+        'identity_key' => 'symbol_id',
+        'candidate_count' => 1,
+        'candidate_ids' => ['Repeated#dead']
+      )
+      physical = result.dig('identity_views', 'physical_definition')
+      expect(physical.fetch('candidate_count')).to eq(2)
+      expect(physical.fetch('candidates').map { |candidate| candidate['definition_id'] }).to eq(
+        %w[def:v1:first def:v1:second]
+      )
+      expect(physical.fetch('candidates').map { |candidate| candidate['physical_fingerprint'] }.uniq.length).to eq(2)
+    end
+  end
 end

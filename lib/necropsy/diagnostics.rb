@@ -59,6 +59,14 @@ module Necropsy
       with_source_incompleteness(payload)
     end
 
+    def why_not(node_id)
+      lookup = graph.nodes.lookup(node_id)
+      return with_source_incompleteness(ambiguous_payload(lookup)) if lookup.ambiguous?
+      return with_source_incompleteness(missing_payload(node_id)) if lookup.missing?
+
+      WhyNotExplanation.new(report).call(lookup.node)
+    end
+
     def render(payload, format: :human)
       normalized = format.to_sym
       raise Error, "Diagnostics support only human or json output, not #{format}" unless FORMATS.include?(normalized)
@@ -175,6 +183,7 @@ module Necropsy
             'line' => definition.line,
             'commands' => {
               'why' => diagnostic_command('why', definition.definition_id),
+              'why_not' => diagnostic_command('why-not', definition.definition_id),
               'explain' => diagnostic_command('explain', definition.definition_id)
             }
           }
@@ -205,6 +214,7 @@ module Necropsy
                  when 'alive' then render_alive(payload)
                  when 'dead', 'blocked' then render_dead(payload)
                  when 'finding' then render_explanation(payload)
+                 when 'why_not' then WhyNotRenderer.new(payload).render
                  when 'ambiguous' then render_ambiguous(payload)
                  when 'not_found' then render_missing(payload)
                  else "#{node_reference(payload['node'])} is alive and has no dead-code finding."
@@ -273,6 +283,7 @@ module Necropsy
         lines << "  #{definition['symbol_id']} [#{definition['definition_id']}] " \
                  "#{definition['file']}:#{definition['line']}"
         lines << "    why: #{definition.dig('commands', 'why')}"
+        lines << "    why-not: #{definition.dig('commands', 'why_not')}"
         lines << "    explain: #{definition.dig('commands', 'explain')}"
       end
       lines.join("\n")

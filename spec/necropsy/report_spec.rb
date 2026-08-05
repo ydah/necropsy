@@ -18,7 +18,15 @@ RSpec.describe Necropsy::Report do
       'unused' => 1,
       'test_only_reachable' => 1
     )
-    expect(report.to_h).to include('root' => '/repo', 'findings' => include(include('classification' => 'unreachable')))
+    expect(report.to_h).to include(
+      'schema_version' => 2,
+      'root' => '/repo',
+      'findings' => include(include('classification' => 'unreachable'))
+    )
+    expect(report.to_h.dig('compatibility', 'finding_fingerprints')).to include(
+      'fingerprint' => match(/legacy logical/),
+      'physical_fingerprint' => match(/physical definition/)
+    )
     expect(report.to_h).not_to have_key('graph')
     expect(report.to_h(include_graph: true)).to include('graph' => include('nodes'))
     expect(JSON.parse(JSON.generate('report' => report))).to include('report' => include('root' => '/repo'))

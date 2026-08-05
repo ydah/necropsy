@@ -256,11 +256,45 @@ RSpec.describe Necropsy::Reporter do
         expect(results.map { |result| result.fetch('level') }).to contain_exactly('error', 'note')
         expect(results.first.fetch('partialFingerprints')).to include('necropsy')
         dead_result = results.find { |result| result.dig('properties', 'definitionId') == 'def:v1:dead' }
-        expect(dead_result.fetch('properties')).to eq(
-          'symbolId' => 'Sample#dead', 'definitionId' => 'def:v1:dead'
+        expect(dead_result.fetch('properties')).to include(
+          'symbolId' => 'Sample#dead',
+          'definitionId' => 'def:v1:dead',
+          'logicalFingerprint' => report.findings.first.logical_fingerprint,
+          'physicalFingerprint' => report.findings.first.physical_fingerprint
         )
         expect(dead_result.dig('partialFingerprints', 'necropsy')).to eq(report.findings.first.fingerprint)
+        expect(dead_result.dig('partialFingerprints', 'necropsyPhysicalDefinition')).to eq(
+          report.findings.first.physical_fingerprint
+        )
+        expect(payload.dig('runs', 0, 'properties', 'necropsyFingerprintCompatibility')).to include(
+          'fingerprint' => match(/legacy logical/)
+        )
       end
+    end
+
+    it 'renders an actionable baseline migration review' do
+      output = described_class.render_baseline_review(
+        'baseline_path' => '/repo/.necropsy_baseline.yml',
+        'baseline_schema_version' => 1,
+        'ambiguities' => [{
+          'strategy' => 'logical_fingerprint',
+          'reason' => 'multiple_current_definitions',
+          'baseline' => { 'node_id' => 'Repeated#run' },
+          'candidates' => [
+            {
+              'symbol_id' => 'Repeated#run', 'definition_id' => 'def:v1:first',
+              'file' => 'lib/repeated.rb', 'line' => 3
+            },
+            {
+              'symbol_id' => 'Repeated#run', 'definition_id' => 'def:v1:second',
+              'file' => 'lib/repeated.rb', 'line' => 8
+            }
+          ]
+        }]
+      )
+
+      expect(output).to include('Baseline migration requires review', 'Repeated#run via logical_fingerprint')
+      expect(output).to include('def:v1:first', 'def:v1:second', 'Regenerate the baseline')
     end
 
     context 'with definition-resolution ambiguity' do

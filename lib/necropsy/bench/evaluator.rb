@@ -36,6 +36,7 @@ module Necropsy
 
       def call
         result = metrics_for(report)
+        result['identity_views'] = identity_views(report)
         result['by_classification'] = grouped_metrics(:classification)
         result['by_confidence'] = grouped_metrics(:confidence)
         result['ablation'] = ablation_metrics if ablation && root
@@ -169,6 +170,35 @@ module Necropsy
         return 1.0 if denominator.zero?
 
         numerator.to_f / denominator
+      end
+
+      def identity_views(target_report)
+        findings = target_report.dead_methods(min_confidence: min_confidence)
+        logical = findings.map { |finding| finding.node.symbol_id }.uniq.sort
+        physical = findings.sort_by do |finding|
+          [finding.node.symbol_id, finding.node.file, finding.node.line, finding.node.definition_id]
+        end.map do |finding|
+          {
+            'definition_id' => finding.node.definition_id,
+            'symbol_id' => finding.node.symbol_id,
+            'physical_fingerprint' => finding.physical_fingerprint,
+            'logical_fingerprint' => finding.logical_fingerprint,
+            'file' => finding.node.file,
+            'line' => finding.node.line
+          }
+        end
+        {
+          'legacy_logical' => {
+            'identity_key' => 'symbol_id',
+            'candidate_count' => logical.length,
+            'candidate_ids' => logical
+          },
+          'physical_definition' => {
+            'identity_key' => 'definition_id',
+            'candidate_count' => physical.length,
+            'candidates' => physical
+          }
+        }
       end
 
       def release_criteria(result)

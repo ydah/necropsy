@@ -10,6 +10,26 @@ module Necropsy
       @report = report
     end
 
+    def self.render_baseline_review(review_report)
+      lines = [
+        'Baseline migration requires review',
+        "Baseline: #{review_report.fetch('baseline_path')}",
+        "Schema: v#{review_report.fetch('baseline_schema_version')}",
+        "Ambiguous mappings: #{review_report.fetch('ambiguities').length}"
+      ]
+      review_report.fetch('ambiguities').each do |ambiguity|
+        baseline = ambiguity.fetch('baseline')
+        label = baseline['definition_id'] || baseline['symbol_id'] || baseline['node_id'] || baseline['fingerprint']
+        lines << "  #{label} via #{ambiguity.fetch('strategy')} (#{ambiguity.fetch('reason')})"
+        ambiguity.fetch('candidates').each do |candidate|
+          lines << "    #{candidate.fetch('symbol_id')} [#{candidate.fetch('definition_id')}] " \
+                   "#{candidate.fetch('file')}:#{candidate.fetch('line')}"
+        end
+      end
+      lines << 'Regenerate the baseline after reviewing every ambiguous physical definition.'
+      lines.join("\n")
+    end
+
     def render(format: :human, min_confidence: DEFAULT_MIN_CONFIDENCE, include_graph: false)
       normalized_format = format.to_sym
       raise Error, "Unknown report format: #{format}" unless FORMATS.include?(normalized_format)
@@ -271,7 +291,10 @@ module Necropsy
                 'rules' => sarif_rules(findings, source_entries)
               }
             },
-            'results' => findings.map { |finding| sarif_result(finding) } + source_entries.map { |entry| sarif_source_result(entry) }
+            'results' => findings.map { |finding| sarif_result(finding) } + source_entries.map { |entry| sarif_source_result(entry) },
+            'properties' => {
+              'necropsyFingerprintCompatibility' => Report::FINGERPRINT_COMPATIBILITY
+            }
           }
         ]
       }.to_json
@@ -301,7 +324,9 @@ module Necropsy
         'message' => { 'text' => "#{finding.node.id} is #{finding.classification} (#{finding.confidence})" },
         'properties' => {
           'symbolId' => finding.node.symbol_id,
-          'definitionId' => finding.node.definition_id
+          'definitionId' => finding.node.definition_id,
+          'logicalFingerprint' => finding.logical_fingerprint,
+          'physicalFingerprint' => finding.physical_fingerprint
         },
         'locations' => [
           {
@@ -311,7 +336,10 @@ module Necropsy
             }
           }
         ],
-        'partialFingerprints' => { 'necropsy' => finding.fingerprint }
+        'partialFingerprints' => {
+          'necropsy' => finding.logical_fingerprint,
+          'necropsyPhysicalDefinition' => finding.physical_fingerprint
+        }
       }
     end
 
