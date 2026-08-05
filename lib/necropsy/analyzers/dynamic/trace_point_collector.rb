@@ -90,15 +90,15 @@ module Necropsy
         end
 
         def unwind_stack(stack, reference)
-          reference_key = frame_key(reference)
-          index = stack.rindex { |frame| frame_key(frame.first) == reference_key }
+          reference_key = invocation_key(reference)
+          index = stack.rindex { |frame| invocation_key(frame.first) == reference_key }
           return unless index
 
           stack.slice!(index..)
         end
 
-        def frame_key(reference)
-          RuntimeReference.key(reference)
+        def invocation_key(reference)
+          reference.values_at('definition_id', 'symbol_id', 'file')
         end
 
         def project_path?(path)

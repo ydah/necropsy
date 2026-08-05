@@ -61,6 +61,39 @@ RSpec.describe Necropsy::Analyzers::Dynamic::TracePointCollector do
     end
   end
 
+  it 'unwinds real multiline methods before a subsequent unrelated call' do
+    with_project(files: {
+                   'runner.rb' => <<~RUBY
+                     class MultilineTraceFirst
+                       def run
+                         :first
+                       end
+                     end
+
+                     class MultilineTraceSecond
+                       def run
+                         :second
+                       end
+                     end
+                   RUBY
+                 }) do |root|
+      output = File.join(root, 'trace.yml')
+      collector = described_class.new(root: root, output: output)
+
+      collector.record do
+        load File.join(root, 'runner.rb')
+        MultilineTraceFirst.new.run
+        MultilineTraceSecond.new.run
+      end
+
+      payload = YAML.load_file(output)
+      expect(payload.fetch('nodes')).to include('MultilineTraceFirst#run', 'MultilineTraceSecond#run')
+      expect(payload.fetch('edges')).to be_empty
+      expect(payload.fetch('edge_references')).to be_empty
+      expect(collector.instance_variable_get(:@stacks)).to be_empty
+    end
+  end
+
   it 'merges structured nodes and edges by location' do
     collector = described_class.new(root: '/repo', output: '/tmp/trace.yml')
     target = { 'symbol_id' => 'Target#call', 'file' => 'lib/target.rb', 'line' => 1 }
@@ -129,6 +162,48 @@ RSpec.describe Necropsy::Analyzers::Dynamic::TracePointCollector do
       expect(payload.fetch('nodes')).to contain_exactly('TraceSampleA#run', 'TraceSampleB#run')
       expect(payload.fetch('edges')).to be_empty
       expect(SecureRandom).to have_received(:random_number).twice
+    end
+  end
+
+  it 'pops the nearest recursive frame without using the return line' do
+    stub_const('RecursiveTrace', Class.new)
+    stub_const('UnrelatedTrace', Class.new)
+    event = Struct.new(:path, :defined_class, :method_id, :event, :lineno, keyword_init: true)
+
+    with_project do |root|
+      collector = described_class.new(root: root, output: File.join(root, 'trace.yml'))
+      path = File.join(root, 'runner.rb')
+      call = event.new(path: path, defined_class: RecursiveTrace, method_id: :run, event: :call, lineno: 2)
+      returned = event.new(path: path, defined_class: RecursiveTrace, method_id: :run, event: :return, lineno: 5)
+
+      collector.send(:capture, call)
+      collector.send(:capture, call)
+      collector.send(:capture, returned)
+      expect(collector.instance_variable_get(:@stacks).fetch(Thread.current).length).to eq(1)
+      collector.send(:capture, returned)
+      collector.send(
+        :capture,
+        event.new(path: path, defined_class: UnrelatedTrace, method_id: :run, event: :call, lineno: 9)
+      )
+      collector.send(
+        :capture,
+        event.new(path: path, defined_class: UnrelatedTrace, method_id: :run, event: :return, lineno: 12)
+      )
+
+      expect(collector.instance_variable_get(:@stacks)).to be_empty
+      expect(collector.instance_variable_get(:@edges).keys).to eq(
+        [['RecursiveTrace#run', 'RecursiveTrace#run']]
+      )
+      expect(collector.instance_variable_get(:@edge_references).values).to contain_exactly(
+        include(
+          'caller_id' => include('symbol_id' => 'RecursiveTrace#run', 'line' => 2),
+          'callee_id' => include('symbol_id' => 'RecursiveTrace#run', 'line' => 2)
+        )
+      )
+      recursive = collector.instance_variable_get(:@node_references).values.find do |reference|
+        reference['symbol_id'] == 'RecursiveTrace#run'
+      end
+      expect(recursive).to include('file' => 'runner.rb', 'line' => 2)
     end
   end
 end
