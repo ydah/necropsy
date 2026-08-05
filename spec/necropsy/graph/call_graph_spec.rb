@@ -545,6 +545,65 @@ RSpec.describe Necropsy::CallGraph do
 
     expect(scoped_matches).to be_subset(unknown_matches)
   end
+
+  it 'quarantines uncanonicalizable blocker keys without leaving either target unblocked' do
+    first_target = node('First#call', owner: 'First', name: 'call', visibility: :private)
+    second_target = node('Second#call', owner: 'Second', name: 'call', visibility: :private)
+    graph = graph_with(nodes: [first_target, second_target])
+    first_known = [first_target.graph_id]
+    first_known << first_known
+    second_known = [second_target.graph_id]
+    second_known << second_known
+    blockers = [first_known, second_known].map do |known_targets|
+      unresolved_blocker(message: 'call').then do |blocker|
+        blocker.with(metadata: blocker.metadata.merge('known_target_definition_ids' => known_targets))
+      end
+    end
+
+    blockers.each { |blocker| graph.add_blocker(blocker) }
+
+    expect(graph.blockers.map(&:kind)).to eq([:blocker_invalid])
+    expect(graph.matching_blockers(first_target).map(&:kind)).to eq([:blocker_invalid])
+    expect(graph.matching_blockers(second_target).map(&:kind)).to eq([:blocker_invalid])
+    expect { JSON.generate(graph.to_h) }.not_to raise_error
+  end
+
+  it 'removes blocker batches without deleting each element from the backing array' do
+    graph = graph_with(nodes: [])
+    20.times do |index|
+      graph.add_blocker(unresolved_blocker(message: "message_#{index}"))
+    end
+    guarded_array = Class.new(Array) do
+      def delete(*)
+        raise 'per-element deletion is quadratic'
+      end
+    end.new(graph.blockers)
+    graph.instance_variable_set(:@blockers, guarded_array)
+
+    expect do
+      graph.send(:remove_blockers_matching) { |blocker| blocker.source == :name_resolution }
+    end.not_to raise_error
+    expect(graph.blockers).to eq([])
+  end
+
+  it 'quarantines blockers that become cyclic before an index rebuild' do
+    private_target = node('Private#call', owner: 'Private', name: 'call', visibility: :private)
+    graph = graph_with(nodes: [private_target])
+    assumptions = ['initial']
+    retained = unresolved_blocker(message: 'call').then do |blocker|
+      blocker.with(metadata: blocker.metadata.merge('assumptions' => assumptions))
+    end
+    removable = unresolved_blocker(message: 'other')
+    graph.add_blocker(retained)
+    graph.add_blocker(removable)
+    assumptions << assumptions
+
+    expect do
+      graph.send(:remove_blockers_matching) { |blocker| blocker.message == 'other' }
+    end.not_to raise_error
+    expect(graph.blockers.map(&:kind)).to eq([:blocker_invalid])
+    expect(graph.matching_blockers(private_target).map(&:kind)).to eq([:blocker_invalid])
+  end
 end
 
 def edge_evidence(caller_id, callee_id, evidence)

@@ -7,7 +7,7 @@ module Necropsy
     end
 
     def add_blocker(blocker)
-      key = blocker_key(blocker)
+      blocker, key = canonical_blocker(blocker)
       return blocker unless @blocker_keys.add?(key)
 
       @blockers << blocker
@@ -39,14 +39,18 @@ module Necropsy
     end
 
     def remove_blockers_matching(&)
-      removed = @blockers.select(&)
-      return if removed.empty?
+      retained = @blockers.reject(&)
+      return if retained.length == @blockers.length
 
-      removed.each do |blocker|
-        @blockers.delete(blocker)
-        @blocker_keys.delete(blocker_key(blocker))
-        unindex_blocker(blocker)
-      end
+      @blockers = retained
+      rebuild_blocker_indexes
+    end
+
+    def rebuild_blocker_indexes
+      retained = @blockers
+      initialize_blocker_indexes
+      @blockers = []
+      retained.each { |blocker| add_blocker(blocker) }
     end
 
     def index_blocker(blocker)
@@ -63,23 +67,6 @@ module Necropsy
         else
           exact_scope_values(blocker).each { |value| @exact_blockers_by_scope[kind][value] << blocker }
         end
-      end
-    end
-
-    def unindex_blocker(blocker)
-      kind = blocker.scope_kind.to_sym
-      if blocker_scope_match(blocker) == :glob
-        @glob_blockers_by_scope[kind].delete(blocker)
-        return
-      end
-
-      messages = blocker_index_messages(blocker).compact
-      if messages.any?
-        messages.each { |message| @blockers_by_message[message].delete(blocker) }
-      elsif kind == :owner
-        @unmessaged_exact_owner_blockers.delete(blocker)
-      else
-        exact_scope_values(blocker).each { |value| @exact_blockers_by_scope[kind][value].delete(blocker) }
       end
     end
 
@@ -170,8 +157,37 @@ module Necropsy
 
     def canonical_key_value(value)
       BoundedCanonicalizer.dump(value)
-    rescue BoundedCanonicalizer::Error => e
-      "canonicalization_error:#{value.class}:#{e.class}:#{e.message}"
+    end
+
+    def canonical_blocker(blocker)
+      [blocker, blocker_key(blocker)]
+    rescue BoundedCanonicalizer::Error, SystemStackError => e
+      sanitized = uncanonicalizable_blocker(blocker, e)
+      [sanitized, blocker_key(sanitized)]
+    end
+
+    def uncanonicalizable_blocker(blocker, error)
+      Blocker.new(
+        kind: :blocker_invalid,
+        scope_kind: :global,
+        scope_value: '*',
+        source: :blocker_store,
+        reason: 'Analyzer blocker could not be canonicalized safely',
+        suggested_action: :fix_analyzer,
+        metadata: {
+          'caller_domain' => safe_blocker_domain(blocker),
+          'receiver_kind' => 'implicit',
+          'original_kind' => blocker.kind.to_s,
+          'original_source_type' => blocker.source.class.name.to_s,
+          'canonicalization_error' => error.class.name
+        }
+      )
+    end
+
+    def safe_blocker_domain(blocker)
+      blocker.caller_domain.to_s
+    rescue StandardError, SystemStackError
+      'runtime'
     end
 
     def blocker_matches_node?(blocker, node)

@@ -67,13 +67,14 @@ RSpec.describe Necropsy::ResolutionStore do
       status: :partial,
       scope: unknown_scope
     )
+    graph.add_edge(caller.graph_id, known.graph_id, evidence)
 
     apply_resolutions(graph, record)
 
     expect(graph.resolution_records.first.resolution.target_definition_ids).to eq([known.graph_id])
     expect(graph.matching_blockers(known)).to eq([])
     expect(graph.matching_blockers(residual).map(&:kind)).to eq([:partial_dispatch])
-    expect(graph.edges).to eq([])
+    expect(graph.edges.map(&:callee_id)).to eq([known.graph_id])
   end
 
   it 'keeps residual blockers distinct across assumptions and known targets' do
@@ -97,6 +98,8 @@ RSpec.describe Necropsy::ResolutionStore do
       assumptions: ['autoload=lazy'],
       scope: unknown_scope
     )
+    graph.add_edge(caller.graph_id, first_target.graph_id, evidence)
+    graph.add_edge(caller.graph_id, second_target.graph_id, evidence)
 
     apply_resolutions(graph, first, second)
 
@@ -199,6 +202,8 @@ RSpec.describe Necropsy::ResolutionStore do
       producer: 'other',
       scope: unknown_scope
     )
+    graph.add_edge(caller.graph_id, first_target.graph_id, evidence)
+    graph.add_edge(caller.graph_id, second_target.graph_id, evidence)
 
     apply_resolutions(graph, producer_first, producer_second, partial)
 
@@ -218,6 +223,8 @@ RSpec.describe Necropsy::ResolutionStore do
                               assumptions: ['autoload=eager'])
     second = resolution_record(site_id: site.call_site_id, targets: [second_target.graph_id], status: :complete,
                                producer: 'other', assumptions: ['autoload=lazy'])
+    graph.add_edge(caller.graph_id, first_target.graph_id, evidence)
+    graph.add_edge(caller.graph_id, second_target.graph_id, evidence)
 
     apply_resolutions(graph, first, second)
 
@@ -236,6 +243,8 @@ RSpec.describe Necropsy::ResolutionStore do
     ]
     forward = graph_with(nodes: [caller, target], call_sites: [site])
     reverse = graph_with(nodes: [caller, target], call_sites: [site])
+    forward.add_edge(caller.graph_id, target.graph_id, evidence)
+    reverse.add_edge(caller.graph_id, target.graph_id, evidence)
 
     apply_resolutions(forward, *records)
     apply_resolutions(reverse, *records.reverse)
@@ -269,7 +278,7 @@ RSpec.describe Necropsy::ResolutionStore do
     expect(graph.observation.fetch('call_site_resolutions')).to include('issue_count' => 2)
   end
 
-  it 'refreshes resolution issues, blockers, and diagnostics when a missing target is added' do
+  it 'refreshes resolution issues, blockers, and diagnostics as a target and its edge are added' do
     caller = node('Caller#run')
     missing = node('Missing#render', owner: 'Missing', name: 'render')
     site = call_site(caller_id: caller.graph_id, message: 'render', call_site_id: 'call:v1:late-target')
@@ -282,9 +291,47 @@ RSpec.describe Necropsy::ResolutionStore do
 
     graph.add_node(missing)
 
+    expect(graph.resolution_issues.map { |issue| issue.fetch('kind') }).to eq(['missing_target_edge'])
+    expect(graph.matching_blockers(missing).map(&:kind)).to eq([:resolution_invalid])
+
+    graph.apply_result(analyzer_result(
+                         edge_evidences: [
+                           Necropsy::EdgeEvidence.new(
+                             caller_id: caller.graph_id,
+                             callee_id: missing.graph_id,
+                             evidence: evidence
+                           )
+                         ]
+                       ))
+
     expect(graph.resolution_issues).to eq([])
     expect(graph.blockers.map(&:kind)).not_to include(:resolution_invalid)
     expect(graph.observation.fetch('call_site_resolutions')).to include('issue_count' => 0)
+  end
+
+  %i[partial complete].each do |status|
+    it "blocks a declared #{status} target when the corresponding edge is missing" do
+      caller = node('Caller#run')
+      target = node('Target#render', owner: 'Target', name: 'render')
+      site = call_site(caller_id: caller.graph_id, message: 'render', call_site_id: "call:v1:missing-edge-#{status}")
+      graph = graph_with(nodes: [caller, target], call_sites: [site])
+      scope = unknown_scope if status == :partial
+      record = resolution_record(
+        site_id: site.call_site_id,
+        targets: [target.graph_id],
+        status: status,
+        scope: scope
+      )
+
+      apply_resolutions(graph, record)
+
+      expect(graph.resolution_issues).to include(
+        include('kind' => 'missing_target_edge', 'definition_id' => target.graph_id)
+      )
+      expect(graph.matching_blockers(target)).to include(
+        have_attributes(kind: :resolution_invalid, scope_kind: :definition)
+      )
+    end
   end
 
   it 'preserves reflective call visibility metadata on residual blockers' do
@@ -355,6 +402,29 @@ RSpec.describe Necropsy::ResolutionStore do
     expect(graph.matching_blockers(production_target, caller_domain: :test)).to eq([blocker])
   end
 
+  it 'preserves the least restrictive visibility for duplicate call-site IDs independent of order' do
+    caller = node('Caller#run')
+    private_target = node('Private#render', owner: 'Private', name: 'render', visibility: :private)
+    site_id = 'call:v1:duplicate-visibility'
+    public_send = call_site(
+      caller_id: caller.graph_id, message: 'render', call_site_id: site_id,
+      receiver_kind: :constant, metadata: { 'original_message' => 'public_send' }
+    )
+    send_site = call_site(
+      caller_id: caller.graph_id, message: 'render', call_site_id: site_id,
+      receiver_kind: :constant, metadata: { 'original_message' => 'send' }
+    )
+
+    [
+      graph_with(nodes: [caller, private_target], call_sites: [public_send, send_site]),
+      graph_with(nodes: [caller, private_target], call_sites: [send_site, public_send])
+    ].each do |graph|
+      apply_resolutions(graph, resolution_record(site_id: site_id, targets: [], status: :complete))
+
+      expect(graph.matching_blockers(private_target).map(&:kind)).to include(:resolution_invalid)
+    end
+  end
+
   it 'bounds fail-closed blockers for highly ambiguous mixed-domain call sites' do
     target = node('Target#message_0', owner: 'Target', name: 'message_0')
     site_id = 'call:v1:mixed-ambiguous'
@@ -376,6 +446,28 @@ RSpec.describe Necropsy::ResolutionStore do
     expect(blockers.map(&:caller_domain)).to contain_exactly(:runtime, :test)
     expect(graph.matching_blockers(target).map(&:kind)).to eq([:resolution_invalid])
     expect(graph.matching_blockers(target, caller_domain: :test).map(&:kind)).to eq([:resolution_invalid])
+  end
+
+  it 'keeps the bounded global fallback visibility-unrestricted and order-independent' do
+    caller = node('Caller#run')
+    private_target = node('Private#hidden', owner: 'Private', name: 'hidden', visibility: :private)
+    site_id = 'call:v1:visibility-fallback'
+    sites = 9.times.map do |index|
+      call_site(
+        caller_id: caller.graph_id,
+        message: "message_#{index}",
+        call_site_id: site_id,
+        receiver_kind: :constant,
+        metadata: { 'original_message' => 'public_send' }
+      )
+    end
+
+    [sites, sites.reverse].each do |ordered|
+      graph = graph_with(nodes: [caller, private_target], call_sites: ordered)
+      apply_resolutions(graph, resolution_record(site_id: site_id, targets: [], status: :complete))
+
+      expect(graph.matching_blockers(private_target).map(&:kind)).to include(:resolution_invalid)
+    end
   end
 
   it 'canonicalizes mixed key types deterministically without collapsing them' do
@@ -423,5 +515,62 @@ RSpec.describe Necropsy::ResolutionStore do
     expect(graph.resolution_issues.map { |issue| issue.fetch('kind') }.uniq).to eq(['malformed_resolution'])
     expect(graph.blockers.map(&:kind)).to include(:resolution_invalid)
     expect(graph.observation.fetch('call_site_resolutions')).to include('issue_count' => 3)
+  end
+
+  it 'serializes equivalent malformed object values deterministically' do
+    result_type = Struct.new(
+      :edge_evidences,
+      :alive_evidences,
+      :uncertainties,
+      :observation,
+      :blockers,
+      :resolutions,
+      keyword_init: true
+    )
+    unstable_status = Class.new do
+      def inspect
+        "unstable-#{object_id}"
+      end
+    end
+    diagnostics = 2.times.map do
+      graph = graph_with(nodes: [])
+      result = result_type.new(
+        edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [],
+        resolutions: [{ 'resolution' => { 'call_site_id' => 'call:v1:bad', 'status' => unstable_status.new } }]
+      )
+
+      graph.apply_result(result)
+      graph.resolution_issues
+    end
+
+    expect(diagnostics.first).to eq(diagnostics.last)
+    expect(JSON.generate(diagnostics.first)).not_to match(/unstable-\d+/)
+  end
+
+  it 'does not derive malformed diagnostic codes from arbitrary exception messages' do
+    malformed_type = Class.new do
+      def initialize(message)
+        @message = message
+      end
+
+      def to_h
+        raise @message
+      end
+    end
+    result_type = Struct.new(
+      :edge_evidences, :alive_evidences, :uncertainties, :observation, :blockers, :resolutions,
+      keyword_init: true
+    )
+    diagnostics = ['depth', 'item count'].map do |message|
+      graph = graph_with(nodes: [])
+      graph.apply_result(result_type.new(
+                           edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [],
+                           resolutions: [malformed_type.new(message)]
+                         ))
+      graph.resolution_issues
+    end
+
+    expect(diagnostics.first).to eq(diagnostics.last)
+    expect(diagnostics.first.dig(0, 'record', 'canonicalization_code')).to eq('canonicalization_failure')
   end
 end

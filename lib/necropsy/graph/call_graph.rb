@@ -89,6 +89,7 @@ module Necropsy
       observation.merge!(result.observation) { |_key, left, right| merge_observation(left, right) }
       record_dynamic_evidence(result, alive_matches, edge_matches) if dynamic_result
       register_result_resolutions(result)
+      refresh_resolution_derived_state if !result.respond_to?(:resolutions) || result.resolutions.nil?
     end
 
     def add_profile(profile)
@@ -269,6 +270,7 @@ module Necropsy
       end
       @edges.delete_if { |_caller_id, callees| callees.empty? }
       rebuild_incoming_edges
+      refresh_resolution_derived_state
     end
 
     def fallback_resolution?(site, resolved: nil)

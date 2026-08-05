@@ -56,8 +56,7 @@ module Necropsy
       payload = {
         'kind' => 'malformed_resolution',
         'record' => malformed_record_payload(record),
-        'error_class' => error.class.name,
-        'error_message' => bounded_error_message(error)
+        'error_class' => error.class.name
       }
       @malformed_resolution_issues[canonical_payload(payload)] = payload
     end
@@ -80,14 +79,21 @@ module Necropsy
       {
         'unavailable_type' => record.class.name.to_s,
         'canonicalization_error' => e.class.name,
-        'message' => bounded_error_message(e)
+        'canonicalization_code' => canonicalization_error_code(e)
       }
     end
 
-    def bounded_error_message(error)
-      error.message.to_s.byteslice(0, 500).to_s
+    def canonicalization_error_code(error)
+      return 'cycle' if error.is_a?(BoundedCanonicalizer::CycleError)
+      return 'unsupported_type' if error.is_a?(BoundedCanonicalizer::UnsupportedTypeError)
+      return 'canonicalization_failure' unless error.is_a?(BoundedCanonicalizer::LimitError)
+      return 'depth_limit' if error.message.include?('depth')
+      return 'item_limit' if error.message.include?('item count')
+      return 'string_limit' if error.message.include?('string')
+
+      'size_limit'
     rescue StandardError, SystemStackError
-      'unavailable'
+      'canonicalization_failure'
     end
 
     def resolution_record_key(record)
@@ -263,9 +269,14 @@ module Necropsy
         )
       end
       resolution.target_definition_ids.each do |definition_id|
-        next if nodes.exact(definition_id)
+        unless nodes.exact(definition_id)
+          issues << resolution_issue('unknown_target_definition', record, 'definition_id' => definition_id)
+          next
+        end
+        next unless sites.one?
+        next if edges_from(sites.first.caller_id).key?(definition_id)
 
-        issues << resolution_issue('unknown_target_definition', record, 'definition_id' => definition_id)
+        issues << resolution_issue('missing_target_edge', record, 'definition_id' => definition_id)
       end
       issues
     end
@@ -302,11 +313,13 @@ module Necropsy
 
     def invalid_resolution_blockers(issue)
       blocker_contexts(issue['call_site_id']).map do |context|
-        include_message = context.fetch(:scope_kind) == :message
+        context = context.merge(visibility_mode: :unrestricted) if issue['kind'] == 'missing_target_edge'
+        scope_kind, scope_value = invalid_resolution_scope(issue, context)
+        include_message = scope_kind == :message
         Blocker.new(
           kind: :resolution_invalid,
-          scope_kind: context.fetch(:scope_kind),
-          scope_value: context.fetch(:scope_value),
+          scope_kind: scope_kind,
+          scope_value: scope_value,
           source: :resolution_store,
           reason: "Invalid call-site resolution reference: #{issue.fetch('kind')}",
           suggested_action: :fix_analyzer,
@@ -317,28 +330,60 @@ module Necropsy
       end
     end
 
+    def invalid_resolution_scope(issue, context)
+      return [:definition, [issue.fetch('definition_id')]] if issue['kind'] == 'missing_target_edge'
+
+      [context.fetch(:scope_kind), context.fetch(:scope_value)]
+    end
+
     def blocker_contexts(call_site_id)
       sites = @call_sites_by_id.fetch(call_site_id.to_s, [])
       return [unknown_blocker_context] if sites.empty?
 
-      grouped = sites.group_by { |site| [site.test ? :test : :runtime, site.message.to_s] }
+      grouped = sites.group_by do |site|
+        [site.test ? :test : :runtime, site.message.to_s, site_visibility_mode(site)]
+      end
       if grouped.length <= INVALID_SCOPE_LIMIT
         return grouped.sort_by { |key, _sites| key.map(&:to_s) }
                       .map { |key, values| site_blocker_context(key, values) }
       end
 
       sites.group_by { |site| site.test ? :test : :runtime }.sort_by { |domain, _| domain.to_s }.map do |domain, values|
-        { site: values.first, domain: domain, scope_kind: :global, scope_value: '*' }
+        {
+          site: deterministic_site(values), domain: domain, scope_kind: :global, scope_value: '*',
+          visibility_mode: :unrestricted
+        }
       end
     end
 
     def unknown_blocker_context
-      { site: nil, domain: :runtime, scope_kind: :global, scope_value: '*' }
+      {
+        site: nil, domain: :runtime, scope_kind: :global, scope_value: '*', visibility_mode: :unrestricted
+      }
     end
 
     def site_blocker_context(key, sites)
-      domain, message = key
-      { site: sites.first, domain: domain, scope_kind: :message, scope_value: message }
+      domain, message, visibility_mode = key
+      {
+        site: deterministic_site(sites), domain: domain, scope_kind: :message, scope_value: message,
+        visibility_mode: visibility_mode
+      }
+    end
+
+    def deterministic_site(sites)
+      sites.min_by { |site| [site.caller_id.to_s, site.file.to_s, site.line.to_i, site.call_site_id.to_s] }
+    end
+
+    def site_visibility_mode(site)
+      metadata = site.metadata || {}
+      original_message = (metadata['original_message'] || metadata[:original_message])&.to_s
+      include_private = metadata.fetch('include_private') { metadata[:include_private] }
+      return :unrestricted if %w[send __send__ method].include?(original_message)
+      return :unrestricted if original_message == 'respond_to?' && include_private
+      return :unrestricted if %i[implicit self super].include?(site.receiver_kind.to_sym)
+      return :public_only if original_message == 'public_send'
+
+      :non_private
     end
 
     def resolution_store_metadata(context, include_message: true)
@@ -353,8 +398,22 @@ module Necropsy
         'line' => site&.line,
         'scope_match' => 'exact'
       }.merge(call_site_visibility_metadata(site))
+      apply_context_visibility!(metadata, context[:visibility_mode])
       metadata['message'] = site.message if include_message && site
       metadata
+    end
+
+    def apply_context_visibility!(metadata, visibility_mode)
+      metadata.delete('original_message')
+      metadata.delete('include_private')
+      case visibility_mode
+      when :unrestricted
+        metadata['receiver_kind'] = 'implicit'
+      when :public_only
+        metadata['original_message'] = 'public_send'
+      when :non_private
+        metadata['receiver_kind'] = 'constant'
+      end
     end
 
     def resolution_store_blocker?(blocker)
