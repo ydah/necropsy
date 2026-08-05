@@ -179,6 +179,11 @@ Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 GitHub Actions annotations are available via `--format sarif` and
 `--format github`.
 
+Reports retain logical method names while the graph distinguishes repeated or
+reopened definitions with physical `definition_id` values. Graph consumers and
+custom analyzer authors upgrading to the structured resolution model should
+follow the [0.3.0 migration guide](docs/migrations/0.3.0.md).
+
 Runtime evidence is positive-only: executed methods and the endpoints of
 observed edges are kept alive, while an unobserved method never becomes a new
 finding and never receives higher confidence. Observation duration and

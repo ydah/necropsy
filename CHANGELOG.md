@@ -4,6 +4,9 @@ All notable changes to Necropsy are documented in this file.
 
 ## Unreleased
 
+- Preserve repeated and reopened Ruby definitions as distinct physical graph nodes while retaining logical method names for compatibility; ambiguous runtime references no longer silently select one definition.
+- Record structured call-site resolution, scoped blockers, evidence grades, and analyzer provenance, with conservative adaptation for existing custom static analyzers.
+
 ## 0.2.1 - 2026-08-04
 
 - Prevent unsafe dead-code recommendations when runtime dispatch, source parsing, or an analyzer is incomplete; affected methods are now reported as low-confidence `blocked` findings with the reason and source location.
