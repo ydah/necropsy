@@ -100,7 +100,15 @@ module Necropsy
       EntryPoints::Plain.new.apply(graph, project)
       EntryPoints::Rails.new.apply(graph, project)
       EntryPoints::Test.new.apply(graph, project)
-      graph.entrypoint_hints.each { |entry| graph.add_entry_point(entry.node_id, entry.reason) }
+      graph.entrypoint_hints.each do |entry|
+        graph.add_entry_point(
+          entry.node_id,
+          entry.reason,
+          domain: entry.domain,
+          evidence: entry.evidence
+        )
+      end
+      WorldPolicy.new(graph: graph, project: project).apply
     end
 
     def configured_analyzers

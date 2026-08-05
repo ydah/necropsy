@@ -24,6 +24,9 @@ module Necropsy
       runtime_path = reachability.witness(graph_id)
       return with_source_incompleteness(alive_payload(node, runtime_path, :runtime)) if runtime_path
 
+      external_path = reachability.witness(graph_id, kind: :external)
+      return with_source_incompleteness(alive_payload(node, external_path, :external)) if external_path
+
       finding = finding_for(graph_id)
       return with_source_incompleteness(dead_payload(node, finding)) if finding&.classification == :blocked
 
@@ -84,15 +87,21 @@ module Necropsy
         'node' => node.to_h,
         'path' => path.each_with_index.map do |node_id, index|
           caller_id = index.positive? ? path[index - 1] : nil
-          path_step(node_id, caller_id)
+          path_step(node_id, caller_id, kind)
         end
       }
     end
 
-    def path_step(node_id, caller_id)
+    def path_step(node_id, caller_id, root_domain)
       step = { 'node' => graph.nodes.fetch(node_id).to_h }
-      entry = graph.entry_points.find { |candidate| candidate.node_id == node_id }
-      step['entry_reason'] = entry.reason.to_s if entry
+      roots = graph.entry_points.select do |candidate|
+        candidate.node_id == node_id && candidate.domain == root_domain
+      end.sort_by { |candidate| [candidate.reason.to_s, BoundedCanonicalizer.dump(candidate.evidence)] }
+      if roots.any?
+        step['entry_reason'] = roots.first.reason.to_s
+        step['root_domain'] = root_domain.to_s
+        step['root_provenance'] = roots.map(&:to_h)
+      end
       return step unless caller_id
 
       evidences = graph.edges_from(caller_id).fetch(node_id, [])
@@ -124,6 +133,7 @@ module Necropsy
 
     def nearest_alive(node_id)
       kinds = reachability.runtime_alive.to_h { |id| [id, 'runtime'] }
+      reachability.external_alive.each { |id| kinds[id] ||= 'external' }
       reachability.test_alive.each { |id| kinds[id] ||= 'test' }
       visited = { node_id => 0 }
       queue = [node_id]
@@ -206,6 +216,7 @@ module Necropsy
       lines = ["Alive (#{payload.fetch('kind')}): #{node_reference(payload.fetch('node'))}"]
       payload.fetch('path').each_with_index do |step, index|
         suffix = step['entry_reason'] ? " entry=#{step['entry_reason']}" : ''
+        suffix += " domain=#{step['root_domain']}" if step['root_domain']
         lines << "  #{index}. #{node_reference(step.fetch('node'))}#{suffix}"
         Array(step.dig('edge', 'evidences')).each { |evidence| lines << render_evidence(evidence) }
       end

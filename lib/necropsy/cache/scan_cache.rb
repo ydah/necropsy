@@ -6,7 +6,7 @@ require 'json'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 8
+      VERSION = 9
 
       def initialize(project:)
         @project = project
@@ -168,7 +168,12 @@ module Necropsy
       end
 
       def deserialize_entry_point(data)
-        EntryPoint.new(node_id: data['node_id'], reason: data['reason'].to_sym)
+        Root.new(
+          definition_id: data['definition_id'] || data['node_id'],
+          domain: data['domain'],
+          reason: data['reason'].to_sym,
+          evidence: data['evidence']
+        )
       end
 
       def deserialize_uncertainties(data)

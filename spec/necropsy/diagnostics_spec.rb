@@ -44,6 +44,41 @@ RSpec.describe Necropsy::Diagnostics do
     expect(diagnostics.render(payload)).to include('Alive (runtime)', 'via name_resolution', 'exe/tool:3')
   end
 
+  it 'explains external reachability with root domain and provenance' do
+    external_root = node('Library#call', owner: 'Library', name: 'call')
+    external_child = node('Library#helper', owner: 'Library', name: 'helper')
+    external_graph = graph_with(nodes: [external_root, external_child])
+    external_graph.add_entry_point(
+      external_root.id,
+      :library_public_api,
+      domain: :external,
+      evidence: { 'type' => 'world_policy', 'world' => 'library' }
+    )
+    external_graph.add_edge(external_root.id, external_child.id, evidence)
+    external_reachability = Necropsy::Reachability::Engine.new(external_graph).call
+    external_report = Necropsy::Report.new(
+      root: '/repo', graph: external_graph, findings: [], reachability: external_reachability
+    )
+
+    payload = described_class.new(external_report).why(external_child.id)
+
+    expect(payload).to include('status' => 'alive', 'kind' => 'external')
+    expect(payload.dig('path', 0)).to include(
+      'entry_reason' => 'library_public_api',
+      'root_domain' => 'external',
+      'root_provenance' => [
+        include(
+          'definition_id' => external_root.graph_id,
+          'domain' => 'external',
+          'evidence' => { 'type' => 'world_policy', 'world' => 'library' }
+        )
+      ]
+    )
+    expect(described_class.new(external_report).render(payload)).to include(
+      'Alive (external)', 'entry=library_public_api', 'domain=external'
+    )
+  end
+
   it 'explains a dead node with nearby alive nodes and uncertainty' do
     payload = diagnostics.why(dead.id)
 

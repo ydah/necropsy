@@ -57,7 +57,7 @@ module Necropsy
       def classification_for(node, blockers)
         return nil if graph.dynamic_alive?(node.graph_id)
 
-        if reachability.runtime_paths.key?(node.graph_id)
+        if reachability.runtime_paths.key?(node.graph_id) || reachability.external_paths.key?(node.graph_id)
           nil
         elsif blockers.any?
           :blocked

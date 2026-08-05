@@ -14,7 +14,9 @@ module Necropsy
   UNKNOWN_SCOPE_MATCHES = %i[exact glob].freeze
   RESOLUTION_STATUSES = %i[complete partial unknown].freeze
   EVIDENCE_GRADES = %i[exact conservative observed heuristic].freeze
-  private_constant :UNKNOWN_SCOPE_KINDS, :UNKNOWN_SCOPE_MATCHES, :RESOLUTION_STATUSES, :EVIDENCE_GRADES
+  ROOT_DOMAINS = %i[runtime test external].freeze
+  private_constant :UNKNOWN_SCOPE_KINDS, :UNKNOWN_SCOPE_MATCHES, :RESOLUTION_STATUSES, :EVIDENCE_GRADES,
+                   :ROOT_DOMAINS
 
   module ModelNormalization
     module_function
@@ -438,15 +440,60 @@ module Necropsy
     end
   end
 
-  EntryPoint = Data.define(:node_id, :reason) do
+  Root = Data.define(:definition_id, :domain, :reason, :evidence) do
+    class << self
+      alias_method :data_new, :new
+
+      def new(*values, **attributes)
+        return data_new(node_id: values[0], reason: values[1]) if values.length == 2 && attributes.empty?
+
+        data_new(*values, **attributes)
+      end
+      alias_method :[], :new
+
+      private :data_new
+    end
+
+    def initialize(reason:, definition_id: nil, node_id: nil, domain: nil, evidence: nil)
+      definition_id ||= node_id
+      definition_id = ModelNormalization.identifier(definition_id, 'definition_id')
+      reason = ModelNormalization.identifier(reason, 'reason').to_sym
+      domain ||= reason == :test_suite ? :test : :runtime
+      domain = domain.to_sym if domain.respond_to?(:to_sym)
+      raise ArgumentError, "invalid root domain: #{domain.inspect}" unless ROOT_DOMAINS.include?(domain)
+
+      evidence ||= { 'type' => 'entry_point', 'reason' => reason.to_s }
+      evidence = evidence.to_h if evidence.respond_to?(:to_h)
+      raise ArgumentError, 'root evidence must be a Hash' unless evidence.is_a?(Hash)
+
+      super(definition_id: definition_id, domain: domain, reason: reason, evidence: evidence.freeze)
+    end
+
+    alias_method :node_id, :definition_id
+
     def test?
-      reason == :test_suite
+      domain == :test
+    end
+
+    def runtime?
+      domain == :runtime
+    end
+
+    def external?
+      domain == :external
     end
 
     def to_h
-      { 'node_id' => node_id, 'reason' => reason.to_s }
+      {
+        'node_id' => node_id,
+        'definition_id' => definition_id,
+        'domain' => domain.to_s,
+        'reason' => reason.to_s,
+        'evidence' => evidence
+      }
     end
   end
+  EntryPoint = Root
 
   ClassInfo = Data.define(
     :id,

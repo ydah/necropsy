@@ -74,9 +74,28 @@ RSpec.describe 'Necropsy model objects' do
   end
 
   describe Necropsy::EntryPoint do
-    it 'distinguishes test-suite roots from runtime roots' do
-      expect(Necropsy::EntryPoint.new(node_id: 'spec.rb', reason: :test_suite)).to be_test
-      expect(Necropsy::EntryPoint.new(node_id: 'bin/app', reason: :main_script)).not_to be_test
+    it 'models runtime, test, and external roots with provenance' do
+      test_root = Necropsy::EntryPoint.new(node_id: 'spec.rb', reason: :test_suite)
+      runtime_root = Necropsy::EntryPoint.new(node_id: 'bin/app', reason: :main_script)
+      external_root = Necropsy::Root.new(
+        definition_id: 'Library#call', domain: :external, reason: :library_public_api,
+        evidence: { 'type' => 'world_policy' }
+      )
+
+      expect(test_root).to be_test
+      expect(Necropsy::EntryPoint.new('spec.rb', :test_suite)).to eq(test_root)
+      expect(runtime_root).to be_runtime
+      expect(external_root).to be_external
+      expect(external_root.node_id).to eq('Library#call')
+      expect(external_root.to_h).to include(
+        'node_id' => 'Library#call',
+        'definition_id' => 'Library#call',
+        'domain' => 'external',
+        'evidence' => { 'type' => 'world_policy' }
+      )
+      expect do
+        Necropsy::Root.new(definition_id: 'Library#call', domain: :unknown, reason: :spec)
+      end.to raise_error(ArgumentError, /root domain/)
     end
   end
 

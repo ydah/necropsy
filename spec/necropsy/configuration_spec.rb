@@ -11,6 +11,8 @@ RSpec.describe Necropsy::Configuration do
     context 'without a config file' do
       it 'loads defaults' do
         expect(configuration.static_analyzers).to eq(%w[name_resolution cha rta])
+        expect(configuration.world).to eq(:application)
+        expect(configuration.load_roots).to eq(:known)
         expect(configuration.dynamic_config(:coverage)).to eq({})
         expect(configuration.fail_on).to eq(:high)
         expect(configuration.baseline_path).to eq('.necropsy_baseline.yml')
@@ -36,6 +38,7 @@ RSpec.describe Necropsy::Configuration do
             dynamic: { coverage: { source: 'coverage.yml', min_observation_days: 14 } },
             custom: ['Company::Analyzer']
           },
+          analysis: { world: :library, load_roots: :all },
           entry_points: { extra: ['Company::*'] },
           ci: { baseline: 'tmp/baseline.yml', fail_on: 'medium' },
           quarantine: { days: 7 },
@@ -52,6 +55,9 @@ RSpec.describe Necropsy::Configuration do
 
       it 'normalizes keys and exposes configured thresholds' do
         expect(configuration.static_analyzers).to eq(['name_resolution'])
+        expect(configuration.world).to eq(:library)
+        expect(configuration).to be_library_world
+        expect(configuration.load_roots).to eq(:all)
         expect(configuration.dynamic_config(:coverage)).to include('source' => 'coverage.yml')
         expect(configuration.custom_analyzers).to eq(['Company::Analyzer'])
         expect(configuration.entry_point_patterns).to eq(['Company::*'])
@@ -90,6 +96,22 @@ RSpec.describe Necropsy::Configuration do
 
       it 'rejects the value' do
         expect { configuration }.to raise_error(Necropsy::Error, /ambiguity_limit/)
+      end
+    end
+
+    context 'with an invalid world mode' do
+      let(:config_data) { { analysis: { world: 'monorepo' } } }
+
+      it 'rejects the value' do
+        expect { configuration }.to raise_error(Necropsy::Error, /analysis\.world/)
+      end
+    end
+
+    context 'with an invalid load-root policy' do
+      let(:config_data) { { analysis: { load_roots: 'guessed' } } }
+
+      it 'rejects the value' do
+        expect { configuration }.to raise_error(Necropsy::Error, /analysis\.load_roots/)
       end
     end
 

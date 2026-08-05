@@ -8,10 +8,14 @@ module Necropsy
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
     RTA_PRUNING_MODES = %w[rank_only legacy].freeze
     QUARANTINE_EXPIRY_POLICIES = %w[warn fail ignore].freeze
+    WORLD_MODES = %w[application library].freeze
+    LOAD_ROOT_POLICIES = %w[known all].freeze
     TOP_LEVEL_KEYS = %w[
-      analyzers frameworks entry_points ci quarantine bench cache rta resolution paths report logging implicit_callers
+      analysis analyzers frameworks entry_points ci quarantine bench cache rta resolution paths report logging
+      implicit_callers
     ].freeze
     NESTED_KEYS = {
+      'analysis' => %w[world load_roots],
       'analyzers' => %w[static dynamic custom],
       'analyzers.dynamic' => %w[coverage coverband trace_point],
       'entry_points' => %w[extra],
@@ -47,6 +51,26 @@ module Necropsy
 
     def static_analyzers
       Array(fetch('analyzers', 'static') || %w[name_resolution cha rta]).map(&:to_s)
+    end
+
+    def world
+      configured = fetch('analysis', 'world')
+      mode = configured.nil? ? 'application' : configured.to_s
+      return mode.to_sym if WORLD_MODES.include?(mode)
+
+      raise Error, "analysis.world must be one of: #{WORLD_MODES.join(', ')}"
+    end
+
+    def library_world?
+      world == :library
+    end
+
+    def load_roots
+      configured = fetch('analysis', 'load_roots')
+      policy = configured.nil? ? 'known' : configured.to_s
+      return policy.to_sym if LOAD_ROOT_POLICIES.include?(policy)
+
+      raise Error, "analysis.load_roots must be one of: #{LOAD_ROOT_POLICIES.join(', ')}"
     end
 
     def dynamic_config(name)
@@ -222,6 +246,8 @@ module Necropsy
       end
       validate_custom_analyzers!
       validate_implicit_callers!
+      world
+      load_roots
       rta_pruning
       ambiguity_limit
       quarantine_expiry

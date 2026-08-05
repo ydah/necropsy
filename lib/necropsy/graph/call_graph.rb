@@ -58,9 +58,14 @@ module Necropsy
       added
     end
 
-    def add_entry_point(node_id, reason)
+    def add_entry_point(node_id, reason, domain: nil, evidence: nil)
       resolve_definitions(node_id).each do |definition|
-        entry = EntryPoint.new(node_id: definition.graph_id, reason: reason)
+        entry = Root.new(
+          definition_id: definition.graph_id,
+          domain: domain,
+          reason: reason,
+          evidence: evidence
+        )
         entry_points << entry unless entry_points.include?(entry)
       end
     end
