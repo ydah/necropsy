@@ -34,7 +34,7 @@ module Necropsy
                 grade: :observed,
                 relation: :execution,
                 source: { 'type' => 'coverband', 'node_reference' => node_id },
-                scope: { 'node_reference' => node_id }
+                scope: ObservationPolicy.evidence_scope(observation).merge('node_reference' => node_id)
               )
             )
           end

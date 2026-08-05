@@ -381,7 +381,7 @@ module Necropsy
 
       evidence_id = ModelNormalization.identifier(evidence_id, 'evidence_id') unless evidence_id.nil?
       assumptions = ModelNormalization.string_list(assumptions, 'assumption')
-      if grade.nil? && provenance_present?(evidence_id, producer, producer_version, relation, source, assumptions, scope)
+      if grade.nil? && provenance_present?(producer, producer_version, relation, source, assumptions, scope)
         raise ArgumentError, 'evidence grade may be nil only for legacy evidence'
       end
       if grade && [producer, producer_version, relation, source, scope].any?(&:nil?)
@@ -411,8 +411,8 @@ module Necropsy
 
     private
 
-    def provenance_present?(evidence_id, producer, producer_version, relation, source, assumptions, scope)
-      [evidence_id, producer, producer_version, relation, source, scope].any? { |value| !value.nil? } || assumptions.any?
+    def provenance_present?(producer, producer_version, relation, source, assumptions, scope)
+      [producer, producer_version, relation, source, scope].any? { |value| !value.nil? } || assumptions.any?
     end
   end
 
@@ -421,7 +421,19 @@ module Necropsy
       {
         'caller_id' => caller_id,
         'callee_id' => callee_id,
+        'evidence_ids' => evidences.filter_map(&:evidence_id).sort,
         'evidences' => evidences.map(&:to_h)
+      }
+    end
+  end
+
+  EdgeRelation = Data.define(:caller_id, :callee_id, :evidence_ids, :projection) do
+    def to_h
+      {
+        'caller_id' => caller_id,
+        'callee_id' => callee_id,
+        'evidence_ids' => evidence_ids,
+        'projection' => projection.to_s
       }
     end
   end

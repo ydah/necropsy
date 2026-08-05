@@ -144,6 +144,7 @@ module Necropsy
         metadata['producer'] || metadata[:producer],
         metadata['producer_version'] || metadata[:producer_version],
         metadata['resolution_record_id'] || metadata[:resolution_record_id],
+        metadata['evidence_id'] || metadata[:evidence_id],
         canonical_key_value(metadata['assumptions'] || metadata[:assumptions]),
         canonical_key_value(
           metadata['known_target_definition_ids'] || metadata[:known_target_definition_ids]

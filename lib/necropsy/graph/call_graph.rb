@@ -3,6 +3,7 @@
 module Necropsy
   class CallGraph
     include DynamicEvidenceTracking
+    include EvidenceStore
     include BlockerMatching
     include ResolutionStore
 
@@ -13,6 +14,7 @@ module Necropsy
       @nodes = DefinitionIndex.new
       @edges = {}
       @incoming_edges = {}
+      initialize_evidence_store
       @call_sites = scan_result.call_sites
       @instantiated_classes = scan_result.instantiated_classes.dup
       @class_infos = scan_result.class_infos.to_h { |info| [info.id, info] }
@@ -77,6 +79,7 @@ module Necropsy
       alive_matches = result.alive_evidences.map do |alive|
         dynamic_result ? apply_dynamic_alive(alive.node_id, alive.evidence) : add_alive(alive.node_id, alive.evidence)
       end
+      register_result_evidences(result)
       result.uncertainties.each do |node_id, messages|
         resolved_ids = resolve_definitions(node_id).map(&:graph_id)
         resolved_ids = [node_id] if resolved_ids.empty?
@@ -99,7 +102,11 @@ module Necropsy
     def add_edge(caller_id, callee_id, evidence)
       callers = resolve_definitions(caller_id)
       callees = resolve_definitions(callee_id)
-      return false if callers.empty? || callees.empty?
+      if callers.empty? || callees.empty?
+        domain = callers.any? && callers.all?(&:test) ? :test : :runtime
+        register_evidence(evidence, domain: domain)
+        return false
+      end
 
       record_ambiguous_input(:edge_caller, caller_id, callers)
       record_ambiguous_input(:edge_callee, callee_id, callees)
@@ -111,48 +118,86 @@ module Necropsy
 
     def add_alive(node_id, evidence)
       definitions = resolve_definitions(node_id)
-      return false if definitions.empty?
+      if definitions.empty?
+        register_evidence(evidence)
+        return false
+      end
 
       record_ambiguous_input(:alive, node_id, definitions)
       definitions.each do |definition|
-        @dynamic_alive[definition.graph_id] ||= []
-        @dynamic_alive[definition.graph_id] << evidence
+        evidence_id = register_evidence(evidence, domain: definition.test ? :test : :runtime)
+        next unless evidence_id
+
+        @dynamic_alive[definition.graph_id] ||= Set.new
+        @dynamic_alive[definition.graph_id] << evidence_id
       end
       true
     end
 
     def dynamic_alive?(node_id)
-      resolve_definitions(node_id).any? { |definition| @dynamic_alive.key?(definition.graph_id) }
+      resolve_definitions(node_id).any? do |definition|
+        @dynamic_alive.fetch(definition.graph_id, Set.new).any? { |evidence_id| evidence_record(evidence_id) }
+      end
     end
 
-    def alive_evidences(node_id)
-      resolve_definitions(node_id).flat_map { |definition| @dynamic_alive.fetch(definition.graph_id, []) }
+    def alive_evidences(node_id, projection: :conservative, scope: nil)
+      projection = normalize_projection(projection)
+      evidence_ids = resolve_definitions(node_id).flat_map do |definition|
+        @dynamic_alive.fetch(definition.graph_id, Set.new).to_a
+      end
+      projected_evidence_records(evidence_ids.uniq, projection: projection, scope: scope)
     end
 
     def dynamic_enabled?
       @dynamic_alive.any?
     end
 
-    def edges_from(node_id)
-      resolve_definitions(node_id).each_with_object({}) do |definition, merged|
-        @edges.fetch(definition.graph_id, {}).each do |callee_id, evidences|
-          merged[callee_id] = Array(merged[callee_id]) + evidences
+    def edges_from(node_id, projection: :conservative, scope: nil)
+      projection = normalize_projection(projection)
+      evidence_ids_by_callee = resolve_definitions(node_id).each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |definition, merged|
+        @edges.fetch(definition.graph_id, {}).each do |callee_id, evidence_ids|
+          merged[callee_id].merge(evidence_ids)
         end
+      end
+      evidence_ids_by_callee.each_with_object({}) do |(callee_id, evidence_ids), projected|
+        records = projected_evidence_records(evidence_ids, projection: projection, scope: scope)
+        projected[callee_id] = records unless records.empty?
       end
     end
 
-    def edges
+    def edges(projection: :conservative, scope: nil)
+      projection = normalize_projection(projection)
       @edges.flat_map do |caller_id, callees|
-        callees.map do |callee_id, evidences|
-          Edge.new(caller_id: caller_id, callee_id: callee_id, evidences: evidences)
+        callees.filter_map do |callee_id, evidence_ids|
+          evidences = projected_evidence_records(evidence_ids, projection: projection, scope: scope)
+          Edge.new(caller_id: caller_id, callee_id: callee_id, evidences: evidences) unless evidences.empty?
         end
       end.sort_by { |edge| [edge.caller_id, edge.callee_id] }
     end
 
-    def incoming_edges(node_id)
+    def edge_relations(projection: :conservative, scope: nil)
+      projection = normalize_projection(projection)
+      @edges.flat_map do |caller_id, callees|
+        callees.filter_map do |callee_id, evidence_ids|
+          projected_ids = projected_evidence_ids(evidence_ids, projection: projection, scope: scope)
+          next if projected_ids.empty?
+
+          EdgeRelation.new(
+            caller_id: caller_id,
+            callee_id: callee_id,
+            evidence_ids: projected_ids,
+            projection: projection
+          )
+        end
+      end.sort_by { |edge| [edge.caller_id, edge.callee_id] }
+    end
+
+    def incoming_edges(node_id, projection: :conservative, scope: nil)
+      projection = normalize_projection(projection)
       resolve_definitions(node_id).flat_map do |definition|
-        @incoming_edges.fetch(definition.graph_id, {}).map do |caller_id, evidences|
-          Edge.new(caller_id: caller_id, callee_id: definition.graph_id, evidences: evidences)
+        @incoming_edges.fetch(definition.graph_id, {}).filter_map do |caller_id, evidence_ids|
+          evidences = projected_evidence_records(evidence_ids, projection: projection, scope: scope)
+          Edge.new(caller_id: caller_id, callee_id: definition.graph_id, evidences: evidences) unless evidences.empty?
         end
       end.sort_by { |edge| [edge.caller_id, edge.callee_id] }
     end
@@ -258,15 +303,19 @@ module Necropsy
       end
 
       @edges.each_value do |callees|
-        callees.each do |callee_id, evidences|
-          evidences.reject! do |item|
-            next false unless %i[name_resolution cha].include?(item.analyzer)
+        callees.each do |callee_id, evidence_ids|
+          evidence_ids.delete_if do |evidence_id|
+            item = evidence_record(evidence_id)
+            next false unless item
+
+            producer = item.producer || item.analyzer
+            next false unless %w[name_resolution cha].include?(producer.to_s)
 
             key = call_site_key(item.metadata)
             analyzed_keys.include?(key) && !allowed[key].include?(callee_id)
           end
         end
-        callees.delete_if { |_callee_id, evidences| evidences.empty? }
+        callees.delete_if { |_callee_id, evidence_ids| evidence_ids.empty? }
       end
       @edges.delete_if { |_caller_id, callees| callees.empty? }
       rebuild_incoming_edges
@@ -295,6 +344,10 @@ module Necropsy
       {
         'nodes' => nodes.values.map(&:to_h),
         'edges' => edges.map(&:to_h),
+        'edge_projection' => 'conservative',
+        'edge_relations' => edge_relations.map(&:to_h),
+        'evidence_records' => evidence_records.map(&:to_h),
+        'evidence_collisions' => evidence_collisions,
         'entry_points' => entry_points.map(&:to_h),
         'class_infos' => class_infos.values.map(&:to_h),
         'instantiated_classes' => instantiated_classes.to_a.sort,
@@ -309,6 +362,14 @@ module Necropsy
     end
 
     private
+
+    def register_result_evidences(result)
+      records = result.respond_to?(:evidences) ? result.evidences : []
+      Array(records).each do |evidence|
+        record = evidence_with_identity(evidence)
+        register_evidence(record) unless evidence_payload_registered?(record)
+      end
+    end
 
     def register_duplicate_definition_blockers
       method_nodes.reject(&:test).map(&:symbol_id).uniq.sort.each do |symbol_id|
@@ -357,6 +418,7 @@ module Necropsy
         add_physical_edge(caller.fetch(:definitions).first.graph_id, callee.fetch(:definitions).first.graph_id,
                           edge.evidence)
       end
+      register_evidence(edge.evidence) if caller.fetch(:definitions).empty? && callee.fetch(:definitions).empty?
 
       { caller: caller, callee: callee, materialized: materialized }
     end
@@ -365,13 +427,17 @@ module Necropsy
       resolution = resolve_dynamic_reference(reference)
       record_dynamic_ambiguous_input(:alive, resolution)
       mark_dynamic_alive(resolution, evidence)
+      register_evidence(evidence) if resolution.fetch(:definitions).empty?
       resolution
     end
 
     def mark_dynamic_alive(resolution, evidence)
       resolution.fetch(:definitions).each do |definition|
-        @dynamic_alive[definition.graph_id] ||= []
-        @dynamic_alive[definition.graph_id] << evidence
+        evidence_id = register_evidence(evidence, domain: definition.test ? :test : :runtime)
+        next unless evidence_id
+
+        @dynamic_alive[definition.graph_id] ||= Set.new
+        @dynamic_alive[definition.graph_id] << evidence_id
       end
     end
 
@@ -645,9 +711,13 @@ module Necropsy
     end
 
     def add_physical_edge(caller_id, callee_id, evidence)
+      caller = nodes.exact(caller_id)
+      evidence_id = register_evidence(evidence, domain: caller&.test ? :test : :runtime)
+      return unless evidence_id
+
       @edges[caller_id] ||= {}
-      @edges[caller_id][callee_id] ||= []
-      @edges[caller_id][callee_id] << evidence
+      @edges[caller_id][callee_id] ||= Set.new
+      @edges[caller_id][callee_id] << evidence_id
       @incoming_edges[callee_id] ||= {}
       @incoming_edges[callee_id][caller_id] = @edges[caller_id][callee_id]
     end

@@ -107,6 +107,28 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageImporter do
         'source_revision_status' => 'provided_unverified',
         'source_revision_policy' => 'accepted_for_liveness_only'
       )
+      expect(result.alive_evidences.first.evidence.scope).to include(
+        'revision' => 'abc123',
+        'environment' => 'production'
+      )
+      graph = graph_with(nodes: [node('Sample#run')])
+      graph.apply_result(result)
+      expect(graph.alive_evidences('Sample#run', projection: :exact, scope: { revision: 'abc123' })).not_to be_empty
+      expect(graph.alive_evidences('Sample#run', projection: :exact, scope: { revision: 'other' })).to be_empty
+    end
+  end
+
+  it 'does not treat a scope-only revision as source revision provenance' do
+    payload = {
+      'nodes' => ['Sample#run'],
+      'observation' => { 'scope' => { 'revision' => 'spoofed', 'workload' => 'nightly' } }
+    }
+
+    with_project(files: { 'coverage.yml' => payload.to_yaml }) do |root|
+      result = described_class.new('source' => 'coverage.yml').analyze(nil, project_for(root))
+
+      expect(result.alive_evidences.first.evidence.scope).to include('workload' => 'nightly')
+      expect(result.alive_evidences.first.evidence.scope).not_to have_key('revision')
     end
   end
 

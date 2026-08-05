@@ -292,6 +292,34 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.incoming_edges(live.id).flat_map(&:evidences).map(&:analyzer)).to contain_exactly(:cha, :rta)
   end
 
+  it 'removes only pruned static evidence identities during legacy RTA reconciliation' do
+    caller = node('Caller#run', owner: 'Caller', name: 'run')
+    live = node('Live#render', owner: 'Live', name: 'render')
+    dead = node('Dead#render', owner: 'Dead', name: 'render')
+    site = call_site(caller_id: caller.id, message: 'render', receiver_kind: :unknown)
+    graph = graph_with(nodes: [caller, live, dead], call_sites: [site])
+    graph.add_edge(caller.id, dead.id, evidence(analyzer: :name_resolution, metadata: site.to_h))
+    graph.add_edge(caller.id, dead.id, evidence(analyzer: :cha, metadata: site.to_h))
+    graph.add_edge(caller.id, dead.id, evidence(analyzer: :trace_point, metadata: site.to_h))
+    result = analyzer_result(
+      edge_evidences: [
+        Necropsy::EdgeEvidence.new(
+          caller_id: caller.id,
+          callee_id: live.id,
+          evidence: evidence(analyzer: :rta, metadata: site.to_h)
+        )
+      ],
+      observation: { 'rta' => { 'analyzed_sites' => [site.to_h] } }
+    )
+
+    graph.apply_result(result)
+    graph.reconcile_rta_result(result)
+
+    dead_evidences = graph.incoming_edges(dead.id).flat_map(&:evidences)
+    expect(dead_evidences.map(&:analyzer)).to eq([:trace_point])
+    expect(graph.edges.map(&:callee_id)).to contain_exactly(dead.id, live.id)
+  end
+
   it 'keys call sites by stable identity before the legacy field fallback' do
     graph = graph_with(nodes: [])
     first = call_site(caller_id: 'Caller#run', message: 'render')

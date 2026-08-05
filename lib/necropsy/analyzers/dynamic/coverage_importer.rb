@@ -30,7 +30,7 @@ module Necropsy
                 grade: :observed,
                 relation: :execution,
                 source: { 'type' => profile.name.to_s, 'node_reference' => node_id },
-                scope: { 'node_reference' => node_id }
+                scope: ObservationPolicy.evidence_scope(observation).merge('node_reference' => node_id)
               )
             )
           end
@@ -59,7 +59,10 @@ module Necropsy
                   'caller_reference' => caller_id,
                   'callee_reference' => callee_id
                 },
-                scope: { 'caller_reference' => caller_id, 'callee_reference' => callee_id }
+                scope: ObservationPolicy.evidence_scope(observation).merge(
+                  'caller_reference' => caller_id,
+                  'callee_reference' => callee_id
+                )
               )
             )
           end

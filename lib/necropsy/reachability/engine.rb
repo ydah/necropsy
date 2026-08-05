@@ -26,8 +26,10 @@ module Necropsy
     end
 
     class Engine
-      def initialize(graph)
+      def initialize(graph, projection: :conservative, scope: nil)
         @graph = graph
+        @projection = EvidenceStore.normalize_projection(projection)
+        @scope = scope
       end
 
       def call
@@ -42,7 +44,7 @@ module Necropsy
 
       private
 
-      attr_reader :graph
+      attr_reader :graph, :projection, :scope
 
       def traverse(roots)
         visited = {}
@@ -51,7 +53,7 @@ module Necropsy
 
         until queue.empty?
           node_id = queue.shift
-          graph.edges_from(node_id).each_key do |callee_id|
+          graph.edges_from(node_id, projection: projection, scope: scope).each_key do |callee_id|
             next if visited.key?(callee_id)
 
             visited[callee_id] = node_id

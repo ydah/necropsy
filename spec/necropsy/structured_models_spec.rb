@@ -198,6 +198,9 @@ RSpec.describe 'structured analysis models' do
       expect(described_class[*legacy_values]).to eq(keyword)
       expect(keyword).to have_attributes(grade: nil, evidence_id: nil, assumptions: [])
       expect(keyword.to_h).to include('grade' => nil, 'evidence_id' => nil)
+      expect(keyword.with(evidence_id: 'evidence:v1:legacy')).to have_attributes(
+        grade: nil, evidence_id: 'evidence:v1:legacy'
+      )
     end
 
     it 'supports full positional construction with normalized provenance' do
