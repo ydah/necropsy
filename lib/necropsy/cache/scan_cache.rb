@@ -6,7 +6,7 @@ require 'json'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 6
+      VERSION = 7
 
       def initialize(project:)
         @project = project
@@ -139,7 +139,8 @@ module Necropsy
 
       def deserialize_call_site(data)
         CallSite.new(
-          caller_id: data['caller_id'],
+          call_site_id: data.fetch('call_site_id'),
+          caller_id: data['caller_definition_id'] || data.fetch('caller_id'),
           message: data['message'],
           receiver_kind: data['receiver_kind'].to_sym,
           receiver_name: data['receiver_name'],

@@ -2,7 +2,8 @@
 
 RSpec.describe Necropsy::Cache::ScanCache do
   it 'stores and reloads scan results when metadata matches' do
-    with_project(files: { 'app/sample.rb' => 'class CachedSample; def run; end; end' }) do |root|
+    source = 'class CachedSample; def run; helper; end; def helper; end; end'
+    with_project(files: { 'app/sample.rb' => source }) do |root|
       project = project_for(root)
       cache = described_class.new(project: project)
       calls = 0
@@ -19,9 +20,15 @@ RSpec.describe Necropsy::Cache::ScanCache do
       expect(calls).to eq(1)
       expect(second.nodes.map(&:id)).to eq(first.nodes.map(&:id))
       expect(second.call_sites.map(&:to_h)).to eq(first.call_sites.map(&:to_h))
+      expect(second.call_sites.map(&:call_site_id)).to all(match(/\Acall:v1:[0-9a-f]{64}\z/))
       expect(second.file_statuses).to eq(first.file_statuses)
       expect(second.source_errors).to eq(first.source_errors)
-      expect(JSON.parse(File.read(File.join(root, '.necropsy_cache/scan.json')))).to include('version')
+      payload = JSON.parse(File.read(File.join(root, '.necropsy_cache/scan.json')))
+      expect(payload).to include('version' => described_class::VERSION)
+      expect(payload.dig('scan_result', 'call_sites', 0)).to include(
+        'call_site_id' => first.call_sites.first.call_site_id,
+        'caller_definition_id' => first.call_sites.first.caller_definition_id
+      )
     end
   end
 

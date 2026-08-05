@@ -34,11 +34,14 @@ module Necropsy
     end
 
     def record_delegate_target(caller_id, target, node, context)
-      record_reference_call(caller_id, target.to_s.delete_prefix('@'), node, context, receiver_kind: :self)
+      record_reference_call(
+        caller_id, target.to_s.delete_prefix('@'), node, context,
+        role: :delegate_target, receiver_kind: :self
+      )
     end
 
     def record_delegated_message(caller_id, message, node, context)
-      record_reference_call(caller_id, message, node, context, receiver_kind: :unknown)
+      record_reference_call(caller_id, message, node, context, role: :delegate_message, receiver_kind: :unknown)
     end
 
     def record_symbol_reference(node, context)
@@ -53,6 +56,7 @@ module Necropsy
         message,
         node,
         context,
+        role: :symbol_reference,
         receiver_kind: receiver[:kind],
         receiver_name: receiver[:name],
         candidates: receiver[:candidates],
@@ -70,20 +74,21 @@ module Necropsy
         block.expression.unescaped.to_s,
         node,
         context,
+        role: :symbol_to_proc,
         receiver_kind: :unknown
       )
     end
 
-    def record_reference_call(caller_id, message, node, context, receiver_kind:, receiver_name: nil, candidates: [],
-                              metadata: {})
-      call_sites << CallSite.new(
+    def record_reference_call(caller_id, message, node, context, role:, receiver_kind:, receiver_name: nil,
+                              candidates: [], metadata: {})
+      add_scanned_call_site(
+        source_node: node,
+        context: context,
+        role: role,
         caller_id: caller_id,
         message: message.to_s,
         receiver_kind: receiver_kind,
         receiver_name: receiver_name,
-        file: context.relative_file,
-        line: node.location.start_line,
-        test: context.test,
         dynamic: false,
         metadata: { 'symbol_reference' => true, 'receiver_candidates' => Array(candidates) }.merge(metadata)
       )

@@ -74,6 +74,12 @@ module Necropsy
         def implicit_sites(site)
           implicit_messages(site.message).map do |message|
             CallSite.new(
+              call_site_id: CallSiteIdentity.derived_id(
+                parent_call_site_id: site.call_site_id,
+                derivation: :rta_implicit,
+                caller_definition_id: site.caller_id,
+                message: message
+              ),
               caller_id: site.caller_id,
               message: message,
               receiver_kind: site.receiver_kind,
@@ -82,7 +88,11 @@ module Necropsy
               line: site.line,
               test: site.test,
               dynamic: site.dynamic,
-              metadata: site.metadata.merge('implicit_from' => site.message)
+              metadata: site.metadata.merge(
+                'implicit_from' => site.message,
+                'derived_from_call_site_id' => site.call_site_id,
+                'derived_via' => 'rta_implicit'
+              )
             )
           end
         end

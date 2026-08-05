@@ -599,6 +599,9 @@ module Necropsy
     end
 
     def call_site_key(site)
+      call_site_id = site['call_site_id'] || site[:call_site_id]
+      return [:call_site_id, call_site_id] if call_site_id
+
       metadata = site['metadata'] || site[:metadata] || {}
       [
         site['caller_id'] || site[:caller_id],

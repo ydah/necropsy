@@ -26,6 +26,8 @@ RSpec.describe Necropsy::AstScanner do
         have_attributes(caller_id: reopened[0].graph_id, message: 'first_target'),
         have_attributes(caller_id: reopened[1].graph_id, message: 'second_target')
       )
+      expect(scan.call_sites.select { |site| %w[first_target second_target].include?(site.message) }
+                            .map(&:call_site_id).uniq.length).to eq(2)
     end
   end
 
@@ -51,6 +53,19 @@ RSpec.describe Necropsy::AstScanner do
     end
   end
 
+  it 'distinguishes identical calls on the same source line' do
+    source = 'class SameLine; def run; helper; helper; end; end'
+
+    with_project(files: { 'lib/same_line.rb' => source }) do |root|
+      sites = scan_project(root).call_sites.select { |site| site.message == 'helper' }
+
+      expect(sites.length).to eq(2)
+      expect(sites.map(&:line).uniq).to contain_exactly(1)
+      expect(sites.map(&:caller_definition_id).uniq.length).to eq(1)
+      expect(sites.map(&:call_site_id).uniq.length).to eq(2)
+    end
+  end
+
   it 'uses physical caller ids for aliases and module-function copies' do
     source = <<~RUBY
       module Tools
@@ -65,13 +80,29 @@ RSpec.describe Necropsy::AstScanner do
     with_project(files: { 'lib/tools.rb' => source }) do |root|
       scan = scan_project(root)
       backup = definitions(scan, 'Tools#backup').fetch(0)
+      instance = definitions(scan, 'Tools#work').fetch(0)
       module_copy = definitions(scan, 'Tools.work').fetch(0)
+      instance_site = scan.call_sites.find { |site| site.caller_id == instance.graph_id && site.message == 'helper' }
+      copied_site = scan.call_sites.find { |site| site.caller_id == module_copy.graph_id && site.message == 'helper' }
 
       expect(scan.call_sites).to include(
         have_attributes(caller_id: backup.graph_id, message: 'work'),
         have_attributes(caller_id: module_copy.graph_id, message: 'helper')
       )
       expect([backup, module_copy]).to all(satisfy { |node| node.graph_id.start_with?('def:v1:') })
+      expect(copied_site.call_site_id).not_to eq(instance_site.call_site_id)
+      expect(copied_site.call_site_id).to eq(
+        Necropsy::CallSiteIdentity.derived_id(
+          parent_call_site_id: instance_site.call_site_id,
+          derivation: :module_function,
+          caller_definition_id: module_copy.graph_id,
+          message: instance_site.message
+        )
+      )
+      expect(copied_site.metadata).to include(
+        'derived_from_call_site_id' => instance_site.call_site_id,
+        'derived_via' => 'module_function'
+      )
     end
   end
 
@@ -131,12 +162,21 @@ RSpec.describe Necropsy::AstScanner do
     shifted = "# leading comment\n\nclass Shifted\n  # method comment\n  def call\n    helper\n  end\nend\n"
 
     with_project(files: { 'lib/shifted.rb' => original }) do |root|
-      first = definitions(scan_in_order(root, ['lib/shifted.rb']), 'Shifted#call').fetch(0)
+      first_scan = scan_in_order(root, ['lib/shifted.rb'])
+      first = definitions(first_scan, 'Shifted#call').fetch(0)
+      first_site = first_scan.call_sites.find { |site| site.message == 'helper' }
       write_project_file(root, 'lib/shifted.rb', shifted)
-      second = definitions(scan_in_order(root, ['lib/shifted.rb']), 'Shifted#call').fetch(0)
+      second_scan = scan_in_order(root, ['lib/shifted.rb'])
+      second = definitions(second_scan, 'Shifted#call').fetch(0)
+      second_site = second_scan.call_sites.find { |site| site.message == 'helper' }
 
       expect(second.line).not_to eq(first.line)
       expect(second).to have_attributes(body_digest: first.body_digest, definition_id: first.definition_id)
+      expect(second_site.line).not_to eq(first_site.line)
+      expect(second_site).to have_attributes(
+        call_site_id: first_site.call_site_id,
+        caller_definition_id: first_site.caller_definition_id
+      )
     end
   end
 
@@ -154,6 +194,7 @@ RSpec.describe Necropsy::AstScanner do
 
       expect(reverse.nodes.map(&:to_h)).to eq(forward.nodes.map(&:to_h))
       expect(reverse.call_sites.map(&:to_h)).to eq(forward.call_sites.map(&:to_h))
+      expect(forward.call_sites).to all(satisfy { |site| site.call_site_id.start_with?('call:v1:') })
       expect(cached_second.nodes.map(&:to_h)).to eq(cached_first.nodes.map(&:to_h))
       expect(cached_second.call_sites.map(&:to_h)).to eq(cached_first.call_sites.map(&:to_h))
     end

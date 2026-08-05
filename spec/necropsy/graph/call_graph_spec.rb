@@ -280,6 +280,19 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.incoming_edges(live.id).flat_map(&:evidences).map(&:analyzer)).to contain_exactly(:cha, :rta)
   end
 
+  it 'keys call sites by stable identity before the legacy field fallback' do
+    graph = graph_with(nodes: [])
+    first = call_site(caller_id: 'Caller#run', message: 'render')
+    second = first.with(call_site_id: 'call:v1:second')
+    first_payload = first.to_h
+    second_payload = second.to_h
+
+    expect(graph.send(:call_site_key, first_payload)).not_to eq(graph.send(:call_site_key, second_payload))
+    expect(graph.send(:call_site_key, first_payload.except('call_site_id'))).to eq(
+      graph.send(:call_site_key, second_payload.except('call_site_id'))
+    )
+  end
+
   it 'matches unknown dispatch blockers through the message index' do
     target = node('Target#call', owner: 'Target', name: 'call')
     graph = graph_with(nodes: [target])

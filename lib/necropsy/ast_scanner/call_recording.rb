@@ -19,14 +19,13 @@ module Necropsy
 
       return nil unless message
 
-      CallSite.new(
-        caller_id: context.current_caller_id,
+      scanned_call_site(
+        source_node: node,
+        context: context,
+        role: :call,
         message: message,
         receiver_kind: receiver.fetch(:kind),
         receiver_name: receiver[:name],
-        file: context.relative_file,
-        line: node.location.start_line,
-        test: context.test,
         dynamic: dynamic,
         metadata: metadata
       )
@@ -57,14 +56,13 @@ module Necropsy
     def record_initialize_call(node, context, receiver)
       return unless node.name == :new
 
-      call_sites << CallSite.new(
-        caller_id: context.current_caller_id,
+      add_scanned_call_site(
+        source_node: node,
+        context: context,
+        role: :initialize,
         message: 'initialize',
         receiver_kind: :instance,
         receiver_name: receiver[:name],
-        file: context.relative_file,
-        line: node.location.start_line,
-        test: context.test,
         dynamic: false,
         metadata: { 'original_message' => 'new', 'receiver_candidates' => receiver[:candidates],
                     'implicit_from' => 'new' }

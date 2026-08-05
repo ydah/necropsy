@@ -80,6 +80,38 @@ RSpec.describe 'Necropsy model objects' do
     end
   end
 
+  describe Necropsy::CallSite do
+    let(:legacy_values) do
+      ['Caller#run', 'render', :implicit, nil, 'lib/caller.rb', 3, false, false, { 'hint' => 'value' }]
+    end
+
+    it 'adds a stable identity and physical caller alias to legacy keyword construction' do
+      site = described_class.new(
+        caller_id: 'Caller#run', message: 'render', receiver_kind: :implicit, receiver_name: nil,
+        file: 'lib/caller.rb', line: 3, test: false, dynamic: false, metadata: { 'hint' => 'value' }
+      )
+
+      expect(site.call_site_id).to match(/\Acall:v1:[0-9a-f]{64}\z/)
+      expect(site.caller_definition_id).to eq('Caller#run')
+      expect(site.to_h).to include(
+        'call_site_id' => site.call_site_id,
+        'caller_id' => 'Caller#run',
+        'caller_definition_id' => 'Caller#run'
+      )
+    end
+
+    it 'keeps legacy and complete positional construction compatible through new and brackets' do
+      legacy = described_class.new(*legacy_values)
+      complete_values = ['call:v1:explicit', *legacy_values]
+
+      expect(described_class[*legacy_values]).to eq(legacy)
+      expect(described_class.new(*complete_values)).to have_attributes(
+        call_site_id: 'call:v1:explicit', caller_id: 'Caller#run', message: 'render'
+      )
+      expect(described_class[*complete_values]).to eq(described_class.new(*complete_values))
+    end
+  end
+
   describe Necropsy::Finding do
     it 'orders confidence levels and serializes evidence' do
       result = finding(confidence: :medium, classification: :unused)

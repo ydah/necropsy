@@ -157,14 +157,14 @@ module Necropsy
         name: new_name,
         visibility: context.visibility
       )
-      call_sites << CallSite.new(
+      add_scanned_call_site(
+        source_node: source_node,
+        context: context,
+        role: :alias_target,
         caller_id: definition.graph_id,
         message: old_name,
         receiver_kind: :self,
         receiver_name: context.owner,
-        file: context.relative_file,
-        line: source_node.location.start_line,
-        test: context.test,
         dynamic: false,
         metadata: { 'original_message' => old_name, 'alias_method' => true }
       )

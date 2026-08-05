@@ -16,7 +16,10 @@ module Necropsy
       copies = module_function_sources.flat_map do |copy_id, source_ids|
         source_ids.flat_map do |source_id|
           call_sites.select { |site| site.caller_id == source_id }.map do |site|
-            site.with(caller_id: copy_id, metadata: site.metadata.merge('module_function' => true))
+            derived_call_site(
+              site, derivation: :module_function, caller_id: copy_id,
+                    metadata: { 'module_function' => true }
+            )
           end
         end
       end
@@ -167,14 +170,13 @@ module Necropsy
     def visit_super(node, context)
       method_name = context.current_method_name
       if method_name
-        call_sites << CallSite.new(
-          caller_id: context.current_caller_id,
+        add_scanned_call_site(
+          source_node: node,
+          context: context,
+          role: :super,
           message: method_name,
           receiver_kind: :super,
           receiver_name: context.owner,
-          file: context.relative_file,
-          line: node.location.start_line,
-          test: context.test,
           dynamic: false,
           metadata: { 'super' => true }
         )

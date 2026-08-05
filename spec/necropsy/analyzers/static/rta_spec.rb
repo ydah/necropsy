@@ -42,6 +42,24 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
       expect(implicit_sites.map(&:message)).to include('each')
       expect(implicit_sites.first.metadata).to include('implicit_from' => 'map')
     end
+
+    it 'derives stable identities from the source call site' do
+      implicit = implicit_sites.fetch(0)
+
+      expect(implicit.call_site_id).to eq(
+        Necropsy::CallSiteIdentity.derived_id(
+          parent_call_site_id: site.call_site_id,
+          derivation: :rta_implicit,
+          caller_definition_id: site.caller_id,
+          message: implicit.message
+        )
+      )
+      expect(implicit.call_site_id).not_to eq(site.call_site_id)
+      expect(implicit.metadata).to include(
+        'derived_from_call_site_id' => site.call_site_id,
+        'derived_via' => 'rta_implicit'
+      )
+    end
   end
 
   describe '#implicit_messages' do

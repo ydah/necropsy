@@ -4,6 +4,7 @@
 require 'set' # rubocop:disable Lint/RedundantRequireStatement
 
 require_relative 'necropsy/version'
+require_relative 'necropsy/call_site_identity'
 require_relative 'necropsy/models'
 require_relative 'necropsy/definition_identity'
 require_relative 'necropsy/configuration'

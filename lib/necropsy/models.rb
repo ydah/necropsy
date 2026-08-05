@@ -435,6 +435,7 @@ module Necropsy
   end
 
   CallSite = Data.define(
+    :call_site_id,
     :caller_id,
     :message,
     :receiver_kind,
@@ -445,9 +446,52 @@ module Necropsy
     :dynamic,
     :metadata
   ) do
+    class << self
+      alias_method :data_new, :new
+
+      def new(*values, **attributes)
+        compatible_new(*values, **attributes)
+      end
+      alias_method :[], :new
+
+      private
+
+      def compatible_new(*values, **attributes)
+        return data_new(*values, **attributes) unless values.length == 9 && attributes.empty?
+
+        caller_id, message, receiver_kind, receiver_name, file, line, test, dynamic, metadata = values
+        data_new(
+          caller_id: caller_id, message: message, receiver_kind: receiver_kind, receiver_name: receiver_name,
+          file: file, line: line, test: test, dynamic: dynamic, metadata: metadata
+        )
+      end
+
+      private :data_new, :compatible_new
+    end
+
+    def initialize(caller_id:, message:, receiver_kind:, receiver_name:, file:, line:, test:, dynamic:, metadata:,
+                   call_site_id: nil)
+      call_site_id ||= CallSiteIdentity.legacy_id(
+        caller_definition_id: caller_id,
+        message: message,
+        receiver_kind: receiver_kind,
+        receiver_name: receiver_name,
+        file: file,
+        line: line,
+        test: test,
+        dynamic: dynamic,
+        metadata: metadata
+      )
+      super
+    end
+
+    alias_method :caller_definition_id, :caller_id
+
     def to_h
       {
+        'call_site_id' => call_site_id,
         'caller_id' => caller_id,
+        'caller_definition_id' => caller_definition_id,
         'message' => message,
         'receiver_kind' => receiver_kind.to_s,
         'receiver_name' => receiver_name,

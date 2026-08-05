@@ -2,6 +2,7 @@
 
 require 'prism'
 require_relative 'ast_scanner/definition_creation'
+require_relative 'ast_scanner/call_site_creation'
 require_relative 'ast_scanner/traversal'
 require_relative 'ast_scanner/value_definitions'
 require_relative 'ast_scanner/method_definitions'
@@ -75,6 +76,7 @@ module Necropsy
       @file_statuses = {}
       @source_errors = []
       @definition_ordinals = Hash.new(0)
+      @call_site_ordinals = Hash.new(0)
       @module_function_sources = {}
       @deferred_module_functions = {}
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
@@ -100,6 +102,6 @@ module Necropsy
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
-                :deferred_module_functions
+                :deferred_module_functions, :call_site_ordinals
   end
 end
