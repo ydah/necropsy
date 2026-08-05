@@ -184,6 +184,12 @@ reopened definitions with physical `definition_id` values. Graph consumers and
 custom analyzer authors upgrading to the structured resolution model should
 follow the [0.3.0 migration guide](docs/migrations/0.3.0.md).
 
+The graph keeps one interned evidence store and derives `exact`, `conservative`,
+and scope-filtered `observed` edge views on demand. Normal analysis and the
+serialized `edges` view use the conservative projection, preserving legacy
+reachability. Serialized edges retain nested `evidences` and additionally
+reference the top-level `evidence_records` through stable `evidence_ids`.
+
 Runtime evidence is positive-only: executed methods and the endpoints of
 observed edges are kept alive, while an unobserved method never becomes a new
 finding and never receives higher confidence. Observation duration and
@@ -197,8 +203,9 @@ unmatched sample.
 Schema v1 payloads may omit the analyzed source revision. Their positive
 evidence is accepted for liveness for compatibility, but an omitted revision is
 marked `source_revision_status: unknown` and is never treated as proof that
-unobserved code is dead. Use evidence recorded from the same checkout; revision
-matching will require a revision-bearing payload schema.
+unobserved code is dead. When `source_revision` is supplied, it is retained in
+the evidence scope so an exact projection can require a matching revision. Use
+evidence recorded from the same checkout.
 
 Coverband file, Redis string, and Redis hash exports are supported. Redis URLs
 may include an ACL username and password. `rediss://` uses the system CA store,
