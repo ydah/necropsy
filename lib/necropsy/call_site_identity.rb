@@ -53,7 +53,7 @@ module Necropsy
     def canonicalize(value)
       case value
       when Hash
-        pairs = value.map { |key, item| [key.to_s, canonicalize(item)] }.sort_by(&:first)
+        pairs = value.map { |key, item| [canonicalize(key), canonicalize(item)] }.sort
         ['hash', pairs]
       when Array
         ['array', value.map { |item| canonicalize(item) }]

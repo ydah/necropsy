@@ -609,7 +609,7 @@ module Necropsy
 
       metadata = site['metadata'] || site[:metadata] || {}
       [
-        site['caller_id'] || site[:caller_id],
+        site['caller_definition_id'] || site[:caller_definition_id] || site['caller_id'] || site[:caller_id],
         site['message'] || site[:message],
         (site['receiver_kind'] || site[:receiver_kind])&.to_s,
         site['receiver_name'] || site[:receiver_name],

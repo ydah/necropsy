@@ -46,8 +46,11 @@ RSpec.describe Necropsy::CallSiteIdentity do
 
     first = described_class.legacy_id(**attributes, metadata: { 'b' => 2, 'a' => { z: 3, y: 1 } })
     second = described_class.legacy_id(**attributes, metadata: { 'a' => { y: 1, z: 3 }, 'b' => 2 })
+    mixed_first = described_class.legacy_id(**attributes, metadata: { a: 1, 'a' => 2 })
+    mixed_second = described_class.legacy_id(**attributes, metadata: { 'a' => 2, a: 1 })
 
     expect(second).to eq(first)
+    expect(mixed_second).to eq(mixed_first)
   end
 
   it 'rejects invalid roles, derivations, and ordinals' do

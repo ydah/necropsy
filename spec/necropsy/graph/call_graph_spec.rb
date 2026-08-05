@@ -303,6 +303,12 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.send(:call_site_key, first_payload.except('call_site_id'))).to eq(
       graph.send(:call_site_key, second_payload.except('call_site_id'))
     )
+
+    physical_first = first_payload.except('call_site_id', 'caller_id').merge(
+      'caller_definition_id' => 'def:v1:first'
+    )
+    physical_second = physical_first.merge('caller_definition_id' => 'def:v1:second')
+    expect(graph.send(:call_site_key, physical_first)).not_to eq(graph.send(:call_site_key, physical_second))
   end
 
   it 'matches unknown dispatch blockers through the message index' do
