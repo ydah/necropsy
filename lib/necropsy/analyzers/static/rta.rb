@@ -29,25 +29,42 @@ module Necropsy
 
         def analyze(graph, _project)
           sites = expanded_call_sites(graph)
-          edge_evidences = sites.flat_map do |site|
-            rta_candidates(graph, site).map do |candidate|
+          analyses = sites.map do |site|
+            targets = rta_candidates(graph, site)
+            site_edges = targets.map do |candidate|
               EdgeEvidence.new(
                 caller_id: site.caller_id,
                 callee_id: candidate.graph_id,
                 evidence: evidence(
                   kind: :call_edge,
                   details: "RTA candidate at #{site.file}:#{site.line}",
-                  metadata: site.to_h.merge('instantiated_classes' => graph.instantiated_classes.to_a.sort)
+                  metadata: site.to_h.merge(
+                    'instantiated_classes' => graph.instantiated_classes.to_a.sort,
+                    'target_definition_id' => candidate.graph_id
+                  ),
+                  grade: :heuristic,
+                  relation: :call_edge,
+                  source: call_site_evidence_source(site).merge('target_definition_id' => candidate.graph_id),
+                  scope: call_site_evidence_scope(site).merge('target_definition_id' => candidate.graph_id)
                 )
               )
             end
+            [site, targets, site_edges]
+          end
+          edge_evidences = analyses.flat_map(&:last)
+          analyses_by_call_site_id = analyses.to_h { |site, targets, edges| [site.call_site_id, [targets, edges]] }
+          resolutions = graph.call_sites.map do |site|
+            targets, edges = analyses_by_call_site_id.fetch(site.call_site_id)
+            resolution_record(site, targets, edges)
           end
 
           AnalyzerResult.new(
             edge_evidences: edge_evidences,
             alive_evidences: [],
             uncertainties: {},
-            observation: { 'rta' => { 'pruning' => pruning.to_s, 'analyzed_sites' => sites.map(&:to_h) } }
+            observation: { 'rta' => { 'pruning' => pruning.to_s, 'analyzed_sites' => sites.map(&:to_h) } },
+            resolutions: resolutions,
+            evidences: result_evidences(edge_evidences)
           )
         end
 
@@ -61,7 +78,9 @@ module Necropsy
             name: :rta,
             kind: :static,
             soundness: :partial,
-            description: description
+            description: description,
+            version: Necropsy::VERSION,
+            assumptions: ['scanned_allocations', "pruning=#{pruning}"]
           )
         end
 

@@ -27,8 +27,15 @@ module Necropsy
             details = node ? "Coverband executed #{node.file}:#{node.line}" : "Coverband marked #{node_id} as executed"
             AliveEvidence.new(
               node_id: node_id,
-              evidence: evidence(kind: :alive, details: details,
-                                 metadata: observation.merge('node_reference' => node_id))
+              evidence: evidence(
+                kind: :alive,
+                details: details,
+                metadata: observation.merge('node_reference' => node_id),
+                grade: :observed,
+                relation: :execution,
+                source: { 'type' => 'coverband', 'node_reference' => node_id },
+                scope: { 'node_reference' => node_id }
+              )
             )
           end
 
@@ -36,7 +43,9 @@ module Necropsy
             edge_evidences: [],
             alive_evidences: alive,
             uncertainties: {},
-            observation: { 'coverband' => observation }
+            observation: { 'coverband' => observation },
+            resolutions: [],
+            evidences: result_evidences(alive)
           )
         end
 
@@ -45,7 +54,9 @@ module Necropsy
             name: :coverband,
             kind: :dynamic,
             soundness: :observational,
-            description: 'Imports file and line execution data compatible with coverband-style exports.'
+            description: 'Imports file and line execution data compatible with coverband-style exports.',
+            version: Necropsy::VERSION,
+            assumptions: %w[line_execution_mapping positive_observations_only]
           )
         end
 

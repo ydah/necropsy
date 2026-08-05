@@ -11,6 +11,20 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverbandImporter do
       result = described_class.new('source' => 'coverband.yml').analyze(graph, project_for(root))
 
       expect(result.alive_evidences.map(&:node_id)).to eq([live.id])
+      emitted = result.alive_evidences.first.evidence
+      expect(emitted).to have_attributes(
+        grade: :observed,
+        producer: :coverband,
+        producer_version: Necropsy::VERSION,
+        relation: :execution
+      )
+      expect(emitted.source).to include('type' => 'coverband', 'node_reference' => live.id)
+      expect(result.evidences).to eq([emitted])
+      expect(result.resolutions).to eq([])
+      expect(described_class.new({}).profile).to have_attributes(
+        version: Necropsy::VERSION,
+        assumptions: %w[line_execution_mapping positive_observations_only]
+      )
       expect(result.observation.fetch('coverband')).to include(
         'days' => 30,
         'positive_evidence_policy' => 'alive_only',

@@ -57,6 +57,7 @@ module Necropsy
 
       graph.add_profile(profile)
       result = analyzer.analyze(graph, project)
+      result = Analyzers::LegacyResultAdapter.new(graph: graph, profile: profile).adapt(result)
       graph.apply_result(result)
       [profile, result]
     rescue StandardError => e

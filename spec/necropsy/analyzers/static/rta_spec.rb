@@ -29,7 +29,49 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
 
     it 'filters instance call targets to instantiated classes' do
       expect(result.edge_evidences.map(&:callee_id)).to eq(['Live#render'])
-      expect(result.edge_evidences.first.evidence.metadata.fetch('instantiated_classes')).to eq(['Live'])
+      emitted = result.edge_evidences.first.evidence
+      expect(emitted.metadata.fetch('instantiated_classes')).to eq(['Live'])
+      expect(emitted).to have_attributes(
+        grade: :heuristic,
+        producer: :rta,
+        producer_version: Necropsy::VERSION,
+        relation: :call_edge
+      )
+      expect(result.evidences).to eq([emitted])
+      expect(result.resolutions.first.resolution).to have_attributes(
+        call_site_id: site.call_site_id,
+        target_definition_ids: [live.graph_id],
+        status: :partial,
+        evidence_ids: [emitted.evidence_id]
+      )
+      expect(analyzer.profile).to have_attributes(
+        version: Necropsy::VERSION,
+        assumptions: %w[pruning=rank_only scanned_allocations]
+      )
+    end
+
+    it 'keeps derived implicit sites as positive evidence without registering invalid resolutions' do
+      protocol_target = node('Live#each', owner: 'Live', name: 'each')
+      protocol_site = call_site(caller_id: caller.graph_id, message: 'map', receiver_kind: :unknown)
+      protocol_graph = graph_with(
+        nodes: [caller, protocol_target],
+        call_sites: [protocol_site],
+        instantiated_classes: Set['Live'],
+        class_infos: [class_info('Live')]
+      )
+
+      protocol_result = analyzer.analyze(protocol_graph, nil)
+      protocol_graph.apply_result(protocol_result)
+
+      expect(protocol_result.resolutions.map { |record| record.resolution.call_site_id }).to eq(
+        [protocol_site.call_site_id]
+      )
+      derived = protocol_result.edge_evidences.find { |edge| edge.callee_id == protocol_target.graph_id }
+      expect(derived.evidence.metadata.fetch('metadata')).to include(
+        'derived_from_call_site_id' => protocol_site.call_site_id,
+        'derived_via' => 'rta_implicit'
+      )
+      expect(protocol_graph.resolution_issues).to eq([])
     end
   end
 

@@ -5,25 +5,35 @@ module Necropsy
     module Static
       class CHA < Analyzer
         def analyze(graph, _project)
-          edge_evidences = graph.call_sites.flat_map do |site|
-            candidates(graph, site).map do |candidate|
+          edge_evidences = []
+          resolutions = graph.call_sites.map do |site|
+            targets = candidates(graph, site)
+            site_edges = targets.map do |candidate|
               EdgeEvidence.new(
                 caller_id: site.caller_id,
                 callee_id: candidate.graph_id,
                 evidence: evidence(
                   kind: :call_edge,
                   details: "CHA candidate at #{site.file}:#{site.line}",
-                  metadata: site.to_h
+                  metadata: site.to_h.merge('target_definition_id' => candidate.graph_id),
+                  grade: :conservative,
+                  relation: :call_edge,
+                  source: call_site_evidence_source(site).merge('target_definition_id' => candidate.graph_id),
+                  scope: call_site_evidence_scope(site).merge('target_definition_id' => candidate.graph_id)
                 )
               )
             end
+            edge_evidences.concat(site_edges)
+            resolution_record(site, targets, site_edges)
           end
 
           AnalyzerResult.new(
             edge_evidences: edge_evidences,
             alive_evidences: [],
             uncertainties: {},
-            observation: {}
+            observation: {},
+            resolutions: resolutions,
+            evidences: result_evidences(edge_evidences)
           )
         end
 
@@ -32,7 +42,9 @@ module Necropsy
             name: :cha,
             kind: :static,
             soundness: :conservative,
-            description: 'Expands call targets through class hierarchy, descendants, and included/prepended modules.'
+            description: 'Expands call targets through class hierarchy, descendants, and included/prepended modules.',
+            version: Necropsy::VERSION,
+            assumptions: %w[closed_scanned_hierarchy loaded_ancestry]
           )
         end
 

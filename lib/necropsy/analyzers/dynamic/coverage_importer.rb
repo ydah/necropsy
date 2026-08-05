@@ -26,7 +26,11 @@ module Necropsy
               evidence: evidence(
                 kind: :alive,
                 details: "Coverage marked #{reference_label(node_id)} as executed",
-                metadata: observation.merge('node_reference' => node_id)
+                metadata: observation.merge('node_reference' => node_id),
+                grade: :observed,
+                relation: :execution,
+                source: { 'type' => profile.name.to_s, 'node_reference' => node_id },
+                scope: { 'node_reference' => node_id }
               )
             )
           end
@@ -47,7 +51,15 @@ module Necropsy
               evidence: evidence(
                 kind: :call_edge,
                 details: "Coverage observed #{reference_label(caller_id)} -> #{reference_label(callee_id)}",
-                metadata: { 'caller_reference' => caller_id, 'callee_reference' => callee_id }
+                metadata: { 'caller_reference' => caller_id, 'callee_reference' => callee_id },
+                grade: :observed,
+                relation: :observed_call,
+                source: {
+                  'type' => profile.name.to_s,
+                  'caller_reference' => caller_id,
+                  'callee_reference' => callee_id
+                },
+                scope: { 'caller_reference' => caller_id, 'callee_reference' => callee_id }
               )
             )
           end
@@ -57,7 +69,9 @@ module Necropsy
             edge_evidences: edge_evidences,
             alive_evidences: alive,
             uncertainties: {},
-            observation: { 'coverage' => observation }
+            observation: { 'coverage' => observation },
+            resolutions: [],
+            evidences: result_evidences(edge_evidences, alive)
           )
         end
 
@@ -66,7 +80,9 @@ module Necropsy
             name: :coverage,
             kind: :dynamic,
             soundness: :observational,
-            description: 'Imports method execution and observed edges from Ruby Coverage output.'
+            description: 'Imports method execution and observed edges from Ruby Coverage output.',
+            version: Necropsy::VERSION,
+            assumptions: ['positive_observations_only']
           )
         end
 

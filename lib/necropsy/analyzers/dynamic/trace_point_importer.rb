@@ -9,7 +9,9 @@ module Necropsy
             name: :trace_point,
             kind: :dynamic,
             soundness: :observational,
-            description: 'Imports method execution and caller-callee edges captured by Necropsy TracePoint recording.'
+            description: 'Imports method execution and caller-callee edges captured by Necropsy TracePoint recording.',
+            version: Necropsy::VERSION,
+            assumptions: %w[positive_observations_only tracepoint_call_events]
           )
         end
       end

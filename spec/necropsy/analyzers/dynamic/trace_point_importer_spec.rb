@@ -8,6 +8,18 @@ RSpec.describe Necropsy::Analyzers::Dynamic::TracePointImporter do
 
       expect(importer.profile.name).to eq(:trace_point)
       expect(result.alive_evidences.map(&:node_id)).to eq(['Sample#trace'])
+      emitted = result.alive_evidences.first.evidence
+      expect(emitted).to have_attributes(
+        grade: :observed,
+        producer: :trace_point,
+        producer_version: Necropsy::VERSION
+      )
+      expect(emitted.source).to include('type' => 'trace_point')
+      expect(result.resolutions).to eq([])
+      expect(importer.profile).to have_attributes(
+        version: Necropsy::VERSION,
+        assumptions: %w[positive_observations_only tracepoint_call_events]
+      )
     end
   end
 

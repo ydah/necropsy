@@ -39,6 +39,32 @@ module Necropsy
   end
   private_constant :EvidenceIdentity
 
+  module EvidenceCollection
+    module_function
+
+    def collect(*collections)
+      records = collections.flatten.compact.map { |item| unwrap(item) }
+      records.uniq { |record| identity(record) }
+             .sort_by { |record| identity(record) }
+             .freeze
+    end
+
+    def unwrap(item)
+      item.respond_to?(:evidence) ? item.evidence : item
+    end
+    private_class_method :unwrap
+
+    def identity(record)
+      evidence_id = record.evidence_id if record.respond_to?(:evidence_id)
+      return evidence_id if evidence_id
+
+      payload = record.respond_to?(:to_h) ? record.to_h.except('evidence_id') : record
+      EvidenceIdentity.generate(payload)
+    end
+    private_class_method :identity
+  end
+  private_constant :EvidenceCollection
+
   class Analyzer
     def analyze(_graph, _project)
       raise NotImplementedError, "#{self.class} must implement #analyze"
@@ -65,6 +91,40 @@ module Necropsy
       )
       evidence_id = EvidenceIdentity.generate(record.to_h.except('evidence_id'))
       record.with(evidence_id: evidence_id)
+    end
+
+    def result_evidences(*collections)
+      EvidenceCollection.collect(*collections)
+    end
+
+    def resolution_record(site, targets, evidences)
+      analyzer_profile = profile
+      target_ids = targets.map(&:graph_id).uniq.sort
+      status = target_ids.empty? ? :unknown : :partial
+      ResolutionRecord.new(
+        resolution: Resolution.new(
+          call_site_id: site.call_site_id,
+          target_definition_ids: target_ids,
+          status: status,
+          unknown_scope: residual_scope(site),
+          evidence_ids: result_evidences(evidences).filter_map(&:evidence_id)
+        ),
+        producer: analyzer_profile.name,
+        producer_version: analyzer_profile.version,
+        assumptions: analyzer_profile.assumptions
+      )
+    end
+
+    def residual_scope(site)
+      UnknownScope.new(scope_kind: :message, scope_value: site.message, match: :exact)
+    end
+
+    def call_site_evidence_source(site)
+      { 'call_site_id' => site.call_site_id, 'file' => site.file, 'line' => site.line }
+    end
+
+    def call_site_evidence_scope(site)
+      { 'call_site_id' => site.call_site_id, 'caller_definition_id' => site.caller_id }
     end
   end
 end

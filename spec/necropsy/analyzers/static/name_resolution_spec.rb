@@ -10,7 +10,25 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
     result = described_class.new.analyze(graph, nil)
 
     expect(result.edge_evidences.map { |edge| [edge.caller_id, edge.callee_id] }).to eq([[caller.id, callee.id]])
-    expect(result.edge_evidences.first.evidence.analyzer).to eq(:name_resolution)
+    emitted = result.edge_evidences.first.evidence
+    expect(emitted).to have_attributes(
+      analyzer: :name_resolution,
+      producer: :name_resolution,
+      producer_version: Necropsy::VERSION,
+      grade: :exact,
+      relation: :call_edge
+    )
+    expect(emitted.source).to include('call_site_id' => site.call_site_id, 'file' => site.file, 'line' => site.line)
+    expect(emitted.scope).to include(
+      'call_site_id' => site.call_site_id, 'caller_definition_id' => caller.graph_id
+    )
+    expect(result.evidences).to eq([emitted])
+    expect(result.resolutions.first.resolution).to have_attributes(
+      call_site_id: site.call_site_id,
+      target_definition_ids: [callee.graph_id],
+      status: :partial,
+      evidence_ids: [emitted.evidence_id]
+    )
     expect(result.uncertainties).to eq({})
   end
 
@@ -23,6 +41,7 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
 
     expect(result.edge_evidences).to eq([])
     expect(result.uncertainties.fetch(caller.id)).to include(match(/Unknown receiver for missing/))
+    expect(result.resolutions.first.resolution).to have_attributes(target_definition_ids: [], status: :unknown)
   end
 
   it 'uses low-weight evidence for bounded ambiguous fallbacks' do
@@ -36,6 +55,7 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
 
     expect(result.edge_evidences.map(&:callee_id)).to contain_exactly(first.id, second.id)
     expect(result.edge_evidences.map { |edge| edge.evidence.weight }).to all(eq(0.35))
+    expect(result.edge_evidences.map { |edge| edge.evidence.grade }).to all(eq(:heuristic))
   end
 
   it 'resolves each call site only once' do
@@ -48,6 +68,25 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
     described_class.new.analyze(graph, nil)
 
     expect(graph).to have_received(:resolve_call_site).once
+  end
+
+  it 'emits one conservative resolution record for every call site' do
+    caller = node('Caller#run')
+    target = node('Target#call')
+    known = call_site(caller_id: caller.graph_id, message: 'call', line: 2)
+    unknown = call_site(caller_id: caller.graph_id, message: 'missing', receiver_kind: :unknown, line: 3)
+    graph = graph_with(nodes: [caller, target], call_sites: [known, unknown])
+
+    result = described_class.new.analyze(graph, nil)
+
+    expect(result.resolutions.map { |record| record.resolution.call_site_id }).to contain_exactly(
+      known.call_site_id, unknown.call_site_id
+    )
+    expect(result.resolutions.map { |record| record.resolution.status }).to contain_exactly(:partial, :unknown)
+    expect(described_class.new.profile).to have_attributes(
+      version: Necropsy::VERSION,
+      assumptions: %w[bounded_same_name_fallback scanned_receiver_hints]
+    )
   end
 
   it 'materializes bounded fallback candidates and blocks larger candidate sets' do

@@ -6,12 +6,15 @@ module Necropsy
       class NameResolution < Analyzer
         def analyze(graph, _project)
           edge_evidences = []
+          resolutions = []
           uncertainties = {}
           blockers = []
           graph.call_sites.each do |site|
             candidates = graph.resolve_call_site(site)
             fallback = graph.fallback_resolution?(site, resolved: candidates)
-            edge_evidences.concat(edge_evidences_for(site, candidates, fallback))
+            site_edges = edge_evidences_for(site, candidates, fallback)
+            edge_evidences.concat(site_edges)
+            resolutions << resolution_record(site, candidates, site_edges)
             record_unresolved_uncertainty(graph, site, candidates, uncertainties)
             blocker = unresolved_blocker(graph, site, candidates)
             blockers << blocker if blocker
@@ -22,7 +25,9 @@ module Necropsy
             alive_evidences: [],
             uncertainties: uncertainties,
             observation: {},
-            blockers: blockers
+            blockers: blockers,
+            resolutions: resolutions,
+            evidences: result_evidences(edge_evidences)
           )
         end
 
@@ -31,7 +36,9 @@ module Necropsy
             name: :name_resolution,
             kind: :static,
             soundness: :unsound,
-            description: 'Resolves Ruby call sites by exact receiver and method name, falling back to same-name candidates.'
+            description: 'Resolves Ruby call sites by exact receiver and method name, falling back to same-name candidates.',
+            version: Necropsy::VERSION,
+            assumptions: %w[bounded_same_name_fallback scanned_receiver_hints]
           )
         end
 
@@ -46,7 +53,11 @@ module Necropsy
                 kind: :call_edge,
                 details: "Name resolution#{' fallback' if fallback} at #{site.file}:#{site.line}",
                 weight: fallback ? 0.35 : 1.0,
-                metadata: site.to_h
+                metadata: site.to_h.merge('target_definition_id' => candidate.graph_id),
+                grade: fallback ? :heuristic : :exact,
+                relation: :call_edge,
+                source: call_site_evidence_source(site).merge('target_definition_id' => candidate.graph_id),
+                scope: call_site_evidence_scope(site).merge('target_definition_id' => candidate.graph_id)
               )
             )
           end

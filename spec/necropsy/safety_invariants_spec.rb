@@ -290,13 +290,16 @@ RSpec.describe 'analysis safety invariants' do
     expect(after.graph.ambiguity_limit).to eq(4)
     expect(before_targets.length).to eq(5)
     expect(after_targets).to be_empty
-    expect(before.graph.blockers).to be_empty
-    expect(after.graph.blockers).to contain_exactly(
+    expect(before.graph.blockers.map(&:kind)).to contain_exactly(
+      :partial_dispatch, :partial_dispatch, :unknown_dispatch
+    )
+    expect(after.graph.blockers).to include(
       have_attributes(
         kind: :unknown_dispatch,
         metadata: include('candidate_count' => 5, 'ambiguity_limit' => 4)
       )
     )
+    expect(after.graph.blockers.map(&:kind)).to all(eq(:unknown_dispatch))
     expect(after.findings.select { |finding| finding.node.name == 'call' }).to all(
       have_attributes(classification: :blocked, confidence: :low)
     )

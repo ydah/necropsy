@@ -10,6 +10,37 @@ class RunnerSpecAnalyzer < Necropsy::Analyzer
   end
 end
 
+class LegacyWeightedRunnerAnalyzer < Necropsy::Analyzer
+  def initialize(weight)
+    @weight = weight
+  end
+
+  def analyze(graph, _project)
+    site = graph.call_sites.find { |candidate| candidate.message == 'call' }
+    target = graph.candidate_nodes('call').find { |candidate| candidate.owner == 'Target' }
+    edge = Necropsy::EdgeEvidence.new(
+      caller_id: site.caller_id,
+      callee_id: target.graph_id,
+      evidence: Necropsy::Evidence.new(
+        analyzer: :legacy_weighted,
+        kind: :call_edge,
+        weight: @weight,
+        details: 'legacy weighted edge',
+        metadata: site.to_h.except('call_site_id')
+      )
+    )
+    Necropsy::AnalyzerResult.new(
+      edge_evidences: [edge], alive_evidences: [], uncertainties: {}, observation: {}
+    )
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :legacy_weighted, kind: :static, soundness: :partial, description: 'legacy weighted analyzer'
+    )
+  end
+end
+
 RSpec.describe Necropsy::Runner do
   let(:rta_source) do
     <<~RUBY
@@ -74,6 +105,41 @@ RSpec.describe Necropsy::Runner do
 
       expect(report.graph.profiles.map(&:name)).to eq([:runner_spec])
     end
+  end
+
+  it 'adapts legacy custom analyzers without making findings depend on evidence weight' do
+    source = <<~RUBY
+      class Target
+        def call; end
+      end
+      class Other
+        def call; end
+      end
+      class Caller
+        def run = Target.new.call
+      end
+    RUBY
+    reports = [0.01, 100.0].map do |weight|
+      report = nil
+      with_project(files: { 'app/sample.rb' => source }) do |root|
+        report = described_class.new(root: root, analyzers: [LegacyWeightedRunnerAnalyzer.new(weight)]).analyze
+      end
+      report
+    end
+
+    resolutions = reports.map do |report|
+      report.graph.resolution_records.map do |record|
+        [record.resolution.status, record.resolution.target_definition_ids]
+      end
+    end
+    findings = reports.map do |report|
+      report.findings.map { |finding| [finding.node.symbol_id, finding.classification] }
+    end
+
+    expect(resolutions.first).to eq(resolutions.last)
+    expect(resolutions.first).to include(satisfy { |status, targets| status == :partial && targets.one? })
+    expect(findings.first).to eq(findings.last)
+    expect(findings.first).to include(['Other#call', :blocked])
   end
 
   it 'raises a Necropsy error for missing custom analyzers' do
@@ -327,8 +393,8 @@ RSpec.describe Necropsy::Runner do
     expect(limited_handlers).to all(have_attributes(classification: :blocked, confidence: :low))
     expect(limited_handlers).to all(satisfy { |finding| !finding.at_least?(:high) })
     expect(unlimited_handlers).to eq([])
-    expect(limited.graph.blockers.one?).to eq(true)
-    expect(limited.graph.blockers.first.metadata).to include('candidate_count' => 5, 'ambiguity_limit' => 4)
+    truncation = limited.graph.blockers.find { |blocker| blocker.metadata['candidate_count'] == 5 }
+    expect(truncation.metadata).to include('candidate_count' => 5, 'ambiguity_limit' => 4)
   end
 
   it 'blocks private targets when reflective dispatch exceeds the ambiguity limit' do

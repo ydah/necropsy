@@ -23,6 +23,17 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageImporter do
       expect(result.edge_evidences.map { |edge| [edge.caller_id, edge.callee_id] }).to eq(
         [['Sample#run', 'Sample#helper']]
       )
+      emitted = [*result.alive_evidences.map(&:evidence), *result.edge_evidences.map(&:evidence)]
+      expect(emitted.map(&:grade)).to all(eq(:observed))
+      expect(emitted.map(&:producer)).to all(eq(:coverage))
+      expect(emitted.map(&:producer_version)).to all(eq(Necropsy::VERSION))
+      expect(emitted.map(&:source)).to all(include('type' => 'coverage'))
+      expect(result.evidences).to contain_exactly(*emitted)
+      expect(result.resolutions).to eq([])
+      expect(described_class.new({}).profile).to have_attributes(
+        version: Necropsy::VERSION,
+        assumptions: ['positive_observations_only']
+      )
       expect(result.observation.fetch('coverage')).to include(
         'days' => 12,
         'schema_version' => 1,
