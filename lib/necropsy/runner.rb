@@ -4,12 +4,13 @@ module Necropsy
   class Runner
     ANALYZER_ERROR_MESSAGE_BYTES = 500
 
-    attr_reader :root, :config, :analyzers
+    attr_reader :root, :config, :analyzers, :ignored_reference_paths
 
-    def initialize(root:, config_path: nil, analyzers: nil)
+    def initialize(root:, config_path: nil, analyzers: nil, ignored_reference_paths: [])
       @root = File.expand_path(root)
       @config = Configuration.load(root: @root, path: config_path)
       @analyzers = analyzers
+      @ignored_reference_paths = ignored_reference_paths
     end
 
     def analyze(rta_pruning: config.rta_pruning)
@@ -27,7 +28,14 @@ module Necropsy
       rta_results.each { |result| graph.reconcile_rta_result(result) } if rta_pruning == :legacy
 
       reachability = Reachability::Engine.new(graph).call
-      findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings
+      scorer = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project)
+      findings = scorer.findings
+      barrier_matches = ReferenceBarrier.new(
+        graph: graph,
+        project: project,
+        ignored_paths: ignored_reference_paths
+      ).apply(findings)
+      findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings if barrier_matches.positive?
       Report.new(
         root: root,
         graph: graph,

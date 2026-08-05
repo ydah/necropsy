@@ -121,7 +121,12 @@ module Necropsy
       def ablation_metrics
         analyzer_metrics = ABLATION_ANALYZERS.transform_values do |classes|
           analyzers = classes.map(&:new)
-          metrics_for(Necropsy.analyze(root: root, config_path: config_path, analyzers: analyzers))
+          metrics_for(Necropsy.analyze(
+                        root: root,
+                        config_path: config_path,
+                        analyzers: analyzers,
+                        ignored_reference_paths: [gold_standard_path]
+                      ))
         end
         analyzer_metrics.merge(rta_pruning_metrics)
       end
@@ -129,10 +134,20 @@ module Necropsy
       def rta_pruning_metrics
         analyzers = ABLATION_ANALYZERS.fetch('all_static').map(&:new)
         rank_only = metrics_for(
-          Runner.new(root: root, config_path: config_path, analyzers: analyzers).analyze(rta_pruning: :rank_only)
+          Runner.new(
+            root: root,
+            config_path: config_path,
+            analyzers: analyzers,
+            ignored_reference_paths: [gold_standard_path]
+          ).analyze(rta_pruning: :rank_only)
         )
         legacy = metrics_for(
-          Runner.new(root: root, config_path: config_path, analyzers: analyzers).analyze(rta_pruning: :legacy)
+          Runner.new(
+            root: root,
+            config_path: config_path,
+            analyzers: analyzers,
+            ignored_reference_paths: [gold_standard_path]
+          ).analyze(rta_pruning: :legacy)
         )
         rank_candidates = candidate_ids(rank_only)
         legacy_candidates = candidate_ids(legacy)

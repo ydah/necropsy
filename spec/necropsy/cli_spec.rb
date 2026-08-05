@@ -33,6 +33,52 @@ RSpec.describe Necropsy::CLI do
         expect(baseline_status).to eq(0)
         expect(check_status).to eq(0)
       end
+
+      it 'does not let a custom baseline path become a non-Ruby self-reference' do
+        custom_path = File.join(project_root, 'reviewed-findings.yml')
+        File.write(custom_path, "previous: CliSample#dead\n")
+
+        expect do
+          described_class.run(['baseline', '--root', project_root, '--baseline', custom_path])
+        end.to output(/Wrote #{Regexp.escape(custom_path)}/).to_stdout
+
+        finding = YAML.load_file(custom_path).fetch('findings').first
+        expect(finding).to include(
+          'node_id' => 'CliSample#dead',
+          'classification' => 'unreachable',
+          'confidence' => 'medium'
+        )
+        expect do
+          described_class.run(['check', '--root', project_root, '--baseline', custom_path])
+        end.to output("Necropsy check passed\n").to_stdout
+      end
+    end
+
+    context 'with a gold standard relative to the process directory' do
+      let(:project_root) do
+        create_project(files: {
+                         'app/bench_sample.rb' => 'class CliBenchSample; def measured_dead; end; end',
+                         'reviewed.yml' => "dead_methods:\n  - CliBenchSample#measured_dead\n"
+                       })
+      end
+
+      it 'uses the same absolute path for evaluation and reference exclusion' do
+        status = nil
+        parent = File.dirname(project_root)
+        root_argument = File.basename(project_root)
+        gold_argument = File.join(root_argument, 'reviewed.yml')
+
+        expect do
+          Dir.chdir(parent) do
+            status = described_class.run([
+                                           'bench', '--root', root_argument,
+                                           '--gold-standard', gold_argument,
+                                           '--min-confidence', 'low'
+                                         ])
+          end
+        end.to output(/"recall": 1\.0/).to_stdout
+        expect(status).to eq(0)
+      end
     end
 
     context 'with an expired quarantine annotation' do

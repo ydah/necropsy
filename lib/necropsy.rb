@@ -38,6 +38,7 @@ require_relative 'necropsy/confidence/scorer'
 require_relative 'necropsy/report'
 require_relative 'necropsy/reporter'
 require_relative 'necropsy/diagnostics'
+require_relative 'necropsy/reference_barrier'
 require_relative 'necropsy/guardrail/baseline'
 require_relative 'necropsy/guardrail/diff'
 require_relative 'necropsy/guardrail/quarantine'
@@ -47,8 +48,13 @@ require_relative 'necropsy/runner'
 module Necropsy
   class Error < StandardError; end
 
-  def self.analyze(root: '.', config_path: nil, analyzers: nil)
-    Runner.new(root: root, config_path: config_path, analyzers: analyzers).analyze
+  def self.analyze(root: '.', config_path: nil, analyzers: nil, ignored_reference_paths: [])
+    Runner.new(
+      root: root,
+      config_path: config_path,
+      analyzers: analyzers,
+      ignored_reference_paths: ignored_reference_paths
+    ).analyze
   end
 
   def self.default_analyzers

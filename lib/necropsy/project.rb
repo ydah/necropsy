@@ -58,6 +58,10 @@ module Necropsy
       @reference_ruby_files ||= reference_files.select { |file| ruby_source?(file) }
     end
 
+    def non_ruby_reference_files
+      @non_ruby_reference_files ||= (reference_files.to_set - reference_ruby_files.to_set).to_a.sort
+    end
+
     def reference_file?(file)
       reference_file_set.include?(File.expand_path(file, root))
     rescue ArgumentError

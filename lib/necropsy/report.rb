@@ -69,6 +69,8 @@ module Necropsy
       result['dynamic_evidence'] = dynamic if dynamic
       definition_resolution = graph.observation['definition_resolution']
       result['definition_resolution'] = definition_resolution if definition_resolution
+      reference_barrier = graph.observation['non_ruby_reference_barrier']
+      result['non_ruby_reference_barrier'] = reference_barrier if reference_barrier
       result['source_incompleteness'] = graph.source_incompleteness if graph.incomplete_files.any?
       result['analysis_scope'] = graph.scope_diagnostics unless graph.scope_diagnostics.empty?
       result

@@ -45,6 +45,7 @@ module Necropsy
       append_definition_resolution_diagnostic(lines)
       append_source_diagnostic(lines)
       append_analysis_scope_diagnostic(lines)
+      append_reference_barrier_diagnostic(lines)
 
       findings.group_by(&:classification).sort_by do |classification, _|
         classification.to_s
@@ -72,6 +73,7 @@ module Necropsy
         lines << "    blocker #{blocker.kind} at #{location} caller=#{caller}"
         lines << "      scope #{blocker.scope_kind}=#{blocker.scope_value.inspect} message=#{message}"
         lines << "      reason #{blocker.reason}"
+        lines << "      match #{metadata['snippet']}" if metadata['snippet']
       end
     end
 
@@ -163,6 +165,18 @@ module Necropsy
       Array(diagnostic['ignored_symlinks']).each do |file|
         lines << "Ignored symlink: #{file}"
       end
+    end
+
+    def append_reference_barrier_diagnostic(lines)
+      diagnostic = report.diagnostics['non_ruby_reference_barrier']
+      return unless diagnostic
+
+      lines << "Non-Ruby reference barrier: scanned=#{diagnostic.fetch('files_scanned')}/" \
+               "#{diagnostic.fetch('files_considered')}, matches=#{diagnostic.fetch('matches')}, " \
+               "blocked definitions=#{diagnostic.fetch('matched_definitions')}"
+      skipped = diagnostic.fetch('skipped_counts')
+      lines << "Skipped non-Ruby references: #{skipped.map { |reason, count| "#{reason}=#{count}" }.join(', ')}" \
+        unless skipped.empty?
     end
 
     def append_definition_resolution_diagnostic(lines)

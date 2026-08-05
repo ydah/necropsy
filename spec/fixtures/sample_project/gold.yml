@@ -1,3 +1,4 @@
+# This file is generated benchmark metadata. DO NOT EDIT.
 dead_methods:
   - id: Sample::Widget#dead_model
     classification: unreachable

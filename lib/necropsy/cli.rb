@@ -41,7 +41,7 @@ module Necropsy
         )
         0
       when 'baseline'
-        report = analyze(options)
+        report = analyze(options, ignored_reference_paths: [options[:baseline]])
         path = File.expand_path(options[:baseline], options[:root])
         Guardrail::Baseline.write(report, path: path)
         puts "Wrote #{path}"
@@ -135,8 +135,12 @@ module Necropsy
       end
     end
 
-    def analyze(options)
-      Necropsy.analyze(root: options[:root], config_path: options[:config])
+    def analyze(options, ignored_reference_paths: [])
+      Necropsy.analyze(
+        root: options[:root],
+        config_path: options[:config],
+        ignored_reference_paths: ignored_reference_paths
+      )
     end
 
     def diagnose(command, options, argv)
@@ -157,7 +161,7 @@ module Necropsy
     end
 
     def check(options)
-      report = analyze(options)
+      report = analyze(options, ignored_reference_paths: [options[:baseline]])
       report_invalid_quarantine_dates(report)
       expiry_failure = apply_quarantine_expiry_policy(report, report_config(options))
       findings = filtered_findings(report, options)
@@ -251,11 +255,12 @@ module Necropsy
     def bench(options)
       raise Error, '--gold-standard is required for bench' unless options[:gold_standard]
 
-      report = analyze(options)
+      gold_standard_path = File.expand_path(options[:gold_standard])
+      report = analyze(options, ignored_reference_paths: [gold_standard_path])
       config = report_config(options)
       result = Bench::Evaluator.new(
         report: report,
-        gold_standard_path: options[:gold_standard],
+        gold_standard_path: gold_standard_path,
         min_confidence: options[:min_confidence],
         root: options[:root],
         config_path: options[:config],

@@ -286,6 +286,7 @@ module Necropsy
         lines << "Blocker: #{blocker['kind']} at #{location}#{caller}"
         lines << "  Scope: #{blocker['scope_kind']}=#{blocker['scope_value'].inspect} message=#{metadata['message']}"
         lines << "  Reason: #{blocker['reason']}"
+        lines << "  Match: #{metadata['snippet']}" if metadata['snippet']
       end
     end
 
