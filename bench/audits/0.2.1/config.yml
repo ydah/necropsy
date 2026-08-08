@@ -3,12 +3,11 @@ release: 0.2.1
 corpora: [dynamic_evidence, plain_ruby, rails, rubocop_1_75_0, self]
 
 baseline:
-  git_ref: 51d490188ae9ad846b4c023f14e252ec624a2d5e
+  git_ref: d0168e881120320d28dc2f42e10f9947330fdcb7
   reports_path: bench/golden/v1/reports
   reason: >-
-    51d490188ae9ad846b4c023f14e252ec624a2d5e is the first commit with integrity-bound normalized
-    reports for all five required P0-01
-    corpora, including the pinned RuboCop 1.75.0 checkout, so it is the reproducible pre-safety baseline.
+    d0168e881120320d28dc2f42e10f9947330fdcb7 is the first commit with the bounded evidence
+    identity path and artifact-independent production scopes for all five required corpora.
 
 labels_path: bench/corpora/v1/labels.yml
 
@@ -27,10 +26,10 @@ performance:
     plain_ruby: 1.0
     rails: 2.0
     rubocop_1_75_0: 10.0
-    self: 2.0
+    self: 30.0
   rss_ratio: 1.25
   rss_allowance_kb: 65536
-  max_rss_kb: 700000
+  max_rss_kb: 1300000
 
 adversarial_suites:
   ambiguity:

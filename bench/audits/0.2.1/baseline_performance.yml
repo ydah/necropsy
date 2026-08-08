@@ -1,16 +1,16 @@
 schema_version: 1
-captured_at: "2026-08-04T21:10:00+09:00"
-git_ref: 51d490188ae9ad846b4c023f14e252ec624a2d5e
+captured_at: "2026-08-08T18:10:00+09:00"
+git_ref: d0168e881120320d28dc2f42e10f9947330fdcb7
 environment:
   ruby: "ruby 4.0.0 (2025-12-25 revision 553f1675f3) +PRISM [arm64-darwin24]"
   os: "macOS 26.3 (25D125), Darwin 25.3.0 arm64"
   command: "NECROPSY_RUBOCOP_CORPUS=/private/tmp/necropsy-rubocop-1.75.0 bundle exec ruby bench/run.rb"
-  execution: "detached temporary worktree; sandbox-external run so ps-based RSS measurement was available"
+  execution: "clean worktree; escalated run so ps-based RSS measurement was available"
   rss_kind: current_process_rss_after_corpus
   rss_scope: benchmark_runner_process
 corpora:
-  dynamic_evidence: { wall_time_seconds: 0.001035, rss_kb: 52720 }
-  plain_ruby: { wall_time_seconds: 0.001883, rss_kb: 53088 }
-  rails: { wall_time_seconds: 0.003610, rss_kb: 54272 }
-  rubocop_1_75_0: { wall_time_seconds: 5.196168, rss_kb: 576256 }
-  self: { wall_time_seconds: 0.217221, rss_kb: 608448 }
+  dynamic_evidence: { wall_time_seconds: 0.347600, rss_kb: 57728 }
+  plain_ruby: { wall_time_seconds: 0.381025, rss_kb: 59360 }
+  rails: { wall_time_seconds: 0.369907, rss_kb: 63168 }
+  rubocop_1_75_0: { wall_time_seconds: 5.559264, rss_kb: 349136 }
+  self: { wall_time_seconds: 22.508282, rss_kb: 1136080 }
