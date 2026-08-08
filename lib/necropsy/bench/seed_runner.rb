@@ -105,9 +105,8 @@ module Necropsy
         performance = {
           'wall_time_seconds' => wall_time.round(6)
         }.merge(rss_measurement(id))
-        if report.respond_to?(:performance_profile) && report.performance_profile
-          performance['analysis_profile'] = report.performance_profile
-        end
+        analysis_profile = report.performance_profile if report.respond_to?(:performance_profile)
+        performance['analysis_profile'] = analysis_profile if analysis_profile
         {
           'id' => id,
           'status' => 'generated',
