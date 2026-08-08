@@ -144,4 +144,35 @@ RSpec.describe 'FLOW01 receiver integration' do
       expect(graph.method_lookup(site).targets.map(&:symbol_id)).to eq(['Service#call'])
     end
   end
+
+  it 'does not use unrelated same-name methods for callable registry invocation' do
+    source = <<~RUBY
+      class Service
+        def call = :service
+      end
+      class Unrelated
+        def call = :unrelated
+      end
+      class Client
+        def run
+          handlers = { fast: -> { Service.new } }
+          handlers[:fast].call.call
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/callable.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      callable_site = scan.call_sites.find do |site|
+        site.message == 'call' && site.metadata.dig('receiver_value_fact', 'kind') == 'callable_set'
+      end
+      returned_site = scan.call_sites.find do |site|
+        site.message == 'call' && site.metadata.dig('receiver_value_fact', 'kind') == 'instance_types'
+      end
+
+      expect(graph.method_lookup(callable_site)).to be_unknown
+      expect(graph.method_lookup(returned_site).targets.map(&:symbol_id)).to eq(['Service#call'])
+    end
+  end
 end

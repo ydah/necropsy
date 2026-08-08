@@ -326,6 +326,7 @@ module Necropsy
 
     def method_lookup(site)
       return fallback_method_lookup(site, reason: 'dynamic_message') if site.dynamic
+      return callable_method_lookup(site) if flow_callable?(site)
       return flow_instance_method_lookup(site) if flow_instance_types(site)
 
       case site.receiver_kind
@@ -394,6 +395,15 @@ module Necropsy
 
       values = Array(hash_value(fact, 'values')).map(&:to_s).reject(&:empty?).uniq.sort
       values unless values.empty?
+    end
+
+    def flow_callable?(site)
+      fact = site.metadata['receiver_value_fact'] || site.metadata[:receiver_value_fact]
+      fact.is_a?(Hash) && hash_value(fact, 'kind').to_s == 'callable_set' && hash_value(fact, 'exact') == true
+    end
+
+    def callable_method_lookup(_site)
+      incomplete_method_lookup([], [], 'callable_invocation')
     end
 
     def retain_rta_candidates(candidates, site)
