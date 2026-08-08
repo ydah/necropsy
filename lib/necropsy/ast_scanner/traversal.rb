@@ -185,13 +185,10 @@ module Necropsy
       record_instantiation(node, context)
       record_symbol_reference(node, context)
       record_symbol_to_proc(node, context)
-      site = build_call_site(node, context)
-      call_sites << site if site
-      if site&.dynamic
-        record_uncertainty(site)
-      elsif unresolved_dynamic_dispatch?(node)
-        record_uncertainty_at(node, context)
-      end
+      sites = build_call_sites(node, context).compact
+      call_sites.concat(sites)
+      sites.each { |site| record_uncertainty(site) if site.dynamic }
+      record_uncertainty_at(node, context) if sites.empty? && unresolved_dynamic_dispatch?(node)
 
       visit_children(node, context)
     end

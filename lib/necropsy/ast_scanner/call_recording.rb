@@ -4,7 +4,14 @@ module Necropsy
   class AstScanner
     private
 
-    def build_call_site(node, context)
+    def build_call_sites(node, context)
+      messages = finite_dynamic_messages(node, context)
+      return [build_call_site(node, context)] if messages.empty?
+
+      messages.map { |message| build_call_site(node, context, message_override: message) }
+    end
+
+    def build_call_site(node, context, message_override: nil)
       message = node.name&.to_s
       dynamic = false
       receiver = classify_receiver(node.receiver, context)
@@ -15,9 +22,10 @@ module Necropsy
 
       if DYNAMIC_SENDS.include?(node.name)
         literal = first_symbol_argument(node) || first_string_argument(node)
-        dynamic = literal.nil?
-        message = literal
+        message = message_override || literal
+        dynamic = message.nil?
         metadata['dynamic_dispatch'] = true
+        metadata['finite_dynamic_dispatch'] = true if message_override
       end
 
       return nil unless message
@@ -32,6 +40,17 @@ module Necropsy
         dynamic: dynamic,
         metadata: metadata
       )
+    end
+
+    def finite_dynamic_messages(node, context)
+      return [] unless DYNAMIC_SENDS.include?(node.name)
+      return [] if first_symbol_argument(node) || first_string_argument(node)
+
+      argument = Array(node.arguments&.arguments).first
+      fact = context.flow_result&.fact_for(argument)
+      return [] unless fact&.exact && %i[symbol_set string_set].include?(fact.kind)
+
+      Array(fact.values).map(&:to_s).uniq.sort.first(FlowInterpreter::MAX_ATOMS)
     end
 
     def record_instantiation(node, context)

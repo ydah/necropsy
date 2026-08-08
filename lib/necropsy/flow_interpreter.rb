@@ -16,11 +16,13 @@ module Necropsy
     def analyze(body)
       @locals = {}
       @receiver_facts = {}.compare_by_identity
+      @value_facts = {}.compare_by_identity
       @issues = []
       @steps = 0
       value = evaluate(body)
       FlowResult.new(
         receiver_facts: @receiver_facts,
+        value_facts: @value_facts,
         return_fact: value,
         issues: @issues,
         steps: @steps
@@ -28,6 +30,7 @@ module Necropsy
     rescue StepBudgetExceeded
       FlowResult.new(
         receiver_facts: @receiver_facts,
+        value_facts: @value_facts,
         return_fact: ValueFact.unknown(:step_budget),
         issues: [*@issues, 'step_budget'],
         steps: @steps
@@ -40,48 +43,58 @@ module Necropsy
       return ValueFact.unknown(:missing_value) unless node
 
       consume_step!
-      case node
-      when Prism::StatementsNode
-        evaluate_statements(node)
-      when Prism::IfNode
-        evaluate_if(node)
-      when Prism::CaseNode
-        evaluate_case(node)
-      when Prism::ElseNode, Prism::WhenNode
-        evaluate(node.statements)
-      when Prism::AndNode, Prism::OrNode
-        evaluate_logical(node)
-      when Prism::LocalVariableWriteNode
-        assign_local(node)
-      when Prism::LocalVariableReadNode
-        @locals.fetch(node.name, ValueFact.unknown(:unbound_local))
-      when Prism::CallNode
-        evaluate_call(node)
-      when Prism::ReturnNode
-        evaluate_return(node)
-      when Prism::ArrayNode
-        evaluate_array(node)
-      when Prism::HashNode
-        evaluate_hash(node)
-      when Prism::NilNode
-        ValueFact.new(kind: :nil, exact: true, nilable: true, origin: :literal)
-      when Prism::TrueNode, Prism::FalseNode
-        ValueFact.new(kind: :boolean, values: [node.type.to_s.delete_suffix('_node')], origin: :literal)
-      when Prism::SymbolNode
-        ValueFact.new(kind: :symbol_set, values: [node.value.to_s], origin: :literal)
-      when Prism::StringNode
-        ValueFact.new(kind: :string_set, values: [node.content], origin: :literal)
-      when Prism::ConstantReadNode, Prism::ConstantPathNode
-        class_object(node)
-      else
-        ValueFact.unknown(node.type)
-      end
+      value = case node
+              when Prism::StatementsNode
+                evaluate_statements(node)
+              when Prism::EmbeddedStatementsNode
+                evaluate(node.statements)
+              when Prism::IfNode
+                evaluate_if(node)
+              when Prism::CaseNode
+                evaluate_case(node)
+              when Prism::ElseNode, Prism::WhenNode
+                evaluate_clause(node)
+              when Prism::AndNode, Prism::OrNode
+                evaluate_logical(node)
+              when Prism::LocalVariableWriteNode
+                assign_local(node)
+              when Prism::LocalVariableReadNode
+                @locals.fetch(node.name, ValueFact.unknown(:unbound_local))
+              when Prism::CallNode
+                evaluate_call(node)
+              when Prism::ReturnNode
+                evaluate_return(node)
+              when Prism::ArrayNode
+                evaluate_array(node)
+              when Prism::HashNode
+                evaluate_hash(node)
+              when Prism::NilNode
+                ValueFact.new(kind: :nil, exact: true, nilable: true, origin: :literal)
+              when Prism::TrueNode, Prism::FalseNode
+                ValueFact.new(kind: :boolean, values: [node.type.to_s.delete_suffix('_node')], origin: :literal)
+              when Prism::SymbolNode
+                ValueFact.new(kind: :symbol_set, values: [node.value.to_s], origin: :literal)
+              when Prism::StringNode
+                ValueFact.new(kind: :string_set, values: [node.content], origin: :literal)
+              when Prism::InterpolatedStringNode, Prism::InterpolatedSymbolNode
+                evaluate_interpolated(node)
+              when Prism::ConstantReadNode, Prism::ConstantPathNode
+                class_object(node)
+              else
+                ValueFact.unknown(node.type)
+              end
+      @value_facts[node] = value
+      value
     end
 
     def evaluate_statements(node)
       value = ValueFact.unknown(:empty_statements)
       node.body.each { |child| value = evaluate(child) }
       value
+    end
+
+    def evaluate_clause(node)
+      evaluate(node.statements)
     end
 
     def evaluate_if(node)
@@ -132,11 +145,47 @@ module Necropsy
 
     def evaluate_call(node)
       receiver_fact = evaluate(node.receiver) if node.receiver
+      arguments = Array(node.arguments&.arguments)
+      arguments.each { |argument| evaluate(argument) }
       @receiver_facts[node.receiver] = receiver_fact if node.receiver
       return transparent_wrapper(node) if transparent_wrapper?(node)
       return direct_constructor(node) if node.name == :new && receiver_fact&.kind == :class_object
+      return concatenate_strings(receiver_fact, arguments.first) if node.name == :+ && receiver_fact
 
       ValueFact.unknown(:call_result)
+    end
+
+    def concatenate_strings(receiver_fact, argument)
+      argument_fact = @value_facts[argument]
+      return ValueFact.unknown(:dynamic_string_concat) unless receiver_fact.exact && argument_fact&.exact
+      return ValueFact.unknown(:dynamic_string_concat) unless
+        [receiver_fact.kind, argument_fact.kind].all? { |kind| %i[string_set symbol_set].include?(kind) }
+
+      values = receiver_fact.values.product(argument_fact.values).map { |left, right| "#{left}#{right}" }
+      return ValueFact.unknown(:string_product_budget) if values.length > MAX_ATOMS
+
+      ValueFact.new(kind: :string_set, values: values, origin: :string_concat)
+    end
+
+    def evaluate_interpolated(node)
+      parts = node.parts.map do |part|
+        fact = evaluate(part)
+        if part.is_a?(Prism::StringNode)
+          [part.content.to_s]
+        elsif fact.exact && %i[string_set symbol_set].include?(fact.kind)
+          fact.values
+        end
+      end
+      return ValueFact.unknown(:dynamic_interpolation) if parts.any?(&:nil?)
+
+      values = parts.reduce(['']) do |prefixes, suffixes|
+        next [] if prefixes.length * suffixes.length > MAX_ATOMS
+
+        prefixes.product(suffixes).map { |prefix, suffix| "#{prefix}#{suffix}" }
+      end
+      return ValueFact.unknown(:string_product_budget) if values.empty? || values.length > MAX_ATOMS
+
+      ValueFact.new(kind: :string_set, values: values, origin: :interpolation)
     end
 
     def transparent_wrapper?(node)
@@ -145,7 +194,7 @@ module Necropsy
 
     def transparent_wrapper(node)
       argument = Array(node.arguments&.arguments).first
-      argument ? evaluate(argument) : ValueFact.unknown(:wrapper_argument)
+      argument ? (@value_facts[argument] || evaluate(argument)) : ValueFact.unknown(:wrapper_argument)
     end
 
     def evaluate_return(node)

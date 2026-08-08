@@ -716,21 +716,23 @@ module Necropsy
     end
   end
 
-  FlowResult = Data.define(:receiver_facts, :return_fact, :issues, :steps) do
-    def initialize(receiver_facts: {}, return_fact: ValueFact.unknown(:no_direct_return), issues: [], steps: 0)
+  FlowResult = Data.define(:receiver_facts, :value_facts, :return_fact, :issues, :steps) do
+    def initialize(receiver_facts: {}, value_facts: {}, return_fact: ValueFact.unknown(:no_direct_return), issues: [], steps: 0)
       receiver_facts = receiver_facts.dup.compare_by_identity.freeze
+      value_facts = value_facts.dup.compare_by_identity.freeze
       issues = Array(issues).map(&:to_s).uniq.sort.freeze
       steps = Integer(steps)
       super
     end
 
     def fact_for(node)
-      receiver_facts[node]
+      value_facts[node] || receiver_facts[node]
     end
 
     def to_h
       {
         'receiver_facts' => receiver_facts.values.map(&:to_h),
+        'value_fact_count' => value_facts.length,
         'return_fact' => return_fact.to_h,
         'issues' => issues,
         'steps' => steps

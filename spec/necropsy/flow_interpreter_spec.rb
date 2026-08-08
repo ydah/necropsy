@@ -60,6 +60,17 @@ RSpec.describe Necropsy::FlowInterpreter do
     expect(result.return_fact).to have_attributes(kind: :container, exact: true, origin: 'literal_hash')
     expect(result.return_fact.summary).to include('type' => 'hash', 'size' => 1)
   end
+
+  it 'keeps finite interpolated strings exact within the product budget' do
+    source = Prism.parse('suffix = "dump"; "do_#{suffix}"').value # rubocop:disable Lint/InterpolationCheck
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+
+    expect(result.return_fact).to have_attributes(
+      kind: :string_set,
+      values: ['do_dump'],
+      exact: true
+    )
+  end
 end
 
 RSpec.describe 'FLOW01 receiver integration' do
@@ -92,6 +103,33 @@ RSpec.describe 'FLOW01 receiver integration' do
       )
       expect(lookup).to be_complete
       expect(lookup.targets.map(&:symbol_id)).to eq(['Service#call'])
+    end
+  end
+
+  it 'resolves finite symbol dispatch through a local value fact' do
+    source = <<~RUBY
+      class Service
+        def call = :service
+      end
+      class Client
+        def run
+          service = Service.new
+          name = :call
+          service.send(name)
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/flow_send.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      caller = scan.nodes.find { |node| node.symbol_id == 'Client#run' }
+      site = scan.call_sites.find { |candidate| candidate.caller_id == caller.graph_id && candidate.message == 'call' }
+
+      expect(site).not_to be_nil
+      expect(site.dynamic).to be(false)
+      expect(site.metadata.fetch('finite_dynamic_dispatch')).to be(true)
+      expect(graph.method_lookup(site).targets.map(&:symbol_id)).to eq(['Service#call'])
     end
   end
 end
