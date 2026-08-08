@@ -307,6 +307,7 @@ module Necropsy
 
     def method_lookup(site)
       return fallback_method_lookup(site, reason: 'dynamic_message') if site.dynamic
+      return flow_instance_method_lookup(site) if flow_instance_types(site)
 
       case site.receiver_kind
       when :constant
@@ -332,6 +333,48 @@ module Necropsy
       else
         fallback_method_lookup(site, reason: 'unknown_receiver')
       end
+    end
+
+    def flow_instance_method_lookup(site)
+      results = flow_instance_types(site).map do |owner|
+        ordered_method_lookup(
+          site,
+          instance_lookup_entries(owner),
+          reason: 'flow_instance_lookup',
+          completeness_entries: [[owner, '#']]
+        )
+      end
+      return results.first if results.one?
+
+      merge_flow_method_lookups(results)
+    end
+
+    def merge_flow_method_lookups(results)
+      targets = results.flat_map(&:targets).uniq(&:graph_id).sort_by(&:graph_id)
+      chain = results.flat_map(&:lookup_chain).uniq
+      return incomplete_method_lookup(targets, chain, 'flow_instance_lookup_incomplete') unless results.all?(&:complete?)
+
+      accepted_ids = targets.to_set(&:graph_id)
+      rejections = results.flat_map(&:rejected_targets).reject do |rejection|
+        accepted_ids.include?(rejection.definition_id)
+      end.uniq { |rejection| [rejection.definition_id, rejection.reason] }
+      MethodLookup.new(
+        targets: targets,
+        status: :complete,
+        rejected_targets: rejections,
+        lookup_chain: chain,
+        reason: 'flow_instance_lookup'
+      )
+    end
+
+    def flow_instance_types(site)
+      fact = site.metadata['receiver_value_fact'] || site.metadata[:receiver_value_fact]
+      return nil unless fact.is_a?(Hash)
+      return nil unless hash_value(fact, 'kind').to_s == 'instance_types'
+      return nil unless hash_value(fact, 'exact')
+
+      values = Array(hash_value(fact, 'values')).map(&:to_s).reject(&:empty?).uniq.sort
+      values unless values.empty?
     end
 
     def retain_rta_candidates(candidates, site)

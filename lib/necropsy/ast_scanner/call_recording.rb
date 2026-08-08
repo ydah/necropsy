@@ -10,6 +10,8 @@ module Necropsy
       receiver = classify_receiver(node.receiver, context)
       metadata = { 'original_message' => message, 'receiver_candidates' => receiver[:candidates] }
       metadata['arguments'] = call_arguments(node, offset: DYNAMIC_SENDS.include?(node.name) ? 1 : 0)
+      receiver_fact = context.flow_result&.fact_for(node.receiver)
+      metadata['receiver_value_fact'] = receiver_fact.to_h if receiver_fact
 
       if DYNAMIC_SENDS.include?(node.name)
         literal = first_symbol_argument(node) || first_string_argument(node)

@@ -71,6 +71,7 @@ module Necropsy
       :visibility,
       :module_function,
       :static_ancestry,
+      :flow_result,
       keyword_init: true
     )
 

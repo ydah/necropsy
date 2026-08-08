@@ -676,6 +676,68 @@ module Necropsy
     end
   end
 
+  VALUE_FACT_KINDS = %i[
+    class_object instance_types symbol_set string_set container nil boolean unknown
+  ].freeze
+
+  ValueFact = Data.define(:kind, :values, :exact, :nilable, :origin, :summary) do
+    def initialize(kind:, values: [], exact: true, nilable: false, origin: nil, summary: nil)
+      kind = kind.to_sym
+      raise ArgumentError, "invalid value fact kind: #{kind.inspect}" unless VALUE_FACT_KINDS.include?(kind)
+
+      values = ModelNormalization.string_list(values, 'value_fact value')
+      exact = (exact == true)
+      nilable = (nilable == true)
+      origin = origin&.to_s
+      super
+    end
+
+    def self.instance_types(types, origin: :direct_constructor, nilable: false)
+      new(kind: :instance_types, values: types, exact: true, nilable: nilable, origin: origin)
+    end
+
+    def self.unknown(origin = :unsupported)
+      new(kind: :unknown, exact: false, origin: origin)
+    end
+
+    def exact_instance_types?
+      kind == :instance_types && exact && !values.empty?
+    end
+
+    def to_h
+      {
+        'kind' => kind.to_s,
+        'values' => values,
+        'exact' => exact,
+        'nilable' => nilable,
+        'origin' => origin,
+        'summary' => summary
+      }
+    end
+  end
+
+  FlowResult = Data.define(:receiver_facts, :return_fact, :issues, :steps) do
+    def initialize(receiver_facts: {}, return_fact: ValueFact.unknown(:no_direct_return), issues: [], steps: 0)
+      receiver_facts = receiver_facts.dup.compare_by_identity.freeze
+      issues = Array(issues).map(&:to_s).uniq.sort.freeze
+      steps = Integer(steps)
+      super
+    end
+
+    def fact_for(node)
+      receiver_facts[node]
+    end
+
+    def to_h
+      {
+        'receiver_facts' => receiver_facts.values.map(&:to_h),
+        'return_fact' => return_fact.to_h,
+        'issues' => issues,
+        'steps' => steps
+      }
+    end
+  end
+
   AnalyzerProfile = Data.define(:name, :kind, :soundness, :description, :version, :assumptions) do
     class << self
       alias_method :data_new, :new

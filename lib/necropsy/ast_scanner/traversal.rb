@@ -44,7 +44,8 @@ module Necropsy
         singleton_scope: false,
         visibility: :public,
         module_function: false,
-        static_ancestry: true
+        static_ancestry: true,
+        flow_result: nil
       )
       result = Prism.parse(File.read(file))
       root = add_definition(
@@ -149,6 +150,20 @@ module Necropsy
       method_context.visibility = :public
       method_context.module_function = false
       method_context.static_ancestry = false
+      method_context.flow_result = FlowInterpreter.new(
+        constant_resolver: lambda do |constant|
+          resolve_candidate_group(constant_candidates(constant, method_context.namespace))
+        end
+      ).analyze(node.body)
+      method_context.flow_result.issues.each do |issue|
+        record_semantic_blocker(
+          :flow_budget,
+          node,
+          method_context,
+          "forward value analysis stopped at #{issue}",
+          suggested_action: :review_value_flow
+        )
+      end
       visit(node.body, method_context)
     end
 
