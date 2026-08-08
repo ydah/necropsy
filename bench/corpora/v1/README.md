@@ -6,8 +6,10 @@ candidate LOC/yield, unknown and blocked rates, and performance measurements.
 
 The five pinned corpus roles are intentionally different: plain Ruby, Rails/DSL callbacks,
 positive dynamic evidence, visitor-heavy RuboCop, and the Necropsy repository itself. The
-versioned `type_aware.yml` is a reviewed type-aware comparison snapshot; it is not silently
-treated as a fresh run. Tool output is only comparable within the same normalized physical
+plain Ruby corpus also carries an RBS signature fixture (`sig/plain_seed.rbs`) so typed input is
+represented without requiring a heavyweight typechecker subprocess. The versioned `type_aware.yml`
+is a reviewed type-aware comparison snapshot; it is not silently treated as a fresh run. Tool output
+is only comparable within the same normalized physical
 definition universe, so skipped or missing competitors are reported explicitly.
 
 Labels and known positives are reviewed metadata, not tuning input. A future holdout must be

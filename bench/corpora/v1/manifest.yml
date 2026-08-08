@@ -4,6 +4,14 @@ golden_dir: bench/golden/v1
 labels: bench/corpora/v1/labels.yml
 minimum_reviewed_labels: 30
 
+# Roles are metadata for comparison stratification; they do not change analyzer defaults.
+corpus_roles:
+  plain_ruby: [plain_ruby, typed_rbs]
+  rails: [rails, dsl, registry]
+  rubocop_1_75_0: [visitor_heavy]
+  self: [public_library]
+  dynamic_evidence: [dynamic]
+
 corpora:
   dynamic_evidence:
     required: true

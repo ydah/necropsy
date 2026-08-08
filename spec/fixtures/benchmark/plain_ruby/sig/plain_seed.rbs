@@ -1,0 +1,13 @@
+module PlainSeed
+  class Formatter
+    def format: (untyped value) -> String
+    def normalize: (untyped value) -> String
+    def unused: () -> Symbol
+    def public_extension: () -> Symbol
+  end
+
+  class Runner
+    def self.call: () -> String
+    def legacy: () -> Symbol
+  end
+end
