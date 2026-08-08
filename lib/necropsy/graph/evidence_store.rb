@@ -173,6 +173,9 @@ module Necropsy
     def verified_observed_scope?(actual_scope, requested_scope)
       return false unless requested_scope.is_a?(Hash)
 
+      actual_status = actual_scope.is_a?(Hash) && actual_scope['source_revision_status']
+      return false if %w[mismatch stale].include?(actual_status.to_s)
+
       revision = requested_scope['revision'] || requested_scope[:revision]
       revision && evidence_scope_matches?(actual_scope, requested_scope)
     end

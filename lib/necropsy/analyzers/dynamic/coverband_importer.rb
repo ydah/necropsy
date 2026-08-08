@@ -19,7 +19,7 @@ module Necropsy
           return AnalyzerResult.empty unless source
 
           payload = load_payload(source, project.root)
-          observation = ObservationPolicy.metadata(payload)
+          observation = ObservationPolicy.metadata(payload, expected_revision: config['expected_source_revision'])
           node_ids, line_diagnostics = alive_ids_from_payload(graph, payload)
           observation = observation.merge(line_diagnostics) unless line_diagnostics.empty?
           alive = node_ids.map do |node_id|

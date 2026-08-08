@@ -6,7 +6,8 @@ module Necropsy
       module ObservationPolicy
         module_function
 
-        def metadata(payload)
+        def metadata(payload = nil, expected_revision: nil, **keyword_payload)
+          payload ||= keyword_payload
           observation = payload['observation']
           observation = {} unless observation.is_a?(Hash)
           schema_version = Integer(payload.fetch('schema_version', 1), exception: false)
@@ -14,13 +15,15 @@ module Necropsy
 
           revision = source_revision(payload, observation)
 
+          status = source_revision_status(payload, observation, revision, expected_revision)
           normalized = observation.merge(
             'schema_version' => schema_version,
             'positive_evidence_policy' => 'alive_only',
-            'source_revision_status' => revision ? 'provided_unverified' : 'unknown',
+            'source_revision_status' => status,
             'source_revision_policy' => 'accepted_for_liveness_only'
           )
           normalized = normalized.merge('source_revision' => revision) if revision
+          normalized = normalized.merge('expected_source_revision' => expected_revision) if expected_revision
           return normalized unless schema_version == 2
 
           collector = payload['collector']
@@ -48,7 +51,7 @@ module Necropsy
         def compatible_merge(left, right)
           return left.merge(right) unless left.is_a?(Hash) && right.is_a?(Hash)
 
-          %w[source_revision environment collector_name collector_version].each do |key|
+          %w[source_revision source_revision_status environment collector_name collector_version].each do |key|
             next if left[key].nil? || right[key].nil? || left[key] == right[key]
 
             raise Error, "Dynamic observation #{key} is incompatible"
@@ -64,6 +67,7 @@ module Necropsy
           end
           selectors = {
             'revision' => observation['source_revision'],
+            'source_revision_status' => observation['source_revision_status'],
             'environment' => observation['environment'],
             'collector' => observation['collector']
           }.compact
@@ -76,6 +80,16 @@ module Necropsy
           source_revision || payload['source_revision'] || observation['source_revision']
         end
         private_class_method :source_revision
+
+        def source_revision_status(payload, observation, revision, expected_revision)
+          stale = payload['stale'] || observation['stale'] || payload['source_revision_status'] == 'stale'
+          return 'stale' if stale
+          return 'unknown' unless revision
+          return 'provided_unverified' unless expected_revision
+
+          revision.to_s == expected_revision.to_s ? 'match' : 'mismatch'
+        end
+        private_class_method :source_revision_status
       end
     end
   end

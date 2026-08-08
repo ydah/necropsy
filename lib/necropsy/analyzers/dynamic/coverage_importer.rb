@@ -17,7 +17,7 @@ module Necropsy
           return AnalyzerResult.empty unless source
 
           payload = load_payload(File.expand_path(source, project.root))
-          observation = ObservationPolicy.metadata(payload)
+          observation = ObservationPolicy.metadata(payload, expected_revision: config['expected_source_revision'])
           malformed = []
           alive = node_references(payload).map do |raw_reference|
             node_id = normalized_or_raw(raw_reference, malformed, :node)

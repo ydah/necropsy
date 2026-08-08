@@ -29,7 +29,7 @@ module Necropsy
       'report' => %w[include exclude],
       'logging' => %w[verbose]
     }.freeze
-    DYNAMIC_KEYS = %w[source min_observation_days keys key pattern connect_timeout read_timeout].freeze
+    DYNAMIC_KEYS = %w[source min_observation_days expected_source_revision keys key pattern connect_timeout read_timeout].freeze
     IMPLICIT_CALLER_KEYS = %w[name_pattern owner_ancestors reason].freeze
 
     attr_reader :root, :path, :data
