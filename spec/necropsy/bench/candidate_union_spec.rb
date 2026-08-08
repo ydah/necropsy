@@ -82,6 +82,7 @@ RSpec.describe Necropsy::Bench::CandidateUnion do
         'precision_status' => 'measured',
         'candidate_count' => 1,
         'candidate_loc' => 5,
+        'reviewed_high_candidate_count' => 1,
         'known_positive_recall' => 0.5,
         'known_positive_count' => 2
       )
@@ -91,6 +92,41 @@ RSpec.describe Necropsy::Bench::CandidateUnion do
       expect(result.dig('summary', 'necropsy_diagnostics', 'aggregate')).to include(
         'candidate_count' => 1, 'diagnostic_count' => 1, 'blocked_count' => 1
       )
+    end
+  end
+
+  it 'counts only determinate high-confidence Necropsy candidates for the public claim gate' do
+    with_project(files: {
+                   'labels.yml' => {
+                     'labels' => [
+                       { 'corpus' => 'fixture', 'id' => 'Sample#high_dead', 'value' => 'dead',
+                         'rationale' => 'reviewed dead method' },
+                       { 'corpus' => 'fixture', 'id' => 'Sample#medium_alive', 'value' => 'alive',
+                         'rationale' => 'reviewed live method' },
+                       { 'corpus' => 'fixture', 'id' => 'Sample#high_unknown', 'value' => 'unknown',
+                         'rationale' => 'not enough evidence' }
+                     ]
+                   }.to_yaml
+                 }) do |root|
+      manifest = {
+        'labels' => 'labels.yml',
+        'minimum_reviewed_labels' => 3,
+        'tools' => { 'necropsy' => { 'version' => 'test' } }
+      }
+      findings = [
+        ['Sample#high_dead', 'high'], ['Sample#medium_alive', 'medium'], ['Sample#high_unknown', 'certain']
+      ].map do |id, confidence|
+        { 'id' => id, 'state' => 'unreachable', 'confidence' => confidence, 'candidate' => true }
+      end
+
+      result = described_class.new(
+        manifest: manifest, repository_root: root, reports: { 'fixture' => { 'findings' => findings } },
+        diagnostics: []
+      ).call
+
+      metrics = result.dig('summary', 'tool_metrics', 'necropsy')
+      expect(metrics).to include('reviewed_high_candidate_count' => 1)
+      expect(metrics.dig('by_category', 'uncategorized')).to include('reviewed_high_candidate_count' => 1)
     end
   end
 

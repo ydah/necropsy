@@ -52,6 +52,7 @@ require_relative 'necropsy/guardrail/quarantine'
 require_relative 'necropsy/bench/finding_facts'
 require_relative 'necropsy/bench/evaluator'
 require_relative 'necropsy/bench/claim_gate'
+require_relative 'necropsy/bench/review_queue'
 require_relative 'necropsy/runner'
 
 module Necropsy

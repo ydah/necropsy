@@ -56,6 +56,7 @@
         "candidate_count": 34,
         "candidate_loc": 31,
         "candidate_loc_measured_count": 11,
+        "reviewed_high_candidate_count": 0,
         "known_positive_recall": 1.0,
         "known_positive_count": 4,
         "reviewed_candidate_count": 33,
@@ -66,6 +67,7 @@
             "candidate_count": 1,
             "candidate_loc": 1,
             "candidate_loc_measured_count": 1,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": null,
             "known_positive_count": 0
           },
@@ -75,6 +77,7 @@
             "candidate_count": 1,
             "candidate_loc": 3,
             "candidate_loc_measured_count": 1,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": null,
             "known_positive_count": 0
           },
@@ -84,6 +87,7 @@
             "candidate_count": 23,
             "candidate_loc": 0,
             "candidate_loc_measured_count": 0,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": null,
             "known_positive_count": 0
           },
@@ -93,6 +97,7 @@
             "candidate_count": 3,
             "candidate_loc": 9,
             "candidate_loc_measured_count": 3,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           },
@@ -102,6 +107,7 @@
             "candidate_count": 6,
             "candidate_loc": 18,
             "candidate_loc_measured_count": 6,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           }
@@ -111,8 +117,9 @@
         "candidate_precision": 0.3333,
         "precision_status": "measured",
         "candidate_count": 636,
-        "candidate_loc": 4272,
+        "candidate_loc": 4273,
         "candidate_loc_measured_count": 636,
+        "reviewed_high_candidate_count": 0,
         "known_positive_recall": 0.5,
         "known_positive_count": 4,
         "reviewed_candidate_count": 6,
@@ -123,6 +130,7 @@
             "candidate_count": 16,
             "candidate_loc": 91,
             "candidate_loc_measured_count": 16,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": null,
             "known_positive_count": 0
           },
@@ -132,6 +140,7 @@
             "candidate_count": 0,
             "candidate_loc": 0,
             "candidate_loc_measured_count": 0,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 0.0,
             "known_positive_count": 2
           },
@@ -139,8 +148,9 @@
             "candidate_precision": 0.3333,
             "precision_status": "measured",
             "candidate_count": 620,
-            "candidate_loc": 4181,
+            "candidate_loc": 4182,
             "candidate_loc_measured_count": 620,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           }
@@ -152,6 +162,7 @@
         "candidate_count": 5,
         "candidate_loc": 13,
         "candidate_loc_measured_count": 5,
+        "reviewed_high_candidate_count": 0,
         "known_positive_recall": 1.0,
         "known_positive_count": 4,
         "reviewed_candidate_count": 4,
@@ -162,6 +173,7 @@
             "candidate_count": 1,
             "candidate_loc": 1,
             "candidate_loc_measured_count": 1,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": null,
             "known_positive_count": 0
           },
@@ -171,6 +183,7 @@
             "candidate_count": 2,
             "candidate_loc": 6,
             "candidate_loc_measured_count": 2,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           },
@@ -180,6 +193,7 @@
             "candidate_count": 2,
             "candidate_loc": 6,
             "candidate_loc_measured_count": 2,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           }
@@ -191,6 +205,7 @@
         "candidate_count": 4,
         "candidate_loc": 12,
         "candidate_loc_measured_count": 4,
+        "reviewed_high_candidate_count": 0,
         "known_positive_recall": 1.0,
         "known_positive_count": 4,
         "reviewed_candidate_count": 4,
@@ -201,6 +216,7 @@
             "candidate_count": 2,
             "candidate_loc": 6,
             "candidate_loc_measured_count": 2,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           },
@@ -210,6 +226,7 @@
             "candidate_count": 2,
             "candidate_loc": 6,
             "candidate_loc_measured_count": 2,
+            "reviewed_high_candidate_count": 0,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           }
@@ -459,24 +476,24 @@
         "self": {
           "scope": "report",
           "candidate_count": 82,
-          "candidate_loc": 621,
-          "diagnostic_count": 63,
-          "blocked_count": 63,
-          "blocked_rate": 0.4345,
-          "unknown_finding_count": 63,
-          "unknown_finding_rate": 0.4345,
+          "candidate_loc": 622,
+          "diagnostic_count": 65,
+          "blocked_count": 65,
+          "blocked_rate": 0.4422,
+          "unknown_finding_count": 65,
+          "unknown_finding_rate": 0.4422,
           "resolution_counts": {
-            "total": 45510,
-            "complete": 7086,
-            "partial": 17119,
-            "unknown": 21305
+            "total": 46023,
+            "complete": 7134,
+            "partial": 17304,
+            "unknown": 21585
           },
-          "unknown_resolution_rate": 0.4681,
+          "unknown_resolution_rate": 0.469,
           "rule_counts": {},
           "risk_counts": {
-            "analysis_incomplete": 63,
+            "analysis_incomplete": 65,
             "generated_method": 23,
-            "public_or_protected_visibility": 47
+            "public_or_protected_visibility": 48
           },
           "by_category": {
             "generated_method": {
@@ -494,38 +511,38 @@
               }
             },
             "partial_dispatch": {
-              "findings": 54,
+              "findings": 55,
               "candidate_count": 0,
               "candidate_loc": 0,
-              "blocked_count": 54,
+              "blocked_count": 55,
               "blocked_rate": 1.0,
-              "unknown_count": 54,
+              "unknown_count": 55,
               "unknown_rate": 1.0,
               "rule_counts": {},
               "risk_counts": {
-                "analysis_incomplete": 54,
+                "analysis_incomplete": 55,
                 "generated_method": 10,
                 "public_or_protected_visibility": 11
               }
             },
             "unknown_dispatch": {
-              "findings": 9,
+              "findings": 10,
               "candidate_count": 0,
               "candidate_loc": 0,
-              "blocked_count": 9,
+              "blocked_count": 10,
               "blocked_rate": 1.0,
-              "unknown_count": 9,
+              "unknown_count": 10,
               "unknown_rate": 1.0,
               "rule_counts": {},
               "risk_counts": {
-                "analysis_incomplete": 9,
-                "public_or_protected_visibility": 9
+                "analysis_incomplete": 10,
+                "public_or_protected_visibility": 10
               }
             },
             "unreachable": {
               "findings": 69,
               "candidate_count": 69,
-              "candidate_loc": 533,
+              "candidate_loc": 534,
               "blocked_count": 0,
               "blocked_rate": 0.0,
               "unknown_count": 0,
@@ -540,13 +557,13 @@
       },
       "aggregate": {
         "candidate_count": 636,
-        "candidate_loc": 4272,
-        "diagnostic_count": 642,
-        "blocked_count": 641,
-        "unknown_finding_count": 641,
-        "blocked_rate": 0.5016,
-        "unknown_finding_rate": 0.5016,
-        "unknown_resolution_rate": 0.54,
+        "candidate_loc": 4273,
+        "diagnostic_count": 644,
+        "blocked_count": 643,
+        "unknown_finding_count": 643,
+        "blocked_rate": 0.5023,
+        "unknown_finding_rate": 0.5023,
+        "unknown_resolution_rate": 0.5401,
         "rule_counts": {
           "callback_registered": 1,
           "rails_component": 1,
@@ -555,9 +572,9 @@
           "rails_view_reference": 1
         },
         "risk_counts": {
-          "analysis_incomplete": 641,
+          "analysis_incomplete": 643,
           "generated_method": 130,
-          "public_or_protected_visibility": 430
+          "public_or_protected_visibility": 431
         }
       }
     }
@@ -19605,38 +19622,6 @@
     },
     {
       "corpus": "self",
-      "id": "Necropsy::Bench::FindingFacts#actionable?",
-      "definition_id": "def:v1:2493c12409215905a9578963febb90a105e39e32b71558d9453813098d80f6c8",
-      "tool_results": {
-        "debride": {
-          "candidate": false
-        },
-        "necropsy": {
-          "candidate": true,
-          "diagnostic": false,
-          "state": "unreachable",
-          "confidence": "low",
-          "category": "unreachable",
-          "loc": 3,
-          "unknown": false,
-          "rule_hits": [],
-          "risk_flags": []
-        },
-        "spoom": {
-          "candidate": false
-        },
-        "type_aware": {
-          "candidate": false
-        }
-      },
-      "path": "lib/necropsy/bench/finding_facts.rb",
-      "line": 21,
-      "end_line": 23,
-      "loc": 3,
-      "category": "unreachable"
-    },
-    {
-      "corpus": "self",
       "id": "Necropsy::Bench::FindingFacts#category",
       "definition_id": "def:v1:ea8d0216786e566c2ba54c8cf37467f6c84b5f13b2ce6520692e68cdb9a6575f",
       "tool_results": {
@@ -20053,6 +20038,38 @@
       "line": 92,
       "end_line": 100,
       "loc": 9,
+      "category": "unreachable"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReviewQueue#validate_options!",
+      "definition_id": "def:v1:0ae44a8f731da2b338b26914945b6a338b41d5eee6622efac32e93f38e10494f",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "unreachable",
+          "loc": 4,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": []
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/bench/review_queue.rb",
+      "line": 54,
+      "end_line": 57,
+      "loc": 4,
       "category": "unreachable"
     },
     {

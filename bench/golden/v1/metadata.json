@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "update_reason": "exclude benchmark artifacts from self reference scope to prevent leakage",
+  "update_reason": "Record reviewed high candidate measurement and pending review queue",
   "artifacts": {
-    "candidate_union.json": "387235d7d1b0749a8faef4b4ca402bbdb35f21fd488a5d184af6568ca05be7ff",
+    "candidate_union.json": "0b125c5c8be67eb281237d5fe854c6d5d76860cc5de47555ea5ba5a2385a5096",
     "reports/dynamic_evidence.json": "bd82a2b9fb2fae3777d81743917f2df59744798c5f58747219565436134de7ed",
     "reports/plain_ruby.json": "fc939ec706e35ada3c59428856b9f8408ffc3f7468265a3c322c26c65c138169",
     "reports/rails.json": "c0d2195364260ff955ae933acfb57d4e3e9697185e619d79635f70ca0f4b01fb",
     "reports/rubocop_1_75_0.json": "48a136417c6b5802282720cad1f9a608a709b7a8b6e712de2ae228edd79413b5",
-    "reports/self.json": "2b08a19ef2b85a44e4c82176decb303ce9f55c2410590c088584622c80557aa2"
+    "reports/self.json": "b093ce61f2c7f7646cbdaec1daacbc934d25aa59e7a1ce48bc298e1b5bc35698"
   }
 }

@@ -4,41 +4,41 @@
   "metrics": {
     "analysis_graph": {
       "scope": "analysis",
-      "nodes": 1975,
-      "definitions": 1886,
-      "call_sites": 15170,
-      "edges": 15283
+      "nodes": 1991,
+      "definitions": 1900,
+      "call_sites": 15341,
+      "edges": 15500
     },
-    "findings": 145,
+    "findings": 147,
     "actionable_candidates": 82,
-    "candidate_loc": 621,
-    "diagnostic_findings": 63
+    "candidate_loc": 622,
+    "diagnostic_findings": 65
   },
   "states": {
-    "blocked": 63,
+    "blocked": 65,
     "unreachable": 82
   },
   "quality": {
     "scope": "report",
     "candidate_count": 82,
-    "candidate_loc": 621,
-    "diagnostic_count": 63,
-    "blocked_count": 63,
-    "blocked_rate": 0.4345,
-    "unknown_finding_count": 63,
-    "unknown_finding_rate": 0.4345,
+    "candidate_loc": 622,
+    "diagnostic_count": 65,
+    "blocked_count": 65,
+    "blocked_rate": 0.4422,
+    "unknown_finding_count": 65,
+    "unknown_finding_rate": 0.4422,
     "resolution_counts": {
-      "total": 45510,
-      "complete": 7086,
-      "partial": 17119,
-      "unknown": 21305
+      "total": 46023,
+      "complete": 7134,
+      "partial": 17304,
+      "unknown": 21585
     },
-    "unknown_resolution_rate": 0.4681,
+    "unknown_resolution_rate": 0.469,
     "rule_counts": {},
     "risk_counts": {
-      "analysis_incomplete": 63,
+      "analysis_incomplete": 65,
       "generated_method": 23,
-      "public_or_protected_visibility": 47
+      "public_or_protected_visibility": 48
     },
     "by_category": {
       "generated_method": {
@@ -56,38 +56,38 @@
         }
       },
       "partial_dispatch": {
-        "findings": 54,
+        "findings": 55,
         "candidate_count": 0,
         "candidate_loc": 0,
-        "blocked_count": 54,
+        "blocked_count": 55,
         "blocked_rate": 1.0,
-        "unknown_count": 54,
+        "unknown_count": 55,
         "unknown_rate": 1.0,
         "rule_counts": {},
         "risk_counts": {
-          "analysis_incomplete": 54,
+          "analysis_incomplete": 55,
           "generated_method": 10,
           "public_or_protected_visibility": 11
         }
       },
       "unknown_dispatch": {
-        "findings": 9,
+        "findings": 10,
         "candidate_count": 0,
         "candidate_loc": 0,
-        "blocked_count": 9,
+        "blocked_count": 10,
         "blocked_rate": 1.0,
-        "unknown_count": 9,
+        "unknown_count": 10,
         "unknown_rate": 1.0,
         "rule_counts": {},
         "risk_counts": {
-          "analysis_incomplete": 9,
-          "public_or_protected_visibility": 9
+          "analysis_incomplete": 10,
+          "public_or_protected_visibility": 10
         }
       },
       "unreachable": {
         "findings": 69,
         "candidate_count": 69,
-        "candidate_loc": 533,
+        "candidate_loc": 534,
         "blocked_count": 0,
         "blocked_rate": 0.0,
         "unknown_count": 0,
@@ -563,16 +563,21 @@
       "line": 21,
       "end_line": 23,
       "loc": 3,
-      "state": "unreachable",
+      "state": "blocked",
       "confidence": "low",
-      "candidate": true,
-      "diagnostic": false,
-      "category": "unreachable",
-      "unknown": false,
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
       "rule_hits": [],
-      "risk_flags": [],
-      "blocker_kinds": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -849,7 +854,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches."
+        "Blocked by 552 unresolved runtime dispatches."
       ]
     },
     {
@@ -875,7 +880,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches."
+        "Blocked by 552 unresolved runtime dispatches."
       ]
     },
     {
@@ -901,7 +906,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches."
+        "Blocked by 552 unresolved runtime dispatches."
       ]
     },
     {
@@ -927,7 +932,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches."
+        "Blocked by 552 unresolved runtime dispatches."
       ]
     },
     {
@@ -952,7 +957,7 @@
         "partial_dispatch"
       ],
       "reasons": [
-        "Blocked by 8 unresolved runtime dispatches.",
+        "Blocked by 12 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -1180,7 +1185,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches."
+        "Blocked by 552 unresolved runtime dispatches."
       ]
     },
     {
@@ -1298,6 +1303,53 @@
       ]
     },
     {
+      "id": "Necropsy::Bench::ReviewQueue#initialize",
+      "definition_id": "def:v1:8bbd2d0801726c9c679a6d4936dc427c01c6b9f9ebf5dfb24c69c0185f2b90c8",
+      "path": "lib/necropsy/bench/review_queue.rb",
+      "line": 17,
+      "end_line": 24,
+      "loc": 8,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 552 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::ReviewQueue#validate_options!",
+      "definition_id": "def:v1:0ae44a8f731da2b338b26914945b6a338b41d5eee6622efac32e93f38e10494f",
+      "path": "lib/necropsy/bench/review_queue.rb",
+      "line": 54,
+      "end_line": 57,
+      "loc": 4,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
       "id": "Necropsy::Bench::SeedRunner#initialize",
       "definition_id": "def:v1:8e30fa79d64d2b819e3c3b004344f41466f4e6beba0ffb15c03347dd9ffb13b7",
       "path": "lib/necropsy/bench/seed_runner.rb",
@@ -1320,7 +1372,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 547 unresolved runtime dispatches."
+        "Blocked by 551 unresolved runtime dispatches."
       ]
     },
     {
@@ -2157,7 +2209,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches.",
+        "Blocked by 552 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -2658,7 +2710,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches.",
+        "Blocked by 552 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -2685,7 +2737,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 551 unresolved runtime dispatches.",
+        "Blocked by 555 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -3171,7 +3223,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 548 unresolved runtime dispatches.",
+        "Blocked by 552 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
@@ -3282,7 +3334,7 @@
         "unknown_dispatch"
       ],
       "reasons": [
-        "Blocked by 551 unresolved runtime dispatches.",
+        "Blocked by 555 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },

@@ -77,3 +77,16 @@ the suites as not run and cannot pass the release gate.
 The reviewed input policy and baseline performance measurement live under
 `bench/audits/0.2.1`. A passing run writes `audit.json` and `audit.md` there; neither an empty policy
 nor an unknown review outcome is accepted.
+
+The 1.0 public accuracy claim remains fail-closed until the independent review target is met. Generate
+the deterministic, explicitly pending queue with:
+
+```shell
+bundle exec ruby bench/review_queue.rb
+```
+
+The committed `bench/audits/0.2.1/review_queue.yml` contains 300 actionable rows from all five
+corpora, but it contains no labels, outcomes, or reviewer identities. Its `claim_gate_passed` value is
+therefore `false`; editing the queue alone cannot satisfy the gate. Add independently reviewed labels
+to the benchmark review input, rerun the audit, and publish precision and known-positive recall
+separately.

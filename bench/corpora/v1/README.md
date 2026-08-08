@@ -22,3 +22,9 @@ Labels and known positives are reviewed metadata, not tuning input. A future hol
 declared as a separate manifest corpus and may not be used to select default features or
 thresholds. Empty candidate output reports `precision_status: no_candidates` and yield zero.
 The raw candidate diff remains available in `candidate_union.json` for every tool.
+
+The 1.0 review target is tracked separately from this safety release. `bundle exec ruby
+bench/review_queue.rb` deterministically selects 300 actionable rows as `pending`; the queue never
+adds labels and cannot make the public claim gate pass. The current snapshot has no high-confidence
+rows, so the target shortfall is reported rather than hidden. Human reviewers must supply rationale,
+outcome, and reviewer identity before a claim can be enabled.

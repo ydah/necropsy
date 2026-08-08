@@ -7,6 +7,7 @@ module Necropsy
   module Bench
     class CandidateUnion
       LABELS = %w[dead alive external unknown].freeze
+      HIGH_CONFIDENCES = %w[high certain].freeze
       MAX_ENTRIES = 100_000
       MAX_INPUT_BYTES = 16 * 1024 * 1024
       MAX_STRING_BYTES = 4_096
@@ -147,6 +148,7 @@ module Necropsy
           'candidate_count' => selected.length,
           'candidate_loc' => measured_loc.sum,
           'candidate_loc_measured_count' => measured_loc.length,
+          'reviewed_high_candidate_count' => reviewed_high_candidate_count(selected),
           'known_positive_recall' => known_positives.empty? ? nil : ratio(recalled, known_positives.length),
           'known_positive_count' => known_positives.length,
           'reviewed_candidate_count' => reviewed.length,
@@ -169,6 +171,7 @@ module Necropsy
             'candidate_count' => category_selected.length,
             'candidate_loc' => measured_loc.sum,
             'candidate_loc_measured_count' => measured_loc.length,
+            'reviewed_high_candidate_count' => reviewed_high_candidate_count(category_selected),
             'known_positive_recall' => category_known.empty? ? nil : ratio(recalled, category_known.length),
             'known_positive_count' => category_known.length
           }]
@@ -219,6 +222,13 @@ module Necropsy
 
       def determinate_label?(candidate)
         %w[dead alive external].include?(candidate.dig('label', 'value'))
+      end
+
+      def reviewed_high_candidate_count(selected)
+        selected.count do |candidate|
+          HIGH_CONFIDENCES.include?(candidate.dig('tool_results', 'necropsy', 'confidence').to_s) &&
+            determinate_label?(candidate)
+        end
       end
 
       def precision_status(selected, reviewed)
