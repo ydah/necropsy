@@ -95,6 +95,7 @@ module Necropsy
       @method_signatures = {}
       @semantic_blockers = []
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
+      @convention_rules = ConventionRules.new
     end
 
     def scan
@@ -122,6 +123,6 @@ module Necropsy
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
                 :deferred_module_functions, :call_site_ordinals, :source_domains, :scope_diagnostics,
-                :method_signatures, :semantic_blockers
+                :method_signatures, :semantic_blockers, :convention_rules
   end
 end

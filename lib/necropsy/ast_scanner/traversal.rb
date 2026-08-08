@@ -140,6 +140,21 @@ module Necropsy
         uncertainties[definition.graph_id] << "#{owner} defines #{node.name}"
         class_record(owner)[:dynamic] = true
       end
+      if node.name.to_s.start_with?('on_')
+        rule_hit = convention_rules.method_hit(
+          owner: owner,
+          method_name: node.name,
+          ancestors: convention_ancestors(owner),
+          frameworks: project.config.frameworks
+        )
+        if rule_hit
+          entrypoint_hints << EntryPoint.new(
+            node_id: definition.graph_id,
+            reason: :convention_callback,
+            evidence: { 'type' => 'convention_rule', **rule_hit }
+          )
+        end
+      end
 
       method_context = context.dup
       method_context.owner = owner
@@ -165,6 +180,18 @@ module Necropsy
         )
       end
       visit(node.body, method_context)
+    end
+
+    def convention_ancestors(owner)
+      ancestors = []
+      current_data = class_data[owner]
+      current = current_data&.fetch(:superclass_candidates, [])&.first
+      while current && !ancestors.include?(current)
+        ancestors << current
+        current_data = class_data[current]
+        current = current_data&.fetch(:superclass_candidates, [])&.first
+      end
+      ancestors
     end
 
     def visit_call(node, context)
