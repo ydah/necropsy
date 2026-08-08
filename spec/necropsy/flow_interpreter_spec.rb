@@ -71,6 +71,18 @@ RSpec.describe Necropsy::FlowInterpreter do
       exact: true
     )
   end
+
+  it 'resolves finite literal registry lookups to the stored value fact' do
+    source = Prism.parse('registry = { fast: Service.new }; registry[:fast].call').value
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(
+      kind: :instance_types,
+      values: ['Service'],
+      exact: true
+    )
+  end
 end
 
 RSpec.describe 'FLOW01 receiver integration' do

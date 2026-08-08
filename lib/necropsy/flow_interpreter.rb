@@ -68,6 +68,8 @@ module Necropsy
                 evaluate_array(node)
               when Prism::HashNode
                 evaluate_hash(node)
+              when Prism::LambdaNode, Prism::BlockNode
+                evaluate_callable(node)
               when Prism::NilNode
                 ValueFact.new(kind: :nil, exact: true, nilable: true, origin: :literal)
               when Prism::TrueNode, Prism::FalseNode
@@ -149,6 +151,8 @@ module Necropsy
       arguments.each { |argument| evaluate(argument) }
       @receiver_facts[node.receiver] = receiver_fact if node.receiver
       return transparent_wrapper(node) if transparent_wrapper?(node)
+      return container_lookup(receiver_fact, arguments.first) if node.name == :[] && receiver_fact
+      return callable_result(receiver_fact) if node.name == :call && receiver_fact
       return direct_constructor(node) if node.name == :new && receiver_fact&.kind == :class_object
       return concatenate_strings(receiver_fact, arguments.first) if node.name == :+ && receiver_fact
 
@@ -217,9 +221,48 @@ module Necropsy
       elements = node.elements
       return ValueFact.unknown(:hash_budget) if elements.length > MAX_ATOMS
 
-      elements.each { |element| evaluate(element) }
+      entries = elements.filter_map do |element|
+        next unless element.is_a?(Prism::AssocNode)
+
+        key = literal_key(element.key)
+        next unless key
+
+        value = evaluate(element.value)
+        [key, value.to_h]
+      end.to_h
       ValueFact.new(kind: :container, exact: true, origin: :literal_hash,
-                    summary: { 'type' => 'hash', 'size' => elements.length })
+                    summary: { 'type' => 'hash', 'size' => elements.length, 'entries' => entries })
+    end
+
+    def evaluate_callable(node)
+      value = evaluate(node.body)
+      ValueFact.new(kind: :callable_set, values: ['block'], exact: true, origin: :literal_callable,
+                    summary: { 'return_fact' => value.to_h })
+    end
+
+    def container_lookup(receiver_fact, argument)
+      return ValueFact.unknown(:not_a_container) unless receiver_fact.kind == :container
+
+      key_fact = @value_facts[argument]
+      key = key_fact&.values&.first if key_fact&.exact
+      entry = receiver_fact.summary&.dig('entries', key.to_s) if key
+      entry ? ValueFact.from_h(entry) : ValueFact.unknown(:missing_container_key)
+    end
+
+    def callable_result(receiver_fact)
+      return ValueFact.unknown(:not_callable) unless receiver_fact.kind == :callable_set
+
+      return_fact = receiver_fact.summary&.fetch('return_fact', nil)
+      return_fact.is_a?(Hash) ? ValueFact.from_h(return_fact) : ValueFact.unknown(:unknown_callable_return)
+    end
+
+    def literal_key(node)
+      case node
+      when Prism::SymbolNode
+        node.value.to_s
+      when Prism::StringNode
+        node.content.to_s
+      end
     end
 
     def join_facts(facts)

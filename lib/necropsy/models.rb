@@ -677,7 +677,7 @@ module Necropsy
   end
 
   VALUE_FACT_KINDS = %i[
-    class_object instance_types symbol_set string_set container nil boolean unknown
+    class_object instance_types symbol_set string_set callable_set container nil boolean unknown
   ].freeze
 
   ValueFact = Data.define(:kind, :values, :exact, :nilable, :origin, :summary) do
@@ -685,7 +685,7 @@ module Necropsy
       kind = kind.to_sym
       raise ArgumentError, "invalid value fact kind: #{kind.inspect}" unless VALUE_FACT_KINDS.include?(kind)
 
-      values = ModelNormalization.string_list(values, 'value_fact value')
+      values = Array(values).map(&:to_s).uniq.sort.freeze
       exact = (exact == true)
       nilable = (nilable == true)
       origin = origin&.to_s
@@ -698,6 +698,18 @@ module Necropsy
 
     def self.unknown(origin = :unsupported)
       new(kind: :unknown, exact: false, origin: origin)
+    end
+
+    def self.from_h(attributes)
+      data = attributes.transform_keys(&:to_s)
+      new(
+        kind: data.fetch('kind'),
+        values: data.fetch('values', []),
+        exact: data.fetch('exact', false),
+        nilable: data.fetch('nilable', false),
+        origin: data['origin'],
+        summary: data['summary']
+      )
     end
 
     def exact_instance_types?
