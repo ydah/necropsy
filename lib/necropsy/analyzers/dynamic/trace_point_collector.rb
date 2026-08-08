@@ -161,7 +161,12 @@ module Necropsy
               'started_at' => started_at.iso8601,
               'finished_at' => finished_at.iso8601,
               'days' => [((finished_at - started_at) / 86_400.0).ceil, 1].max,
-              'sample_rate' => sample_rate
+              'sample_rate' => sample_rate,
+              'collector_overhead' => {
+                'wall_time_seconds' => [finished_at - started_at, 0].max.round(6),
+                'observed_nodes' => nodes.length,
+                'observed_edges' => edges.length
+              }
             }
           }
           payload['observation']['run_id'] = run_id if run_id
@@ -209,6 +214,7 @@ module Necropsy
           observation['started_at'] = [left_observation['started_at'], right_observation['started_at']].compact.min
           observation['finished_at'] = [left_observation['finished_at'], right_observation['finished_at']].compact.max
           observation['days'] = [left_observation['days'].to_i, right_observation['days'].to_i, 1].max
+          observation['collector_overhead'] = merge_overhead(left_observation, right_observation)
           observation['processes'] = process_count(left_observation) + process_count(right_observation)
           {
             'schema_version' => [left['schema_version'], right['schema_version'], 2].compact.max,
@@ -259,6 +265,16 @@ module Necropsy
           return 0 if observation.empty?
 
           1
+        end
+
+        def merge_overhead(left, right)
+          left_overhead = left.fetch('collector_overhead', {})
+          right_overhead = right.fetch('collector_overhead', {})
+          {
+            'wall_time_seconds' => left_overhead['wall_time_seconds'].to_f + right_overhead['wall_time_seconds'].to_f,
+            'observed_nodes' => left_overhead['observed_nodes'].to_i + right_overhead['observed_nodes'].to_i,
+            'observed_edges' => left_overhead['observed_edges'].to_i + right_overhead['observed_edges'].to_i
+          }
         end
       end
     end

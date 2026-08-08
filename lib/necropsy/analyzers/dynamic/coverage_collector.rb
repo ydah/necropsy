@@ -93,7 +93,11 @@ module Necropsy
               'started_at' => started_at.iso8601,
               'finished_at' => finished_at.iso8601,
               'days' => [((finished_at - started_at) / 86_400.0).ceil, 1].max,
-              'collector' => 'coverage'
+              'collector' => 'coverage',
+              'collector_overhead' => {
+                'wall_time_seconds' => [finished_at - started_at, 0].max.round(6),
+                'observed_nodes' => references.length
+              }
             }.tap { |observation| observation['run_id'] = run_id if run_id }
           }
           FileUtils.mkdir_p(File.dirname(output))
@@ -157,6 +161,7 @@ module Necropsy
           observation['finished_at'] = finished_at if finished_at
           observation['days'] = merged_days(left, right, started_at, finished_at)
           observation['collector'] = 'coverage'
+          observation['collector_overhead'] = merge_overhead(left, right)
           observation['processes'] = process_count(left) + process_count(right)
           observation
         end
@@ -179,6 +184,15 @@ module Necropsy
           return 0 if observation.empty?
 
           1
+        end
+
+        def merge_overhead(left, right)
+          left_overhead = left.fetch('collector_overhead', {})
+          right_overhead = right.fetch('collector_overhead', {})
+          {
+            'wall_time_seconds' => left_overhead['wall_time_seconds'].to_f + right_overhead['wall_time_seconds'].to_f,
+            'observed_nodes' => left_overhead['observed_nodes'].to_i + right_overhead['observed_nodes'].to_i
+          }
         end
 
         def executed_references(result)
