@@ -145,6 +145,26 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageImporter do
     end
   end
 
+  it 'does not project mismatched source revisions into exact liveness' do
+    with_project(files: { 'coverage.yml' => {
+      'schema_version' => 2,
+      'source' => { 'git_sha' => 'old' },
+      'node_references' => [{ 'symbol_id' => 'Sample#run' }]
+    }.to_yaml }) do |root|
+      sample = node('Sample#run')
+      graph = graph_with(nodes: [sample])
+      result = described_class.new(
+        'source' => 'coverage.yml', 'expected_source_revision' => 'current'
+      ).analyze(graph, project_for(root))
+
+      graph.apply_result(result)
+
+      expect(result.observation.dig('coverage', 'source_revision_status')).to eq('mismatch')
+      expect(graph.alive_evidences(sample.id, projection: :exact, scope: { revision: 'old' })).to be_empty
+      expect(graph).to be_dynamic_alive(sample.id)
+    end
+  end
+
   it 'does not treat a scope-only revision as source revision provenance' do
     payload = {
       'nodes' => ['Sample#run'],
