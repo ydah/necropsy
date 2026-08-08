@@ -73,6 +73,15 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
       )
       expect(protocol_graph.resolution_issues).to eq([])
     end
+
+    it 'can retain resolution targets without duplicating existing static edges' do
+      graph.add_edge(caller.graph_id, live.graph_id, evidence(analyzer: :cha, metadata: site.to_h))
+
+      result = analyzer.without_redundant_edges.analyze(graph, nil)
+
+      expect(result.edge_evidences).to be_empty
+      expect(result.resolutions.first.resolution.target_definition_ids).to eq([live.graph_id])
+    end
   end
 
   describe '#implicit_sites' do

@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'digest'
+
 module Necropsy
   module Analyzers
     module Static
@@ -12,36 +14,47 @@ module Necropsy
         ].freeze
         COMPARISON_MESSAGES = %w[< <= > >= between? clamp sort sort_by max min].freeze
 
-        attr_reader :pruning
+        attr_reader :pruning, :emit_redundant_edges
 
-        def initialize(pruning: :rank_only)
+        def initialize(pruning: :rank_only, emit_redundant_edges: true)
           mode = pruning.to_s
           unless Configuration::RTA_PRUNING_MODES.include?(mode)
             raise Error, "RTA pruning must be one of: #{Configuration::RTA_PRUNING_MODES.join(', ')}"
           end
 
           @pruning = mode.to_sym
+          @emit_redundant_edges = emit_redundant_edges == true
         end
 
-        def with_pruning(mode)
-          self.class.new(pruning: mode)
+        def with_pruning(mode, emit_redundant_edges: @emit_redundant_edges)
+          self.class.new(pruning: mode, emit_redundant_edges: emit_redundant_edges)
+        end
+
+        def without_redundant_edges
+          self.class.new(pruning: pruning, emit_redundant_edges: false)
         end
 
         def analyze(graph, _project)
           sites = expanded_call_sites(graph)
+          instantiated_metadata = instantiated_classes_metadata(graph)
           analyses = sites.map do |site|
             targets = rta_candidates(graph, site)
-            site_edges = targets.map do |candidate|
+            site_edges = targets.filter_map do |candidate|
+              # In rank-only mode CHA/name resolution already materialize the
+              # same conservative edge. Keep the RTA resolution record, but
+              # avoid allocating a duplicate evidence object for an edge that
+              # cannot change reachability. Legacy pruning still emits every
+              # candidate because reconciliation uses those edge identities.
+              next if pruning == :rank_only && !emit_redundant_edges &&
+                      graph.edge_present?(site.caller_id, candidate.graph_id)
+
               EdgeEvidence.new(
                 caller_id: site.caller_id,
                 callee_id: candidate.graph_id,
                 evidence: evidence(
                   kind: :call_edge,
                   details: "RTA candidate at #{site.file}:#{site.line}",
-                  metadata: site.to_h.merge(
-                    'instantiated_classes' => graph.instantiated_classes.to_a.sort,
-                    'target_definition_id' => candidate.graph_id
-                  ),
+                  metadata: site.to_h.merge(instantiated_metadata).merge('target_definition_id' => candidate.graph_id),
                   grade: :heuristic,
                   relation: :call_edge,
                   source: call_site_evidence_source(site).merge('target_definition_id' => candidate.graph_id),
@@ -137,6 +150,23 @@ module Necropsy
           return [] unless graph.ambiguous_resolution?
 
           graph.ambiguous_fallback_candidates(site.message)
+        end
+
+        # A full allocation list in every RTA evidence record makes evidence
+        # identity canonicalization quadratic for a repository with many
+        # scanned constructors. Keep the complete list for small fixtures
+        # (preserving the existing diagnostic shape), and use a deterministic
+        # bounded sample plus digest for larger projects.
+        def instantiated_classes_metadata(graph)
+          classes = graph.instantiated_classes.to_a.sort
+          return { 'instantiated_classes' => classes } if classes.length <= 64
+
+          {
+            'instantiated_classes' => classes.first(16),
+            'instantiated_classes_count' => classes.length,
+            'instantiated_classes_truncated' => true,
+            'instantiated_classes_sha256' => Digest::SHA256.hexdigest(classes.join("\0"))
+          }
         end
       end
     end

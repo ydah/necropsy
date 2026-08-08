@@ -39,12 +39,12 @@ module Necropsy
       @call_sites_by_id = call_sites.group_by(&:call_site_id)
     end
 
-    def register_result_resolutions(result)
+    def register_result_resolutions(result, refresh: true)
       return unless result.respond_to?(:resolutions)
       return if result.resolutions.nil?
 
       Array(result.resolutions).each { |record| store_resolution_record(record) }
-      rebuild_resolution_derived_state
+      rebuild_resolution_derived_state if refresh
     end
 
     def store_resolution_record(record)
@@ -101,8 +101,22 @@ module Necropsy
     end
 
     def resolution_record_key(record)
-      [record.resolution.call_site_id, record.producer, record.producer_version.to_s,
-       JSON.generate(record.assumptions), JSON.generate(record.resolution.to_h)]
+      resolution = record.resolution
+      scope = resolution.unknown_scope
+      rejected_targets = resolution.rejected_targets.map do |target|
+        [target.definition_id, target.reason, target.evidence_ids]
+      end
+      [
+        resolution.call_site_id,
+        record.producer.to_s,
+        record.producer_version.to_s,
+        record.assumptions,
+        resolution.status.to_s,
+        resolution.target_definition_ids,
+        rejected_targets,
+        resolution.evidence_ids,
+        scope && [scope.scope_kind.to_s, scope.scope_value, scope.match.to_s]
+      ]
     end
 
     def resolution_record_identity(record)
@@ -122,7 +136,7 @@ module Necropsy
     end
 
     def rebuild_resolution_derived_state
-      remove_blockers_matching { |blocker| resolution_store_blocker?(blocker) }
+      remove_blockers_matching(validate_retained: false) { |blocker| resolution_store_blocker?(blocker) }
       resolution_blockers.each { |blocker| add_blocker(blocker) }
       observation['call_site_resolutions'] = resolution_diagnostic
     end
@@ -286,11 +300,20 @@ module Necropsy
           next
         end
         next unless sites.one?
-        next if edges_from(sites.first.caller_id).key?(definition_id)
+        next if resolution_edge_present?(sites.first.caller_id, definition_id)
 
         issues << resolution_issue('missing_target_edge', record, 'definition_id' => definition_id)
       end
       issues
+    end
+
+    # Resolution validation only needs to know whether a surviving physical
+    # edge exists. Calling the public edges_from projection here allocates a
+    # Set and projects every evidence record for every resolution, which is
+    # quadratic on repositories with many call sites. Read the physical edge
+    # index directly while still ignoring quarantined evidence IDs.
+    def resolution_edge_present?(caller_id, callee_id)
+      @edges.dig(caller_id, callee_id)&.any? { |evidence_id| evidence_record(evidence_id) }
     end
 
     def resolution_issue(kind, record, details)

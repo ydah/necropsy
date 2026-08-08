@@ -10,6 +10,31 @@ module Necropsy
     def generate(attributes)
       "evidence:v1:#{Digest::SHA256.hexdigest(BoundedCanonicalizer.dump(attributes))}"
     end
+
+    # Analyzer-produced records are assembled from trusted scalar/model data.
+    # Sorting ordinary Hash keys and using the JSON encoder avoids the
+    # allocation-heavy type-tag/hex walk needed for untrusted legacy payloads.
+    # EvidenceStore still canonicalizes the final payload and quarantines any
+    # accidental fast-path collision.
+    def generate_fast(attributes)
+      "evidence:v1:#{Digest::SHA256.hexdigest(JSON.generate(fast_payload(attributes)))}"
+    rescue JSON::GeneratorError, TypeError, SystemStackError
+      generate(attributes)
+    end
+
+    def fast_payload(value)
+      case value
+      when Hash
+        value.keys.sort_by(&:to_s).to_h { |key| [key.to_s, fast_payload(value.fetch(key))] }
+      when Array
+        value.map { |item| fast_payload(item) }
+      when Symbol
+        value.to_s
+      else
+        value.respond_to?(:to_h) ? fast_payload(value.to_h) : value
+      end
+    end
+    private_class_method :fast_payload
   end
   private_constant :EvidenceIdentity
 
@@ -66,7 +91,7 @@ module Necropsy
         producer: producer, producer_version: producer_version, grade: grade, relation: relation,
         source: source, assumptions: assumptions, scope: scope
       )
-      evidence_id = EvidenceIdentity.generate(record.to_h.except('evidence_id'))
+      evidence_id = EvidenceIdentity.generate_fast(record.to_h.except('evidence_id'))
       record.with(evidence_id: evidence_id)
     end
 

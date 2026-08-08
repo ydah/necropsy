@@ -36,15 +36,17 @@ module Necropsy
     def initialize_evidence_store
       @evidence_records_by_id = {}
       @evidence_payloads_by_id = {}
+      @evidence_payloads_by_object = {}.compare_by_identity
       @evidence_domains = Hash.new { |hash, key| hash[key] = Set.new }
       @quarantined_evidence_ids = Set.new
       @evidence_collision_payloads = Hash.new { |hash, key| hash[key] = Set.new }
     end
 
-    def register_evidence(evidence, domain: :runtime)
+    def register_evidence(evidence, domain: :runtime, canonical_payload: nil)
       record = evidence_with_identity(evidence)
       evidence_id = record.evidence_id
-      payload = canonical_evidence_payload(record)
+      payload = canonical_payload || canonical_evidence_payload(record)
+      @evidence_payloads_by_object[record] = [evidence_id, payload]
       @evidence_domains[evidence_id] << domain.to_sym
 
       if @quarantined_evidence_ids.include?(evidence_id)
@@ -149,9 +151,12 @@ module Necropsy
       EvidenceStore.normalize_projection(projection)
     end
 
-    def evidence_payload_registered?(evidence)
+    def evidence_payload_registered?(evidence, canonical_payload: nil)
       evidence_id = evidence.evidence_id
-      payload = canonical_evidence_payload(evidence)
+      cached = @evidence_payloads_by_object[evidence]
+      return true if cached && cached[0] == evidence_id && @evidence_payloads_by_id[evidence_id] == cached[1]
+
+      payload = canonical_payload || canonical_evidence_payload(evidence)
       return true if @evidence_payloads_by_id[evidence_id] == payload
       return false unless @quarantined_evidence_ids.include?(evidence_id)
 

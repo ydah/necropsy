@@ -41,6 +41,7 @@ module Necropsy
       @observation = {}
       initialize_resolution_store
       @descendants = {}
+      @rta_instantiated_owner_cache = {}
       @duplicate_blockers_initialized = false
       scan_result.nodes.each { |node| add_node(node) }
       register_duplicate_definition_blockers
@@ -60,6 +61,7 @@ module Necropsy
       @lookup_chain_cache = nil
       @owner_ancestor_cache = nil
       @flow_lookup_cache = nil
+      @rta_instantiated_owner_cache = {}
       @global_dynamic_ancestry_cache = {}
       added = nodes.add(node)
       register_duplicate_definition_blocker(node.symbol_id) if @duplicate_blockers_initialized
@@ -83,7 +85,7 @@ module Necropsy
       nodes.definitions_for(symbol_id)
     end
 
-    def apply_result(result)
+    def apply_result(result, refresh: true)
       dynamic_result = dynamic_result?(result)
       edge_matches = result.edge_evidences.map do |edge|
         next apply_dynamic_edge(edge) if dynamic_result
@@ -105,8 +107,12 @@ module Necropsy
       Array(result.respond_to?(:blockers) ? result.blockers : []).each { |blocker| add_blocker(blocker) }
       observation.merge!(result.observation) { |_key, left, right| merge_observation(left, right) }
       record_dynamic_evidence(result, alive_matches, edge_matches) if dynamic_result
-      register_result_resolutions(result)
-      refresh_resolution_derived_state if !result.respond_to?(:resolutions) || result.resolutions.nil?
+      register_result_resolutions(result, refresh: refresh)
+      refresh_resolution_derived_state if refresh && (!result.respond_to?(:resolutions) || result.resolutions.nil?)
+    end
+
+    def refresh_derived_state
+      refresh_resolution_derived_state
     end
 
     def add_profile(profile)
@@ -196,6 +202,10 @@ module Necropsy
         records = projected_evidence_records(evidence_ids, projection: projection, scope: scope)
         projected[callee_id] = records unless records.empty?
       end
+    end
+
+    def edge_present?(caller_id, callee_id)
+      @edges.dig(caller_id, callee_id)&.any? { |evidence_id| evidence_record(evidence_id) }
     end
 
     def edges(projection: :conservative, scope: nil)
@@ -958,7 +968,22 @@ module Necropsy
       return true if node.owner == caller_owner
       return true if class_info(node.owner)&.dynamic
 
-      instantiated_classes.any? { |owner| dispatched_instance_owner(owner, site.message) == node.owner }
+      rta_instantiated_owners(site.message).include?(node.owner)
+    end
+
+    # RTA evaluates every candidate for a call site against the same set of
+    # scanned allocations. Computing that set inside the candidate predicate
+    # turns a single call site into O(candidates * instantiated_classes)
+    # dispatch checks. Cache the dispatched owners once per message instead;
+    # this preserves the conservative owner test while making the hot path
+    # linear in the number of candidates.
+    def rta_instantiated_owners(message)
+      @rta_instantiated_owner_cache.fetch(message) do
+        @rta_instantiated_owner_cache[message] = instantiated_classes.each_with_object(Set.new) do |owner, owners|
+          dispatched = dispatched_instance_owner(owner, message)
+          owners << dispatched if dispatched
+        end
+      end
     end
 
     def dispatched_instance_owner(owner, message)

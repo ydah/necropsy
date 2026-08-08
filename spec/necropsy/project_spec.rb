@@ -157,6 +157,12 @@ RSpec.describe Necropsy::Project do
     end
   end
 
+  it 'does not treat an empty extensionless file as a Ruby source' do
+    with_project(files: { 'data/empty' => '' }) do |root|
+      expect(project_for(root).reference_ruby_files).to be_empty
+    end
+  end
+
   it 'warns when scan includes exclude potential entry points' do
     with_project(
       files: { 'lib/sample.rb' => '', 'exe/sample' => "#!/usr/bin/env ruby\n", 'spec/sample_spec.rb' => '' },

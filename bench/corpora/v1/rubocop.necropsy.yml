@@ -1,0 +1,7 @@
+# The pinned RuboCop corpus measures the production visitor/library surface;
+# specs and fixtures remain separate test data and are not release findings.
+paths:
+  analyze: [lib/rubocop/cop/layout/**, lib/rubocop/cop/base.rb, lib/rubocop/cop/cop.rb]
+  reference: [lib/rubocop/cop/layout/**, lib/rubocop/cop/base.rb, lib/rubocop/cop/cop.rb]
+cache:
+  enabled: false

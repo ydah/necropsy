@@ -11,6 +11,7 @@ module Necropsy
       return blocker unless @blocker_keys.add?(key)
 
       @blockers << blocker
+      @blocker_keys_by_object[blocker] = key
       index_blocker(blocker)
       blocker
     end
@@ -30,6 +31,7 @@ module Necropsy
 
     def initialize_blocker_indexes
       @blocker_keys = Set.new
+      @blocker_keys_by_object = {}.compare_by_identity
       @blockers_by_message = Hash.new { |hash, key| hash[key] = [] }
       @exact_blockers_by_scope = Hash.new do |scopes, kind|
         scopes[kind] = Hash.new { |values, value| values[value] = [] }
@@ -38,19 +40,37 @@ module Necropsy
       @glob_blockers_by_scope = Hash.new { |scopes, kind| scopes[kind] = [] }
     end
 
-    def remove_blockers_matching(&)
-      retained = @blockers.reject(&)
+    def remove_blockers_matching(validate_retained: true, &)
+      removed, retained = @blockers.partition(&)
       return if retained.length == @blockers.length
 
+      removed.each do |blocker|
+        key = @blocker_keys_by_object.delete(blocker)
+        @blocker_keys.delete(key) if key
+      end
       @blockers = retained
-      rebuild_blocker_indexes
+      rebuild_blocker_indexes(validate_retained: validate_retained)
     end
 
-    def rebuild_blocker_indexes
+    def rebuild_blocker_indexes(validate_retained: true)
       retained = @blockers
+      return rebuild_blocker_indexes_without_validation(retained) unless validate_retained
+
       initialize_blocker_indexes
       @blockers = []
       retained.each { |blocker| add_blocker(blocker) }
+    end
+
+    def rebuild_blocker_indexes_without_validation(retained)
+      retained_keys = @blocker_keys_by_object
+      initialize_blocker_indexes
+      @blockers = retained
+      retained.each do |blocker|
+        key = retained_keys.fetch(blocker) { blocker_key(blocker) }
+        @blocker_keys.add?(key)
+        @blocker_keys_by_object[blocker] = key
+        index_blocker(blocker)
+      end
     end
 
     def index_blocker(blocker)

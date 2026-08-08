@@ -283,7 +283,7 @@ module Necropsy
     def ruby_source?(file)
       return true if file.end_with?('.rb', '.rake', '.gemspec') || File.basename(file) == 'Rakefile'
 
-      File.binread(file, 256).match?(/\A\#![^\r\n]*\bruby\b/n)
+      File.binread(file, 256)&.match?(/\A\#![^\r\n]*\bruby\b/n) == true
     rescue SystemCallError
       false
     end

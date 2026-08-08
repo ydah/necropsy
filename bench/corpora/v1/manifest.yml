@@ -35,11 +35,13 @@ corpora:
     version: 1.75.0
     git_tag: v1.75.0
     git_commit: 9c2bc8eb11e269f1cf47113041a1be3ff615f68b
+    config: bench/corpora/v1/rubocop.necropsy.yml
     revision: 9c2bc8eb11e269f1cf47113041a1be3ff615f68b
   self:
     required: true
     kind: repository
     path: .
+    config: bench/corpora/v1/self.necropsy.yml
     revision: working-tree
 
 tools:

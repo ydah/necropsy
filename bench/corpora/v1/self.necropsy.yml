@@ -1,0 +1,8 @@
+# The self corpus measures the production library surface. Tests and benchmark
+# fixtures are separate corpora and are intentionally kept out of this run so
+# the self budget is comparable across commits.
+paths:
+  analyze: [lib/**, exe/**]
+  reference: [lib/**, exe/**, bin/**, bench/**, script/**, Gemfile, Gemfile.lock, Rakefile, necropsy.gemspec]
+cache:
+  enabled: false

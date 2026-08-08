@@ -12,6 +12,12 @@ is a reviewed type-aware comparison snapshot; it is not silently treated as a fr
 is only comparable within the same normalized physical
 definition universe, so skipped or missing competitors are reported explicitly.
 
+The repository and RuboCop entries use explicit production scopes. Necropsy self-analysis covers
+`lib`, `exe`, `bin`, `bench`, and `script`; the pinned RuboCop role covers its layout cops and
+shared cop base. Tests and fixtures remain separate adversarial/fixture inputs. Reference-scope
+exclusions are retained as blockers in reports, so these scopes cannot turn missing callers into
+actionable candidates silently.
+
 Labels and known positives are reviewed metadata, not tuning input. A future holdout must be
 declared as a separate manifest corpus and may not be used to select default features or
 thresholds. Empty candidate output reports `precision_status: no_candidates` and yield zero.

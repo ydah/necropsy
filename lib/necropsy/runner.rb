@@ -34,6 +34,7 @@ module Necropsy
         end
         rta_results << result if analyzer_profile&.name == :rta && result
       end
+      graph.refresh_derived_state
       measure_phase(profiler, 'reachability') do
         rta_results.each { |result| graph.reconcile_rta_result(result) } if rta_pruning == :legacy
       end
@@ -93,7 +94,10 @@ module Necropsy
     def analyzer_for_pruning(analyzer, mode)
       return analyzer unless analyzer.is_a?(Analyzers::Static::RTA)
 
-      analyzer.with_pruning(mode)
+      configured = analyzer.with_pruning(mode)
+      return configured unless mode == :rank_only
+
+      configured.without_redundant_edges
     end
 
     def run_analyzer(graph, project, configured_analyzer, rta_pruning)
@@ -104,7 +108,7 @@ module Necropsy
       graph.add_profile(profile)
       result = analyzer.analyze(graph, project)
       result = Analyzers::LegacyResultAdapter.new(graph: graph, profile: profile).adapt(result)
-      graph.apply_result(result)
+      graph.apply_result(result, refresh: false)
       [profile, result]
     rescue StandardError => e
       graph.add_blocker(analyzer_failure_blocker(analyzer || configured_analyzer, profile, e))

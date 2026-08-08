@@ -129,7 +129,12 @@ module Necropsy
 
       def config_path(path, definition)
         config = definition['config']
-        File.expand_path(config, path) if config
+        return unless config
+
+        repository_config = File.expand_path(config, repository_root)
+        return repository_config if File.file?(repository_config)
+
+        File.expand_path(config, path)
       end
 
       def skipped_corpus(id, definition, path)
