@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'rubygems'
+
 module Necropsy
   module Bench
     class ReleaseAudit
@@ -20,6 +22,7 @@ module Necropsy
           validate_nonempty_unique('corpora', config['corpora'])
           validate_suites
           validate_review_policies
+          validate_precision_gate
           validate_strict_release if strict_release
           config
         end
@@ -60,6 +63,27 @@ module Necropsy
             minimum = Integer(policy['minimum_per_stratum'], exception: false)
             raise Error, "Review sample size for #{corpus} must be positive" unless minimum&.positive?
           end
+        end
+
+        def validate_precision_gate
+          required = Gem::Version.new(config.fetch('release', '0')) >= Gem::Version.new('0.4.0')
+          policy = config['precision_gate']
+          raise Error, 'Release audit 0.4+ requires precision_gate policy' if required && !policy.is_a?(Hash)
+          return unless policy
+          raise Error, 'Release audit precision_gate must be a mapping' unless policy.is_a?(Hash)
+
+          threshold = Float(policy.fetch('minimum_precision', 0.85), exception: false)
+          raise Error, 'Release audit minimum_precision must be between 0.0 and 1.0' unless
+            threshold&.finite? && threshold.between?(0.0, 1.0)
+
+          features = policy['default_features']
+          raise Error, 'Release audit default_features must be a non-empty array' unless
+            features.is_a?(Array) && !features.empty?
+          return if features.all? { |feature| feature.is_a?(String) && !feature.empty? } && features.uniq == features
+
+          raise Error, 'Release audit default_features must contain unique strings'
+        rescue ArgumentError
+          raise Error, "Invalid release version #{config['release'].inspect}"
         end
 
         def validate_strict_release

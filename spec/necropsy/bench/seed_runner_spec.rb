@@ -176,6 +176,91 @@ RSpec.describe Necropsy::Bench::SeedRunner do
     end
   end
 
+  it 'enforces precision, candidate yield, and measured default-feature improvement when configured' do
+    with_project(files: {
+                   'labels.yml' => {
+                     'labels' => [{ 'corpus' => 'fixture', 'id' => 'Measured#dead', 'value' => 'dead',
+                                    'rationale' => 'reviewed', 'reviewer' => 'maintainer' }]
+                   }.to_yaml,
+                   'manifest.yml' => {
+                     'schema_version' => 1,
+                     'repository_root' => '.',
+                     'golden_dir' => 'golden',
+                     'labels' => 'labels.yml',
+                     'minimum_reviewed_labels' => 1,
+                     'precision_gate' => {
+                       'minimum_precision' => 0.9,
+                       'default_features' => ['receiver_flow']
+                     },
+                     'corpora' => { 'fixture' => { 'path' => '.' } },
+                     'tools' => { 'necropsy' => {} }
+                   }.to_yaml
+                 }) do |root|
+      candidate = finding(id: 'Measured#dead').with(
+        node: node('Measured#dead', definition_id: 'def:measured', file: 'lib/measured.rb')
+      )
+      ablation = {
+        'receiver_flow' => {
+          'on' => { 'candidate_count' => 1 },
+          'off' => { 'candidate_count' => 0 },
+          'difference' => { 'candidate_precision' => 0.0, 'candidate_count' => 1 }
+        }
+      }
+      result = described_class.new(
+        manifest_path: File.join(root, 'manifest.yml'),
+        output_dir: File.join(root, 'output'),
+        io: StringIO.new,
+        analyzer: ->(*) { report_with_findings([candidate]) },
+        feature_ablation: ablation,
+        rss_reader: -> { { 'process_rss_kb' => 1 } }
+      ).call
+
+      expect(result.fetch('precision_gate')).to include('enforced' => true, 'passed' => true)
+      expect(result.dig('precision_gate', 'checks')).to eq(
+        'precision' => true,
+        'candidate_yield' => true,
+        'default_features_evaluated' => true,
+        'default_features_improve' => true
+      )
+    end
+  end
+
+  it 'fails the configured precision gate when a default feature was not evaluated' do
+    with_project(files: {
+                   'labels.yml' => {
+                     'labels' => [{ 'corpus' => 'fixture', 'id' => 'Measured#dead', 'value' => 'dead',
+                                    'rationale' => 'reviewed', 'reviewer' => 'maintainer' }]
+                   }.to_yaml,
+                   'manifest.yml' => {
+                     'schema_version' => 1,
+                     'repository_root' => '.',
+                     'golden_dir' => 'golden',
+                     'labels' => 'labels.yml',
+                     'minimum_reviewed_labels' => 1,
+                     'precision_gate' => {
+                       'minimum_precision' => 0.9,
+                       'default_features' => ['receiver_flow']
+                     },
+                     'corpora' => { 'fixture' => { 'path' => '.' } },
+                     'tools' => { 'necropsy' => {} }
+                   }.to_yaml
+                 }) do |root|
+      candidate = finding(id: 'Measured#dead').with(
+        node: node('Measured#dead', definition_id: 'def:measured', file: 'lib/measured.rb')
+      )
+      result = described_class.new(
+        manifest_path: File.join(root, 'manifest.yml'),
+        output_dir: File.join(root, 'output'),
+        io: StringIO.new,
+        analyzer: ->(*) { report_with_findings([candidate]) },
+        rss_reader: -> { { 'process_rss_kb' => 1 } }
+      ).call
+
+      expect(result.dig('precision_gate', 'passed')).to be(false)
+      expect(result.dig('precision_gate', 'checks', 'default_features_evaluated')).to be(false)
+    end
+  end
+
   it 'binds golden updates to a reason and artifact digests' do
     with_project(files: {
                    'labels.yml' => { 'labels' => [] }.to_yaml,

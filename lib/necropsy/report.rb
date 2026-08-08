@@ -6,6 +6,7 @@ require 'yaml'
 module Necropsy
   class Report
     SCHEMA_VERSION = 2
+    ACTIONABLE_CLASSIFICATIONS = %i[unreachable unused].freeze
     FINGERPRINT_COMPATIBILITY = {
       'fingerprint' => 'legacy logical symbol fingerprint retained for compatibility',
       'physical_fingerprint' => 'physical definition fingerprint for baselines and definition-level matching'
@@ -29,6 +30,28 @@ module Necropsy
 
     def dead_methods(min_confidence: :low)
       reported_findings.select { |finding| finding.at_least?(min_confidence) }
+    end
+
+    # Unlike the legacy dead_methods API, this excludes findings that exist to
+    # explain uncertainty or test-only reachability. Benchmarks and precision
+    # gates must measure only definitions that a user can actually review as a
+    # removal candidate.
+    def actionable_candidates(min_confidence: :low)
+      reported_findings.select do |finding|
+        ACTIONABLE_CLASSIFICATIONS.include?(finding.classification) && finding.at_least?(min_confidence)
+      end
+    end
+
+    def diagnostic_findings
+      reported_findings.reject { |finding| ACTIONABLE_CLASSIFICATIONS.include?(finding.classification) }
+    end
+
+    def reportable_findings
+      reported_findings.dup
+    end
+
+    def report_path?(path)
+      included_in_report?(path) && !excluded_from_report?(path)
     end
 
     def blocked_methods
@@ -93,7 +116,7 @@ module Necropsy
 
     def reported_findings
       @reported_findings ||= findings.select do |finding|
-        included_in_report?(finding.node.file) && !excluded_from_report?(finding.node.file)
+        report_path?(finding.node.file)
       end
     end
 

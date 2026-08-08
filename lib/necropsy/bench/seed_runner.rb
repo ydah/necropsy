@@ -7,6 +7,7 @@ require 'open3'
 require 'yaml'
 
 require_relative 'candidate_union'
+require_relative 'precision_gate'
 require_relative 'report_normalizer'
 
 module Necropsy
@@ -18,6 +19,7 @@ module Necropsy
         io: $stdout,
         clock: Process.method(:clock_gettime),
         analyzer: nil,
+        feature_ablation: {},
         rss_reader: nil,
         revision_reader: nil,
         dirty_reader: nil
@@ -27,6 +29,7 @@ module Necropsy
         @io = io
         @clock = clock
         @analyzer = analyzer || ->(root, config_path) { Necropsy.analyze(root: root, config_path: config_path) }
+        @feature_ablation = feature_ablation
         @rss_reader = rss_reader || method(:read_process_rss)
         @revision_reader = revision_reader || method(:read_git_revision)
         @dirty_reader = dirty_reader || method(:tracked_git_dirty?)
@@ -55,7 +58,8 @@ module Necropsy
 
       private
 
-      attr_reader :manifest_path, :output_dir, :io, :clock, :analyzer, :rss_reader, :revision_reader, :dirty_reader
+      attr_reader :manifest_path, :output_dir, :io, :clock, :analyzer, :feature_ablation, :rss_reader,
+                  :revision_reader, :dirty_reader
 
       def manifest
         @manifest ||= YAML.safe_load_file(manifest_path, aliases: false).tap do |payload|
@@ -212,9 +216,40 @@ module Necropsy
           'manifest' => File.basename(manifest_path),
           'corpora' => corpus_runs,
           'candidate_union' => union.fetch('summary'),
+          'feature_ablation' => deterministic_payload(feature_ablation),
+          'precision_gate' => precision_gate(union),
           'golden' => golden,
           'diagnostics' => diagnostics.sort
         }
+      end
+
+      def precision_gate(union)
+        policy = manifest['precision_gate']
+        unless policy
+          return {
+            'schema_version' => 1,
+            'enforced' => false,
+            'compatibility' => 'manifest without precision_gate retains the benchmark-v1 policy',
+            'passed' => true
+          }
+        end
+
+        PrecisionGate.new(
+          policy: policy,
+          candidate_union_summary: union.fetch('summary'),
+          feature_ablation: feature_ablation
+        ).call
+      end
+
+      def deterministic_payload(value)
+        case value
+        when Hash
+          value.sort.to_h { |key, nested| [key.to_s, deterministic_payload(nested)] }
+        when Array
+          value.map { |nested| deterministic_payload(nested) }
+        else
+          value
+        end
       end
 
       def golden_status

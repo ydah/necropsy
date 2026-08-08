@@ -114,6 +114,28 @@ The legacy view groups by `symbol_id`; the physical view lists every
 `definition_id` and both fingerprints, so duplicate definitions cannot disappear
 from review totals.
 
+Benchmark precision is measured from actionable `unreachable`/`unused` findings only.
+`blocked` and `test_only_reachable` remain visible diagnostics but are not removal candidates.
+The additive `quality` and `by_category` objects report candidate precision/count/LOC,
+known-positive recall, blocked and unknown rates, and rule/risk counts. A run with zero
+candidates fails the evaluator's `candidate_yield` release check instead of receiving perfect
+precision. The legacy `Report#dead_methods` API is unchanged; integrations that need the stricter
+set can use `Report#actionable_candidates`.
+
+Non-analyzer features can be compared with the same evaluator by supplying already analyzed
+on/off reports. This keeps feature configuration outside the metric engine while producing a
+physical-definition candidate diff and metric deltas:
+
+```ruby
+Necropsy::Bench::Evaluator.new(
+  report: feature_on_report,
+  gold_standard_path: 'gold.yml',
+  feature_ablation: {
+    'receiver_flow' => { on: feature_on_report, off: feature_off_report }
+  }
+).call
+```
+
 JSON and YAML omit the full call graph by default. Add `--include-graph` when
 nodes, edges, evidence, and entry points are needed in machine-readable output.
 

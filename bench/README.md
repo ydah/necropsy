@@ -38,6 +38,24 @@ Review `candidate_union.json` before accepting drift. Labels use `dead`, `alive`
 `unknown`, and every reviewed label includes a rationale. A label that does not match an actual
 candidate from a generated Necropsy report or a versioned comparison snapshot is rejected.
 
+Normalized report schema version 1 remains compatible and now has additive measurement fields.
+Each finding declares `candidate` versus `diagnostic`, physical `definition_id`, LOC, category,
+unknown status, rule hits, risks, and blockers. The `quality` object provides the corresponding
+counts and rates. Report include/exclude scope is applied before these fields are aggregated.
+Blocked and test-only findings never become Necropsy candidates in `candidate_union.json`, though
+they remain available under `summary.necropsy_diagnostics`.
+
+`summary.tool_metrics` separates candidate-union precision from known-positive recall and reports
+candidate count and measured LOC overall and by category. Add an optional `category` to reviewed
+labels to define stable error strata. A separate top-level `known_positives` list in the labels
+file may include methods missed by every tool; when omitted, reviewed `dead` labels are the
+backward-compatible recall set. Each known positive requires its own rationale. `unknown` labels
+are not treated as either true or false
+positives. When a tool produces no candidates, precision is `null` with
+`precision_status: no_candidates`; yield remains zero, so an empty result cannot claim 100%
+precision. External snapshots without LOC remain valid and expose `candidate_loc_measured_count`
+instead of inventing a method size.
+
 ## 0.2.1 safety release audit
 
 The release audit compares all five current corpus reports with the first integrity-bound

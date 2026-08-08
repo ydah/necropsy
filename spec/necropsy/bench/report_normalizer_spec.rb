@@ -66,4 +66,105 @@ RSpec.describe Necropsy::Bench::ReportNormalizer do
       'DynamicSeed#observed_only'
     )
   end
+
+  it 'separates actionable yield from bounded diagnostic and category metrics' do
+    rule_evidence = evidence(metadata: { 'rule_id' => 'registry.literal', 'benchmark_category' => 'registry' })
+    candidate = finding(id: 'Measured#dead', classification: :unreachable).with(
+      node: node('Measured#dead', line: 4, end_line: 7),
+      evidences: [rule_evidence]
+    )
+    blocker = Necropsy::Blocker.new(
+      kind: :unknown_dispatch,
+      scope_kind: :message,
+      scope_value: 'call',
+      source: :spec,
+      reason: 'receiver is unknown',
+      metadata: {}
+    )
+    blocked = finding(id: 'Measured#blocked', classification: :blocked, confidence: :low, blockers: [blocker])
+    test_only = finding(id: 'Measured#test', classification: :test_only_reachable)
+    report = report_with_findings([candidate, blocked, test_only])
+
+    normalized = described_class.new(report: report, corpus: 'measured').call
+    findings = normalized.fetch('findings').to_h { |finding| [finding.fetch('id'), finding] }
+
+    expect(normalized.fetch('schema_version')).to eq(1)
+    expect(findings.fetch('Measured#dead')).to include(
+      'candidate' => true, 'diagnostic' => false, 'loc' => 4, 'category' => 'registry',
+      'rule_hits' => ['registry.literal']
+    )
+    expect(findings.fetch('Measured#blocked')).to include(
+      'candidate' => false, 'diagnostic' => true, 'unknown' => true,
+      'blocker_kinds' => ['unknown_dispatch']
+    )
+    expect(normalized.fetch('metrics')).to include(
+      'findings' => 3, 'actionable_candidates' => 1, 'candidate_loc' => 4, 'diagnostic_findings' => 2
+    )
+    expect(normalized.fetch('quality')).to include(
+      'candidate_count' => 1, 'candidate_loc' => 4, 'diagnostic_count' => 2,
+      'blocked_count' => 1, 'blocked_rate' => 0.3333,
+      'unknown_finding_count' => 1, 'unknown_finding_rate' => 0.3333,
+      'rule_counts' => { 'registry.literal' => 1 }
+    )
+    expect(normalized.dig('quality', 'risk_counts')).to include('public_or_protected_visibility' => 3)
+  end
+
+  it 'measures only findings inside the configured report scope' do
+    included = finding(id: 'Included#dead', file: 'lib/included.rb')
+    excluded = finding(id: 'Excluded#dead', file: 'app/excluded.rb')
+    included_site = call_site(
+      caller_id: included.node.graph_id, message: 'inside', file: 'lib/included.rb', call_site_id: 'call:inside'
+    )
+    excluded_site = call_site(
+      caller_id: excluded.node.graph_id, message: 'outside', file: 'app/excluded.rb', call_site_id: 'call:outside'
+    )
+    graph = graph_with(nodes: [included.node, excluded.node], call_sites: [included_site, excluded_site])
+    [included_site, excluded_site].each do |site|
+      resolution = Necropsy::Resolution.new(
+        call_site_id: site.call_site_id, target_definition_ids: [], status: :complete
+      )
+      graph.apply_result(analyzer_result(resolutions: [
+                                           Necropsy::ResolutionRecord.new(
+                                             resolution: resolution, producer: :spec, producer_version: '1'
+                                           )
+                                         ]))
+    end
+    graph.add_entry_point(excluded.node.graph_id, :rails_route)
+    report = Necropsy::Report.new(
+      root: '/repo',
+      graph: graph,
+      findings: [included, excluded],
+      report_include_paths: ['lib/**']
+    )
+
+    normalized = described_class.new(report: report, corpus: 'scoped').call
+
+    expect(normalized.fetch('findings').map { |finding| finding.fetch('id') }).to eq(['Included#dead'])
+    expect(normalized.fetch('metrics')).to include('findings' => 1, 'actionable_candidates' => 1)
+    expect(normalized.dig('metrics', 'analysis_graph')).to include('scope' => 'analysis', 'call_sites' => 2)
+    expect(normalized.fetch('quality')).to include(
+      'scope' => 'report', 'candidate_count' => 1, 'candidate_loc' => 1,
+      'resolution_counts' => { 'total' => 1, 'complete' => 1, 'partial' => 0, 'unknown' => 0 },
+      'rule_counts' => {}
+    )
+  end
+
+  it 'counts unsupported semantic lookup as unknown diagnostics' do
+    blocker = Necropsy::Blocker.new(
+      kind: :unsupported_refinement,
+      scope_kind: :owner,
+      scope_value: 'Refined',
+      source: :spec,
+      reason: 'lexical lookup is not modeled',
+      metadata: {}
+    )
+    finding = finding(id: 'Refined#call', classification: :blocked, confidence: :low, blockers: [blocker])
+
+    normalized = described_class.new(report: report_with_findings([finding]), corpus: 'semantic').call
+
+    expect(normalized.dig('findings', 0)).to include('candidate' => false, 'unknown' => true)
+    expect(normalized.fetch('quality')).to include(
+      'blocked_rate' => 1.0, 'unknown_finding_count' => 1, 'unknown_finding_rate' => 1.0
+    )
+  end
 end

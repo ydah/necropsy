@@ -12,9 +12,9 @@ require 'tempfile'
 require 'tmpdir'
 
 RSpec.describe Necropsy::Bench::ReleaseAudit do
-  def finding(id, state: 'unreachable', confidence: 'medium')
+  def finding(id, state: 'unreachable', confidence: 'medium', definition_id: nil)
     { 'id' => id, 'path' => 'lib/sample.rb', 'line' => 1, 'state' => state, 'confidence' => confidence,
-      'reasons' => [] }
+      'definition_id' => definition_id, 'reasons' => [] }.compact
   end
 
   def report(*findings)
@@ -112,6 +112,72 @@ RSpec.describe Necropsy::Bench::ReleaseAudit do
     expect(audit.dig('gates', 'new_high_reviewed')).to eq('passed' => true, 'failures' => 0)
   end
 
+  it 'does not require candidate review for high-confidence diagnostic findings' do
+    baseline = report(finding('diagnostic', state: 'test_only_reachable', confidence: 'medium'))
+    current = report(finding('diagnostic', state: 'test_only_reachable', confidence: 'high'))
+
+    audit = described_class.new(audit_inputs(baseline: baseline, current: current)).call
+
+    expect(audit.fetch('new_high_candidates')).to eq([])
+    expect(audit.dig('gates', 'new_high_reviewed')).to eq('passed' => true, 'failures' => 0)
+  end
+
+  it 'detects an added same-name physical definition and keys its label and review physically' do
+    first = finding('Duplicate#run', confidence: 'high', definition_id: 'def:first')
+    second = finding('Duplicate#run', confidence: 'high', definition_id: 'def:second')
+    label = { 'value' => 'dead', 'rationale' => 'reviewed physical body', 'reviewer' => 'maintainer' }
+    review = {
+      'corpus' => 'sample', 'change_type' => 'added', 'id' => 'Duplicate#run', 'definition_id' => 'def:second',
+      'outcome' => 'true_positive', 'rationale' => 'new physical body is unused', 'reviewer' => 'maintainer'
+    }
+    inputs = audit_inputs(
+      baseline: report(first),
+      current: report(first, second),
+      labels: { %w[sample def:second] => label },
+      reviews: [review]
+    )
+
+    audit = described_class.new(inputs).call
+
+    expect(audit.dig('corpora', 'sample', 'added')).to contain_exactly(
+      include('id' => 'Duplicate#run', 'definition_id' => 'def:second', 'identity' => 'def:second')
+    )
+    expect(audit.fetch('new_high_candidates')).to contain_exactly(
+      include('id' => 'Duplicate#run', 'definition_id' => 'def:second', 'label_identity_match' => 'physical')
+    )
+    expect(audit.dig('review', 'required')).to contain_exactly(
+      include('id' => 'Duplicate#run', 'definition_id' => 'def:second')
+    )
+    expect(audit.dig('gates', 'difference_review', 'passed')).to be(true)
+  end
+
+  it 'retains legacy logical label and review fallback for physical findings' do
+    baseline = report(finding('Duplicate#run', definition_id: 'def:first'))
+    current = report(
+      finding('Duplicate#run', definition_id: 'def:first'),
+      finding('Duplicate#run', confidence: 'high', definition_id: 'def:second')
+    )
+    label = { 'value' => 'dead', 'rationale' => 'legacy review', 'reviewer' => 'maintainer' }
+    review = {
+      'corpus' => 'sample', 'change_type' => 'added', 'id' => 'Duplicate#run',
+      'outcome' => 'true_positive', 'rationale' => 'legacy review', 'reviewer' => 'maintainer'
+    }
+
+    audit = described_class.new(
+      audit_inputs(
+        baseline: baseline,
+        current: current,
+        labels: { %w[sample Duplicate#run] => label },
+        reviews: [review]
+      )
+    ).call
+
+    expect(audit.fetch('new_high_candidates')).to contain_exactly(
+      include('definition_id' => 'def:second', 'label_identity_match' => 'legacy_logical_fallback')
+    )
+    expect(audit.dig('gates', 'difference_review', 'passed')).to be(true)
+  end
+
   it 'enforces relative and absolute performance budgets' do
     inputs = audit_inputs(
       baseline: report,
@@ -127,6 +193,74 @@ RSpec.describe Necropsy::Bench::ReleaseAudit do
       'passed' => false
     )
     expect(audit.dig('gates', 'performance', 'passed')).to eq(false)
+  end
+
+  it 'enforces the 0.4 precision, yield, and default-feature ablation gate' do
+    inputs = audit_inputs(baseline: report, current: report)
+    inputs[:config]['release'] = '0.4.0'
+    inputs[:config]['precision_gate'] = {
+      'minimum_precision' => 0.9,
+      'default_features' => ['receiver_flow']
+    }
+    inputs[:current_summary]['candidate_union'] = {
+      'tool_metrics' => {
+        'necropsy' => {
+          'candidate_precision' => 1.0,
+          'precision_status' => 'measured',
+          'candidate_count' => 3,
+          'candidate_loc' => 9
+        }
+      }
+    }
+    inputs[:current_summary]['feature_ablation'] = {
+      'receiver_flow' => {
+        'on' => { 'candidate_count' => 3 },
+        'off' => { 'candidate_count' => 2 },
+        'difference' => { 'candidate_precision' => 0.0, 'candidate_count' => 1 }
+      }
+    }
+
+    audit = described_class.new(inputs).call
+
+    expect(audit.fetch('precision_gate')).to include('enforced' => true, 'passed' => true)
+    expect(audit.dig('gates', 'precision_quality')).to eq('passed' => true, 'failures' => 0)
+  end
+
+  it 'fails the 0.4 release when yield is zero or a default feature was not evaluated' do
+    inputs = audit_inputs(baseline: report, current: report)
+    inputs[:config]['release'] = '0.4.0'
+    inputs[:config]['precision_gate'] = {
+      'minimum_precision' => 0.0,
+      'default_features' => ['receiver_flow']
+    }
+    inputs[:current_summary]['candidate_union'] = {
+      'tool_metrics' => {
+        'necropsy' => {
+          'candidate_precision' => nil,
+          'precision_status' => 'no_candidates',
+          'candidate_count' => 0,
+          'candidate_loc' => 0
+        }
+      }
+    }
+    inputs[:current_summary]['feature_ablation'] = {}
+
+    audit = described_class.new(inputs).call
+
+    expect(audit.dig('precision_gate', 'checks')).to include(
+      'precision' => false,
+      'candidate_yield' => false,
+      'default_features_evaluated' => false
+    )
+    expect(audit.dig('gates', 'precision_quality')).to eq('passed' => false, 'failures' => 1)
+    expect(audit.fetch('status')).to eq('fail')
+  end
+
+  it 'keeps the pre-0.4 safety audit policy compatible without precision artifacts' do
+    audit = described_class.new(audit_inputs(baseline: report, current: report)).call
+
+    expect(audit.fetch('precision_gate')).to include('enforced' => false, 'passed' => true)
+    expect(audit.fetch('gates')).not_to have_key('precision_quality')
   end
 
   it 'selects deterministic stratified reviews and records zero-difference corpora' do
@@ -225,6 +359,24 @@ RSpec.describe Necropsy::Bench::ReleaseAudit do
     expect do
       described_class::ConfigValidator.new(config, strict_release: false).validate!
     end.to raise_error(Necropsy::Error, /corpora must not be empty/)
+  end
+
+  it 'requires an explicit default-feature precision policy for 0.4 and later' do
+    inputs = audit_inputs(baseline: report, current: report)
+    inputs[:config]['release'] = '0.4.0'
+
+    expect do
+      described_class.new(inputs).call
+    end.to raise_error(Necropsy::Error, /requires precision_gate policy/)
+  end
+
+  it 'rejects malformed release report collections without coercion' do
+    inputs = audit_inputs(baseline: report, current: report)
+    inputs[:current_reports]['sample']['findings'] = false
+
+    expect do
+      described_class.new(inputs).call
+    end.to raise_error(Necropsy::Error, /current report sample findings must be an array/)
   end
 
   it 'validates the exact five-corpus release policy' do

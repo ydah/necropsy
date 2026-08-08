@@ -9,6 +9,8 @@ RSpec.describe Necropsy::Report do
     report = described_class.new(root: '/repo', graph: graph, findings: [high, low, test_only])
 
     expect(report.dead_methods(min_confidence: :medium).map(&:node)).to contain_exactly(high.node, test_only.node)
+    expect(report.actionable_candidates(min_confidence: :medium).map(&:node)).to contain_exactly(high.node)
+    expect(report.diagnostic_findings.map(&:node)).to contain_exactly(test_only.node)
     expect(report.summary).to include(
       'nodes' => 3,
       'edges' => 0,
@@ -47,6 +49,7 @@ RSpec.describe Necropsy::Report do
 
     expect(report.graph.nodes.length).to eq(3)
     expect(report.dead_methods.map(&:node)).to eq([included.node])
+    expect(report.reportable_findings.map(&:node)).to eq([included.node])
     expect(report.summary['findings']).to eq(1)
     expect(report.to_h['findings'].map { |finding| finding.dig('node', 'id') }).to eq([included.node.id])
   end
