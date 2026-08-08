@@ -82,6 +82,10 @@ module Necropsy
         def write_payload(result:, started_at:, finished_at:)
           references = executed_references(result)
           payload = {
+            'schema_version' => 2,
+            'collector' => { 'name' => 'necropsy-coverage', 'version' => Necropsy::VERSION },
+            'scope' => { 'sample_unit' => 'process', 'sample_rate' => 1.0 },
+            'quality' => { 'dropped_events' => 0, 'overflowed' => false },
             'nodes' => references.map { |reference| reference.fetch('symbol_id') }.uniq.sort,
             'node_references' => references,
             'observation' => {
@@ -134,6 +138,10 @@ module Necropsy
         def merge_payload(left, right)
           observation = merge_observation(left.fetch('observation', {}), right.fetch('observation', {}))
           {
+            'schema_version' => [left['schema_version'], right['schema_version'], 2].compact.max,
+            'collector' => right['collector'] || left['collector'],
+            'scope' => right['scope'] || left['scope'],
+            'quality' => right['quality'] || left['quality'],
             'nodes' => (Array(left['nodes']) + Array(right['nodes'])).uniq.sort,
             'node_references' => merge_references(left['node_references'], right['node_references']),
             'observation' => observation
@@ -143,7 +151,7 @@ module Necropsy
         def merge_observation(left, right)
           started_at = [left['started_at'], right['started_at']].compact.min
           finished_at = [left['finished_at'], right['finished_at']].compact.max
-          observation = left.merge(right)
+          observation = ObservationPolicy.compatible_merge(left, right)
           observation['started_at'] = started_at if started_at
           observation['finished_at'] = finished_at if finished_at
           observation['days'] = merged_days(left, right, started_at, finished_at)

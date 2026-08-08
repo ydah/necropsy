@@ -97,16 +97,10 @@ module Necropsy
             when 'files', 'coverage', 'runtime', 'production' then merge_files(left, right)
             when 'nodes', 'executed' then (Array(left) + Array(right)).uniq
             when 'edges' then Array(left) + Array(right)
-            when 'observation' then merge_observation(left, right)
+            when 'observation' then ObservationPolicy.compatible_merge(left, right)
             else right
             end
           end
-        end
-
-        def merge_observation(left, right)
-          domain_error('Redis coverage observation must be a mapping') unless left.is_a?(Hash) && right.is_a?(Hash)
-
-          left.merge(right)
         end
 
         def merge_files(left, right)

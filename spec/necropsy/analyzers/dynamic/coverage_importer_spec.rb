@@ -52,6 +52,33 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageImporter do
     end
   end
 
+  it 'normalizes observation schema v2 provenance and quality fields' do
+    payload = {
+      'schema_version' => 2,
+      'collector' => { 'name' => 'necropsy-coverage', 'version' => '2' },
+      'source' => { 'git_sha' => 'abc123', 'tree_digest' => 'sha256:tree' },
+      'scope' => { 'environment' => 'production', 'sample_unit' => 'process', 'sample_rate' => 0.5 },
+      'quality' => { 'dropped_events' => 2, 'overflowed' => true },
+      'nodes' => ['Sample#v2']
+    }
+
+    with_project(files: { 'coverage.yml' => payload.to_yaml }) do |root|
+      result = described_class.new('source' => 'coverage.yml').analyze(nil, project_for(root))
+      observation = result.observation.fetch('coverage')
+
+      expect(observation).to include(
+        'schema_version' => 2,
+        'collector_name' => 'necropsy-coverage',
+        'collector_version' => '2',
+        'source_revision' => 'abc123',
+        'environment' => 'production',
+        'sample_unit' => 'process',
+        'sample_rate' => 0.5,
+        'quality' => { 'dropped_events' => 2, 'overflowed' => true }
+      )
+    end
+  end
+
   it 'prefers structured node and edge references while preserving distinct locations' do
     first = { 'symbol_id' => 'Reopened#run', 'file' => 'lib/a.rb', 'line' => 2 }
     second = { 'symbol_id' => 'Reopened#run', 'file' => 'lib/b.rb', 'line' => 3 }

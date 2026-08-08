@@ -9,15 +9,51 @@ module Necropsy
         def metadata(payload)
           observation = payload['observation']
           observation = {} unless observation.is_a?(Hash)
+          schema_version = Integer(payload.fetch('schema_version', 1), exception: false)
+          raise Error, 'Dynamic observation schema version must be 1 or 2' unless [1, 2].include?(schema_version)
+
           revision = source_revision(payload, observation)
 
           normalized = observation.merge(
-            'schema_version' => payload.fetch('schema_version', 1),
+            'schema_version' => schema_version,
             'positive_evidence_policy' => 'alive_only',
             'source_revision_status' => revision ? 'provided_unverified' : 'unknown',
             'source_revision_policy' => 'accepted_for_liveness_only'
           )
-          revision ? normalized.merge('source_revision' => revision) : normalized
+          normalized = normalized.merge('source_revision' => revision) if revision
+          return normalized unless schema_version == 2
+
+          collector = payload['collector']
+          collector = {} unless collector.is_a?(Hash)
+          source = payload['source']
+          source = {} unless source.is_a?(Hash)
+          scope = payload['scope']
+          scope = {} unless scope.is_a?(Hash)
+          quality = payload['quality']
+          quality = {} unless quality.is_a?(Hash)
+          normalized.merge(
+            'collector_name' => collector['name'] || payload['collector_name'],
+            'collector_version' => collector['version'] || payload['collector_version'],
+            'source_metadata' => source,
+            'environment' => scope['environment'] || observation['environment'],
+            'sample_unit' => scope['sample_unit'] || observation['sample_unit'],
+            'sample_rate' => scope['sample_rate'] || observation['sample_rate'],
+            'quality' => {
+              'dropped_events' => quality.fetch('dropped_events', 0),
+              'overflowed' => quality.fetch('overflowed', false)
+            }
+          ).compact
+        end
+
+        def compatible_merge(left, right)
+          return left.merge(right) unless left.is_a?(Hash) && right.is_a?(Hash)
+
+          %w[source_revision environment collector_name collector_version].each do |key|
+            next if left[key].nil? || right[key].nil? || left[key] == right[key]
+
+            raise Error, "Dynamic observation #{key} is incompatible"
+          end
+          left.merge(right)
         end
 
         def evidence_scope(observation)

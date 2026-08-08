@@ -148,6 +148,10 @@ module Necropsy
 
         def write_payload(started_at:, finished_at:)
           payload = {
+            'schema_version' => 2,
+            'collector' => { 'name' => 'necropsy-trace-point', 'version' => Necropsy::VERSION },
+            'scope' => { 'sample_unit' => 'event', 'sample_rate' => sample_rate },
+            'quality' => { 'dropped_events' => 0, 'overflowed' => false },
             'nodes' => nodes.keys.sort,
             'node_references' => node_references.values.sort_by { |reference| RuntimeReference.sort_key(reference) },
             'edges' => legacy_edges,
@@ -200,12 +204,16 @@ module Necropsy
           end
           left_observation = left.fetch('observation', {})
           right_observation = right.fetch('observation', {})
-          observation = left_observation.merge(right_observation)
+          observation = ObservationPolicy.compatible_merge(left_observation, right_observation)
           observation['started_at'] = [left_observation['started_at'], right_observation['started_at']].compact.min
           observation['finished_at'] = [left_observation['finished_at'], right_observation['finished_at']].compact.max
           observation['days'] = [left_observation['days'].to_i, right_observation['days'].to_i, 1].max
           observation['processes'] = process_count(left_observation) + process_count(right_observation)
           {
+            'schema_version' => [left['schema_version'], right['schema_version'], 2].compact.max,
+            'collector' => right['collector'] || left['collector'],
+            'scope' => right['scope'] || left['scope'],
+            'quality' => right['quality'] || left['quality'],
             'nodes' => (Array(left['nodes']) + Array(right['nodes'])).uniq.sort,
             'node_references' => merge_node_references(left['node_references'], right['node_references']),
             'edges' => edges,
