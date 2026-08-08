@@ -28,7 +28,9 @@ module Necropsy
         @output_dir = File.expand_path(output_dir)
         @io = io
         @clock = clock
-        @analyzer = analyzer || ->(root, config_path) { Necropsy.analyze(root: root, config_path: config_path) }
+        @analyzer = analyzer || lambda { |root, config_path|
+          Necropsy.analyze(root: root, config_path: config_path, profile: true)
+        }
         @feature_ablation = feature_ablation
         @rss_reader = rss_reader || method(:read_process_rss)
         @revision_reader = revision_reader || method(:read_git_revision)
@@ -103,6 +105,9 @@ module Necropsy
         performance = {
           'wall_time_seconds' => wall_time.round(6)
         }.merge(rss_measurement(id))
+        if report.respond_to?(:performance_profile) && report.performance_profile
+          performance['analysis_profile'] = report.performance_profile
+        end
         {
           'id' => id,
           'status' => 'generated',

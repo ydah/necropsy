@@ -8,8 +8,8 @@ bundle exec ruby bench/run.rb
 
 The command writes normalized reports, the candidate union, and a performance summary to
 `tmp/necropsy-benchmark/v1`. The normalized reports omit machine-specific roots and timing data;
-the separate summary records wall time and peak RSS (or current RSS when the platform does not
-expose a process high-water mark). Its `golden.status` is `match`, `drift`, or `missing`, with every
+the separate summary records wall time, phase allocations, resolution-cache counts, and peak RSS
+(or current RSS when the platform does not expose a process high-water mark). Its `golden.status` is `match`, `drift`, or `missing`, with every
 changed deterministic artifact listed under `golden.differences`.
 
 The manifest pins five corpus roles: this repository, RuboCop 1.75.0, a plain Ruby fixture, a Rails

@@ -3,6 +3,7 @@
 require_relative 'release_audit/config_validator'
 require_relative 'release_audit/performance_gate'
 require_relative 'precision_gate'
+require_relative 'claim_gate'
 
 module Necropsy
   module Bench
@@ -25,7 +26,8 @@ module Necropsy
         review = review_status(comparisons)
         performance = performance_status
         precision = precision_gate_status
-        gates = build_gates(new_high, review, performance, precision)
+        claim = claim_gate_status
+        gates = build_gates(new_high, review, performance, precision, claim)
         {
           'schema_version' => 1,
           'release' => config.fetch('release'),
@@ -35,6 +37,7 @@ module Necropsy
           'review' => review,
           'performance' => performance,
           'precision_gate' => precision,
+          'claim_gate' => claim,
           'performance_provenance' => performance_provenance,
           'adversarial_suites' => adversarial_results,
           'gates' => gates,
@@ -281,7 +284,16 @@ module Necropsy
         ).call
       end
 
-      def build_gates(new_high, review, performance, precision)
+      def claim_gate_status
+        ClaimGate.new(
+          config: config,
+          reports: current_reports,
+          summary: current_summary,
+          adversarial_results: adversarial_results
+        ).call
+      end
+
+      def build_gates(new_high, review, performance, precision, claim)
         invalid_labels = new_high.reject { |candidate| valid_label?(candidate['label']) }
         false_positive_labels = new_high.select do |candidate|
           FALSE_POSITIVE_LABELS.include?(candidate.dig('label', 'value'))
@@ -300,6 +312,7 @@ module Necropsy
                                 adversarial_results.count { |result| !result['passed'] })
         }
         gates['precision_quality'] = gate(precision['passed'], precision['passed'] ? 0 : 1) if precision['enforced']
+        gates['public_claim'] = gate(claim['passed'], claim['passed'] ? 0 : 1) if claim['enforced']
         gates
       end
 

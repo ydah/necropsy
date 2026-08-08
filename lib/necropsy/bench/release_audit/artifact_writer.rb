@@ -43,6 +43,7 @@ module Necropsy
           append_review(lines)
           append_performance(lines)
           append_adversarial(lines)
+          append_claim_gate(lines)
           append_gates(lines)
           "#{lines.join("\n")}\n"
         end
@@ -84,6 +85,16 @@ module Necropsy
           audit.fetch('adversarial_suites').each do |suite|
             lines << "| #{suite['name']} | #{suite['passed'] ? 'pass' : 'fail'} | #{suite['summary']} |"
           end
+        end
+
+        def append_claim_gate(lines)
+          claim = audit.fetch('claim_gate')
+          return unless claim['enforced']
+
+          lines.push('', '## Public claim gate', '',
+                     "Result: **#{claim['passed'] ? 'PASS' : 'FAIL'}**",
+                     "Unexplained high candidates: #{claim.fetch('unexplained_high_candidates').length}",
+                     "Reviewed high candidates: #{claim.fetch('reviewed_high_candidates')}")
         end
 
         def append_gates(lines)

@@ -176,6 +176,35 @@ RSpec.describe Necropsy::Bench::SeedRunner do
     end
   end
 
+  it 'retains the opt-in analysis profile as benchmark performance metadata' do
+    with_project(files: {
+                   'labels.yml' => { 'labels' => [] }.to_yaml,
+                   'lib/sample.rb' => "class ProfileSeed; def dead; end; end\n",
+                   'manifest.yml' => {
+                     'schema_version' => 1,
+                     'repository_root' => '.',
+                     'golden_dir' => 'golden',
+                     'labels' => 'labels.yml',
+                     'minimum_reviewed_labels' => 0,
+                     'corpora' => { 'fixture' => { 'path' => '.' } },
+                     'tools' => { 'necropsy' => {} }
+                   }.to_yaml
+                 }) do |root|
+      profile = { 'schema_version' => 1, 'counts' => { 'definitions' => 1 } }
+      report = report_with_findings([])
+      allow(report).to receive(:performance_profile).and_return(profile)
+      result = described_class.new(
+        manifest_path: File.join(root, 'manifest.yml'),
+        output_dir: File.join(root, 'output'),
+        io: StringIO.new,
+        analyzer: ->(*) { report },
+        rss_reader: -> { { 'process_rss_kb' => 1 } }
+      ).call
+
+      expect(result.dig('corpora', 0, 'performance', 'analysis_profile')).to eq(profile)
+    end
+  end
+
   it 'enforces precision, candidate yield, and measured default-feature improvement when configured' do
     with_project(files: {
                    'labels.yml' => {
