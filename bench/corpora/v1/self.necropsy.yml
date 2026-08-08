@@ -3,6 +3,6 @@
 # the self budget is comparable across commits.
 paths:
   analyze: [lib/**, exe/**]
-  reference: [lib/**, exe/**, bin/**, bench/**, script/**, Gemfile, Gemfile.lock, Rakefile, necropsy.gemspec]
+  reference: [lib/**, exe/**, bin/**, bench/*.rb, bench/**/*.rb, script/**, Gemfile, Gemfile.lock, Rakefile, necropsy.gemspec]
 cache:
   enabled: false

@@ -41,7 +41,7 @@
     }
   },
   "summary": {
-    "candidates": 651,
+    "candidates": 663,
     "reviewed": 34,
     "by_label": {
       "alive": 24,
@@ -110,9 +110,9 @@
       "necropsy": {
         "candidate_precision": 0.3333,
         "precision_status": "measured",
-        "candidate_count": 624,
-        "candidate_loc": 4164,
-        "candidate_loc_measured_count": 624,
+        "candidate_count": 636,
+        "candidate_loc": 4272,
+        "candidate_loc_measured_count": 636,
         "known_positive_recall": 0.5,
         "known_positive_count": 4,
         "reviewed_candidate_count": 6,
@@ -120,9 +120,9 @@
           "generated_method": {
             "candidate_precision": null,
             "precision_status": "unreviewed",
-            "candidate_count": 9,
-            "candidate_loc": 20,
-            "candidate_loc_measured_count": 9,
+            "candidate_count": 16,
+            "candidate_loc": 91,
+            "candidate_loc_measured_count": 16,
             "known_positive_recall": null,
             "known_positive_count": 0
           },
@@ -138,9 +138,9 @@
           "unreachable": {
             "candidate_precision": 0.3333,
             "precision_status": "measured",
-            "candidate_count": 615,
-            "candidate_loc": 4144,
-            "candidate_loc_measured_count": 615,
+            "candidate_count": 620,
+            "candidate_loc": 4181,
+            "candidate_loc_measured_count": 620,
             "known_positive_recall": 1.0,
             "known_positive_count": 2
           }
@@ -458,13 +458,13 @@
         },
         "self": {
           "scope": "report",
-          "candidate_count": 70,
-          "candidate_loc": 513,
-          "diagnostic_count": 75,
-          "blocked_count": 75,
-          "blocked_rate": 0.5172,
-          "unknown_finding_count": 75,
-          "unknown_finding_rate": 0.5172,
+          "candidate_count": 82,
+          "candidate_loc": 621,
+          "diagnostic_count": 63,
+          "blocked_count": 63,
+          "blocked_rate": 0.4345,
+          "unknown_finding_count": 63,
+          "unknown_finding_rate": 0.4345,
           "resolution_counts": {
             "total": 45510,
             "complete": 7086,
@@ -474,23 +474,23 @@
           "unknown_resolution_rate": 0.4681,
           "rule_counts": {},
           "risk_counts": {
-            "analysis_incomplete": 75,
+            "analysis_incomplete": 63,
             "generated_method": 23,
             "public_or_protected_visibility": 47
           },
           "by_category": {
             "generated_method": {
-              "findings": 6,
-              "candidate_count": 6,
-              "candidate_loc": 17,
+              "findings": 13,
+              "candidate_count": 13,
+              "candidate_loc": 88,
               "blocked_count": 0,
               "blocked_rate": 0.0,
               "unknown_count": 0,
               "unknown_rate": 0.0,
               "rule_counts": {},
               "risk_counts": {
-                "generated_method": 6,
-                "public_or_protected_visibility": 4
+                "generated_method": 13,
+                "public_or_protected_visibility": 11
               }
             },
             "partial_dispatch": {
@@ -522,45 +522,30 @@
                 "public_or_protected_visibility": 9
               }
             },
-            "unparsed_external_reference": {
-              "findings": 12,
-              "candidate_count": 0,
-              "candidate_loc": 0,
-              "blocked_count": 12,
-              "blocked_rate": 1.0,
-              "unknown_count": 12,
-              "unknown_rate": 1.0,
-              "rule_counts": {},
-              "risk_counts": {
-                "analysis_incomplete": 12,
-                "generated_method": 7,
-                "public_or_protected_visibility": 12
-              }
-            },
             "unreachable": {
-              "findings": 64,
-              "candidate_count": 64,
-              "candidate_loc": 496,
+              "findings": 69,
+              "candidate_count": 69,
+              "candidate_loc": 533,
               "blocked_count": 0,
               "blocked_rate": 0.0,
               "unknown_count": 0,
               "unknown_rate": 0.0,
               "rule_counts": {},
               "risk_counts": {
-                "public_or_protected_visibility": 11
+                "public_or_protected_visibility": 16
               }
             }
           }
         }
       },
       "aggregate": {
-        "candidate_count": 624,
-        "candidate_loc": 4164,
-        "diagnostic_count": 654,
-        "blocked_count": 653,
-        "unknown_finding_count": 653,
-        "blocked_rate": 0.511,
-        "unknown_finding_rate": 0.511,
+        "candidate_count": 636,
+        "candidate_loc": 4272,
+        "diagnostic_count": 642,
+        "blocked_count": 641,
+        "unknown_finding_count": 641,
+        "blocked_rate": 0.5016,
+        "unknown_finding_rate": 0.5016,
         "unknown_resolution_rate": 0.54,
         "rule_counts": {
           "callback_registered": 1,
@@ -570,7 +555,7 @@
           "rails_view_reference": 1
         },
         "risk_counts": {
-          "analysis_incomplete": 653,
+          "analysis_incomplete": 641,
           "generated_method": 130,
           "public_or_protected_visibility": 430
         }
@@ -19480,6 +19465,146 @@
     },
     {
       "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#file=",
+      "definition_id": "def:v1:9c79eafc397cb76a9ac355f7d79e81c284a5426a05ecd1ec83d48599f0345941",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "generated_method",
+          "loc": 17,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "generated_method",
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "category": "generated_method"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#module_function",
+      "definition_id": "def:v1:db431ac5f25a99c22a20d339e4cd8d4d4b5a70c3a58e7545212b19e3043174b5",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "generated_method",
+          "loc": 17,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "generated_method",
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "category": "generated_method"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#relative_file=",
+      "definition_id": "def:v1:70eb89b62a333022ee792c3df0a96e920b668dfe83b9e77088bcfa46923140a7",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "generated_method",
+          "loc": 17,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "generated_method",
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "category": "generated_method"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::AstScanner::Context#test=",
+      "definition_id": "def:v1:99b9d04256753ab05ac2eead7f3e3ee083d757ebf5bbe8e50c3e874aa3b73372",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "generated_method",
+          "loc": 17,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "generated_method",
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/ast_scanner.rb",
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "category": "generated_method"
+    },
+    {
+      "corpus": "self",
       "id": "Necropsy::Bench::FindingFacts#actionable?",
       "definition_id": "def:v1:2493c12409215905a9578963febb90a105e39e32b71558d9453813098d80f6c8",
       "tool_results": {
@@ -19672,6 +19797,40 @@
     },
     {
       "corpus": "self",
+      "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#capture_source!",
+      "definition_id": "def:v1:c563db469c679d61f8664566e7435522b71623caff054645e81c50142464a814",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "medium",
+          "category": "unreachable",
+          "loc": 10,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
+      "line": 22,
+      "end_line": 31,
+      "loc": 10,
+      "category": "unreachable"
+    },
+    {
+      "corpus": "self",
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#digest",
       "definition_id": "def:v1:11ffc271d51a6d4a0386b1a0bdaad954a60d04a2c8cba3996f26b2fdd57bb972",
       "tool_results": {
@@ -19796,6 +19955,40 @@
       "line": 68,
       "end_line": 73,
       "loc": 6,
+      "category": "unreachable"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#load_and_validate!",
+      "definition_id": "def:v1:c81fe9fc98770f815c844549ca87941d52275a3292630b1964a7e7a567c65339",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "unreachable",
+          "loc": 13,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
+      "line": 44,
+      "end_line": 56,
+      "loc": 13,
       "category": "unreachable"
     },
     {
@@ -20346,6 +20539,40 @@
     },
     {
       "corpus": "self",
+      "id": "Necropsy::CallGraph#dynamic_enabled?",
+      "definition_id": "def:v1:023c2654c0b531772b21eecb19e07fddf1b1f2883e9e7b586da8d90dba4e9827",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "unreachable",
+          "loc": 3,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/graph/call_graph.rb",
+      "line": 171,
+      "end_line": 173,
+      "loc": 3,
+      "category": "unreachable"
+    },
+    {
+      "corpus": "self",
       "id": "Necropsy::CallGraph#fallback_resolution?",
       "definition_id": "def:v1:779b22cd29d5bf497d5c86f87776f5353b53104e8505b4b5501a6d9ce70757cc",
       "tool_results": {
@@ -20376,6 +20603,40 @@
       "line": 459,
       "end_line": 465,
       "loc": 7,
+      "category": "unreachable"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::CallGraph#modules_for",
+      "definition_id": "def:v1:b04884facb8e85f99683828556d2058c3bb8a636dc4f1ba117346a439fa8a738",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "unreachable",
+          "loc": 6,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/graph/call_graph.rb",
+      "line": 296,
+      "end_line": 301,
+      "loc": 6,
       "category": "unreachable"
     },
     {
@@ -20540,6 +20801,40 @@
       "line": 195,
       "end_line": 197,
       "loc": 3,
+      "category": "unreachable"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::Configuration#min_observation_days",
+      "definition_id": "def:v1:edf797eb3d424fc7c7199300f4c6b176faf8ab96a5a9dc4efdf921b8967577b2",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "unreachable",
+          "loc": 5,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/configuration.rb",
+      "line": 113,
+      "end_line": 117,
+      "loc": 5,
       "category": "unreachable"
     },
     {
@@ -20927,6 +21222,111 @@
       "end_line": 401,
       "loc": 3,
       "category": "unreachable"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::EntryPoints::Rails::RouteContext#controller=",
+      "definition_id": "def:v1:086f891a79af5d878ad3f580dbea367763cf0e99defa77a9699ac6eea10b1fe1",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "generated_method",
+          "loc": 1,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "generated_method",
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/entry_points/rails.rb",
+      "line": 12,
+      "end_line": 12,
+      "loc": 1,
+      "category": "generated_method"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::EntryPoints::Rails::RouteContext#modules=",
+      "definition_id": "def:v1:30c0c19ac4cb3be46bf457ee5eae28d8f20eaf99a007e86090494648b7bf6004",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "generated_method",
+          "loc": 1,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "generated_method",
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/entry_points/rails.rb",
+      "line": 12,
+      "end_line": 12,
+      "loc": 1,
+      "category": "generated_method"
+    },
+    {
+      "corpus": "self",
+      "id": "Necropsy::EntryPoints::Rails::RouteContext#resource=",
+      "definition_id": "def:v1:b21d475b4325e308bf2a94b7cbca69cbd9e98cdfdd841fc4d49a9895b1ba2a85",
+      "tool_results": {
+        "debride": {
+          "candidate": false
+        },
+        "necropsy": {
+          "candidate": true,
+          "diagnostic": false,
+          "state": "unreachable",
+          "confidence": "low",
+          "category": "generated_method",
+          "loc": 1,
+          "unknown": false,
+          "rule_hits": [],
+          "risk_flags": [
+            "generated_method",
+            "public_or_protected_visibility"
+          ]
+        },
+        "spoom": {
+          "candidate": false
+        },
+        "type_aware": {
+          "candidate": false
+        }
+      },
+      "path": "lib/necropsy/entry_points/rails.rb",
+      "line": 12,
+      "end_line": 12,
+      "loc": 1,
+      "category": "generated_method"
     },
     {
       "corpus": "self",
