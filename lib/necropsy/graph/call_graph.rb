@@ -164,6 +164,14 @@ module Necropsy
       @dynamic_alive.any?
     end
 
+    def runtime_feedback(observed_targets:, max_fixtures: RuntimeFeedback::DEFAULT_FIXTURE_LIMIT)
+      RuntimeFeedback.from_graph(
+        self,
+        observed_targets: observed_targets,
+        max_fixtures: max_fixtures
+      ).call
+    end
+
     def edges_from(node_id, projection: :conservative, scope: nil)
       projection = normalize_projection(projection)
       evidence_ids_by_callee = resolve_definitions(node_id).each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |definition, merged|
