@@ -995,7 +995,7 @@ module Necropsy
     def merge_observation(left, right)
       return right unless left.is_a?(Hash) && right.is_a?(Hash)
 
-      left.merge(right)
+      Analyzers::Dynamic::ObservationPolicy.compatible_merge(left, right)
     end
 
     def call_site_key(site)

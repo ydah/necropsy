@@ -140,6 +140,29 @@ RSpec.describe Necropsy::CallGraph do
     )
   end
 
+  it 'rejects incompatible dynamic observation metadata instead of merging silently' do
+    graph = graph_with(nodes: [node('Sample#run')])
+    first = analyzer_result(
+      observation: {
+        'coverage' => {
+          'schema_version' => 2, 'source_revision' => 'abc', 'source_revision_status' => 'match',
+          'environment' => 'production'
+        }
+      }
+    )
+    second = analyzer_result(
+      observation: {
+        'coverage' => {
+          'schema_version' => 2, 'source_revision' => 'old', 'source_revision_status' => 'mismatch',
+          'environment' => 'production'
+        }
+      }
+    )
+
+    graph.apply_result(first)
+    expect { graph.apply_result(second) }.to raise_error(Necropsy::Error, /source_revision/)
+  end
+
   it 'does not enable absence-based classification when all dynamic node IDs are unknown' do
     graph = graph_with(nodes: [node('Sample#run')])
     result = analyzer_result(
