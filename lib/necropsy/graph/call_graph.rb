@@ -172,6 +172,17 @@ module Necropsy
       ).call
     end
 
+    def performance_counts
+      {
+        'definitions' => nodes.length,
+        'call_sites' => call_sites.length,
+        'edges' => edges.length,
+        'blockers' => blockers.length,
+        'resolution_cache_hits' => @resolution_cache_hits.to_i,
+        'resolution_cache_misses' => @resolution_cache_misses.to_i
+      }
+    end
+
     def edges_from(node_id, projection: :conservative, scope: nil)
       projection = normalize_projection(projection)
       evidence_ids_by_callee = resolve_definitions(node_id).each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |definition, merged|
@@ -933,7 +944,12 @@ module Necropsy
     def dispatched_instance_owner(owner, message)
       @dispatch_cache ||= {}
       key = [owner, message]
-      return @dispatch_cache[key] if @dispatch_cache.key?(key)
+      if @dispatch_cache.key?(key)
+        @resolution_cache_hits = @resolution_cache_hits.to_i + 1
+        return @dispatch_cache[key]
+      end
+
+      @resolution_cache_misses = @resolution_cache_misses.to_i + 1
 
       @dispatch_cache[key] = cached_lookup_chain(owner).find do |candidate|
         definitions_for("#{candidate}##{message}").any?

@@ -12,10 +12,10 @@ module Necropsy
       'physical_fingerprint' => 'physical definition fingerprint for baselines and definition-level matching'
     }.freeze
 
-    attr_reader :root, :graph, :findings, :reachability, :project, :source_snapshot
+    attr_reader :root, :graph, :findings, :reachability, :project, :source_snapshot, :performance_profile
 
     def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [],
-                   project: nil, source_snapshot: nil)
+                   project: nil, source_snapshot: nil, performance_profile: nil)
       @root = root
       @graph = graph
       @findings = findings.sort_by do |finding|
@@ -24,6 +24,7 @@ module Necropsy
       @reachability = reachability
       @project = project
       @source_snapshot = source_snapshot
+      @performance_profile = performance_profile
       @report_include_paths = report_include_paths
       @report_exclude_paths = report_exclude_paths
     end
@@ -107,6 +108,7 @@ module Necropsy
       result['non_ruby_reference_barrier'] = reference_barrier if reference_barrier
       result['source_incompleteness'] = graph.source_incompleteness if graph.incomplete_files.any?
       result['analysis_scope'] = graph.scope_diagnostics unless graph.scope_diagnostics.empty?
+      result['performance'] = performance_profile if performance_profile
       result
     end
 

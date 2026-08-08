@@ -5,6 +5,7 @@ require 'fileutils'
 require 'time'
 require 'yaml'
 require_relative 'runtime_reference'
+require_relative 'observation_policy'
 
 module Necropsy
   module Analyzers

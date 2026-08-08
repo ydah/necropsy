@@ -13,6 +13,7 @@ require_relative 'necropsy/flow_interpreter'
 require_relative 'necropsy/convention_rules'
 require_relative 'necropsy/type_facts'
 require_relative 'necropsy/runtime_feedback'
+require_relative 'necropsy/performance_profiler'
 require_relative 'necropsy/ast_scanner'
 require_relative 'necropsy/cache/scan_cache'
 require_relative 'necropsy/project'
@@ -55,13 +56,13 @@ require_relative 'necropsy/runner'
 module Necropsy
   class Error < StandardError; end
 
-  def self.analyze(root: '.', config_path: nil, analyzers: nil, ignored_reference_paths: [])
+  def self.analyze(root: '.', config_path: nil, analyzers: nil, ignored_reference_paths: [], profile: false)
     Runner.new(
       root: root,
       config_path: config_path,
       analyzers: analyzers,
       ignored_reference_paths: ignored_reference_paths
-    ).analyze
+    ).analyze(profile: profile)
   end
 
   def self.default_analyzers

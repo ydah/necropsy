@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'json'
+
 module Necropsy
   class Runner
     ANALYZER_ERROR_MESSAGE_BYTES = 500
@@ -13,30 +15,46 @@ module Necropsy
       @ignored_reference_paths = ignored_reference_paths
     end
 
-    def analyze(rta_pruning: config.rta_pruning)
+    def analyze(rta_pruning: config.rta_pruning, profile: false)
       rta_pruning = normalize_rta_pruning(rta_pruning)
-      project = Project.new(root: root, config: config)
-      source_snapshot = project.source_snapshot
-      graph = CallGraph.new(project.scan_result, ambiguity_limit: config.ambiguity_limit)
+      profiler = profile ? PerformanceProfiler.new : nil
+      project = measure_phase(profiler, 'project') { Project.new(root: root, config: config) }
+      source_snapshot = measure_phase(profiler, 'source_snapshot') { project.source_snapshot }
+      graph = measure_phase(profiler, 'scan') do
+        CallGraph.new(project.scan_result, ambiguity_limit: config.ambiguity_limit)
+      end
       project.scope_blockers.each { |blocker| graph.add_blocker(blocker) }
       rta_results = []
 
-      apply_entry_points(graph, project)
+      measure_phase(profiler, 'entry_points') { apply_entry_points(graph, project) }
       configured_analyzers.each do |configured_analyzer|
-        profile, result = run_analyzer(graph, project, configured_analyzer, rta_pruning)
-        rta_results << result if profile&.name == :rta && result
+        analyzer_name = configured_analyzer.profile.name
+        analyzer_profile, result = measure_phase(profiler, "analyzer:#{analyzer_name}") do
+          run_analyzer(graph, project, configured_analyzer, rta_pruning)
+        end
+        rta_results << result if analyzer_profile&.name == :rta && result
       end
-      rta_results.each { |result| graph.reconcile_rta_result(result) } if rta_pruning == :legacy
+      measure_phase(profiler, 'reachability') do
+        rta_results.each { |result| graph.reconcile_rta_result(result) } if rta_pruning == :legacy
+      end
 
-      reachability = Reachability::Engine.new(graph).call
-      scorer = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project)
-      findings = scorer.findings
-      barrier_matches = ReferenceBarrier.new(
-        graph: graph,
-        project: project,
-        ignored_paths: ignored_reference_paths
-      ).apply(findings)
+      reachability = measure_phase(profiler, 'reachability_engine') { Reachability::Engine.new(graph).call }
+      findings = measure_phase(profiler, 'scoring') do
+        scorer = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project)
+        scorer.findings
+      end
+      barrier_matches = measure_phase(profiler, 'reference_barrier') do
+        ReferenceBarrier.new(
+          graph: graph,
+          project: project,
+          ignored_paths: ignored_reference_paths
+        ).apply(findings)
+      end
       findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings if barrier_matches.positive?
+      performance = profiler&.report(
+        counts: graph.performance_counts,
+        report_index_size_bytes: JSON.generate(graph.to_h).bytesize
+      )
       Report.new(
         root: root,
         graph: graph,
@@ -45,11 +63,18 @@ module Necropsy
         project: project,
         source_snapshot: source_snapshot,
         report_include_paths: config.report_include_paths,
-        report_exclude_paths: config.report_exclude_paths
+        report_exclude_paths: config.report_exclude_paths,
+        performance_profile: performance
       )
     end
 
     private
+
+    def measure_phase(profiler, name, &block)
+      return block.call unless profiler
+
+      profiler.measure(name, &block)
+    end
 
     def normalize_rta_pruning(value)
       mode = value.to_s
