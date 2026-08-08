@@ -43,6 +43,32 @@ RSpec.describe Necropsy::Cache::ScanCache do
     end
   end
 
+  it 'invalidates a same-size edit even when the mtime is restored' do
+    with_project(files: { 'app/sample.rb' => 'class SameSizeCache; def old; end; end' }) do |root|
+      project = project_for(root)
+      project.scan_result
+      path = File.join(root, 'app/sample.rb')
+      original_mtime = File.mtime(path)
+      write_project_file(root, 'app/sample.rb', 'class SameSizeCache; def new; end; end')
+      File.utime(original_mtime, original_mtime, path)
+
+      refreshed = project_for(root).scan_result
+
+      expect(refreshed.nodes.map(&:name)).to include('new')
+      expect(refreshed.nodes.map(&:name)).not_to include('old')
+    end
+  end
+
+  it 'writes the cache through an atomic temporary path' do
+    with_project(files: { 'app/sample.rb' => 'class AtomicCache; end' }) do |root|
+      project_for(root).scan_result
+
+      cache_path = File.join(root, '.necropsy_cache/scan.json')
+      expect(File.file?(cache_path)).to be(true)
+      expect(Dir.glob("#{cache_path}.tmp-*")).to be_empty
+    end
+  end
+
   it 'invalidates the project scan when a non-Ruby reference file changes' do
     config = { paths: { analyze: ['lib/**'], reference: ['**/*'] } }
     with_project(

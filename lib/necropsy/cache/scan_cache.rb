@@ -2,11 +2,12 @@
 
 require 'fileutils'
 require 'json'
+require 'digest'
 
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 11
+      VERSION = 12
 
       def initialize(project:)
         @project = project
@@ -51,13 +52,18 @@ module Necropsy
 
       def write(metadata, result)
         FileUtils.mkdir_p(File.dirname(path))
-        File.write(path, JSON.generate({
-                                         'version' => VERSION,
-                                         'metadata' => metadata,
-                                         'scan_result' => serialize_scan_result(result)
-                                       }))
+        payload = JSON.generate(
+          'version' => VERSION,
+          'metadata' => metadata,
+          'scan_result' => serialize_scan_result(result)
+        )
+        temporary = "#{path}.tmp-#{Process.pid}-#{Thread.current.object_id}"
+        File.write(temporary, payload)
+        File.rename(temporary, path)
       rescue StandardError => e
         warn_cache("Could not write cache: #{e.message}")
+      ensure
+        FileUtils.rm_f(temporary) if temporary && File.exist?(temporary)
         nil
       end
 
@@ -70,7 +76,8 @@ module Necropsy
           stat = File.stat(file)
           metadata[project.relative_path(file)] = {
             'size' => stat.size,
-            'mtime' => "#{stat.mtime.to_i}.#{stat.mtime.nsec}"
+            'mtime' => "#{stat.mtime.to_i}.#{stat.mtime.nsec}",
+            'content_sha256' => Digest::SHA256.file(file).hexdigest
           }
         end
       end
