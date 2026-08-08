@@ -177,6 +177,39 @@ RSpec.describe Necropsy::EntryPoints::Rails do
       end
     end
 
+    context 'when a route argument is dynamic' do
+      let(:project_root) do
+        create_project(
+          files: { 'config/routes.rb' => "get route_path, to: target_action\n" },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) do
+        [node('WidgetsController#index', owner: 'WidgetsController', name: 'index')]
+      end
+
+      it 'records a scoped route blocker without inventing a controller root' do
+        expect(entrypoints).to eq({})
+        expect(graph.blockers.map(&:kind)).to include(:rails_route_dynamic)
+      end
+    end
+
+    context 'when a routed action is private' do
+      let(:project_root) do
+        create_project(
+          files: { 'config/routes.rb' => "get 'widgets', to: 'widgets#secret'\n" },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) do
+        [node('WidgetsController#secret', owner: 'WidgetsController', name: 'secret', visibility: :private)]
+      end
+
+      it 'does not root a non-public action' do
+        expect(entrypoints).to eq({})
+      end
+    end
+
     it 'does not read route or view symlinks that resolve outside the repository' do
       Dir.mktmpdir do |outside|
         outside_route = File.join(outside, 'routes.rb')

@@ -14,6 +14,8 @@ module Necropsy
       def apply(graph, project)
         return unless project.config.rails_enabled?(reference_files: project.reference_files)
 
+        @route_blockers = []
+
         referenced_view_methods = view_method_names(project)
         graph.method_nodes.each do |node|
           case node.file
@@ -49,6 +51,7 @@ module Necropsy
             graph.add_entry_point(matching_id, :rails_route)
           end
         end
+        @route_blockers.each { |blocker| graph.add_blocker(blocker) }
       end
 
       private
@@ -59,14 +62,20 @@ module Necropsy
       end
 
       def parse_route_file(project, path, seen:, concerns:)
+        previous_route_path = @current_route_path
         expanded = File.expand_path(path, project.root)
         return [] unless project.reference_file?(expanded)
         return [] if seen[expanded]
 
         seen[expanded] = true
+        @current_route_path = project.relative_path(expanded)
         source = File.read(expanded)
         result = Prism.parse(source)
-        return [] if result.failure?
+        if result.failure?
+          @route_blockers << route_blocker(@current_route_path, result.errors.first&.location&.start_line,
+                                           'routes.rb could not be parsed')
+          return []
+        end
 
         parse_route_statements(
           result.value.statements,
@@ -78,6 +87,8 @@ module Necropsy
         )
       rescue SystemCallError, EncodingError
         []
+      ensure
+        @current_route_path = previous_route_path
       end
 
       def parse_route_statements(statements, source:, project:, seen:, concerns:, context:)
@@ -94,6 +105,8 @@ module Necropsy
                                          context: context)
           end
         end
+
+        record_dynamic_route(statement) if dynamic_route_statement?(statement)
 
         call_source = route_call_source(statement, source)
         if statement.name == :concern && statement.block
@@ -129,6 +142,55 @@ module Necropsy
         return unless node.is_a?(Prism::SymbolNode) || node.is_a?(Prism::StringNode)
 
         node.unescaped.to_s
+      end
+
+      def dynamic_route_statement?(node)
+        return false unless ROUTE_VERBS.include?(node.name.to_s) ||
+                            %i[root resources resource mount namespace scope controller].include?(node.name)
+
+        Array(node.arguments&.arguments).any? { |argument| !literal_route_value?(argument) }
+      end
+
+      def literal_route_value?(node)
+        case node
+        when Prism::SymbolNode, Prism::StringNode, Prism::IntegerNode, Prism::TrueNode, Prism::FalseNode,
+             Prism::NilNode
+          true
+        when Prism::KeywordHashNode, Prism::HashNode
+          Array(node.elements).all? do |element|
+            element.is_a?(Prism::AssocNode) && literal_route_value?(element.value)
+          end
+        when Prism::ArrayNode
+          !node.contains_splat? && node.elements.all? { |element| literal_route_value?(element) }
+        else
+          false
+        end
+      end
+
+      def record_dynamic_route(statement)
+        arguments = Array(statement.arguments&.arguments)
+        dynamic = arguments.find { |argument| !literal_route_value?(argument) }
+        return unless dynamic
+
+        @route_blockers << route_blocker(@current_route_path, statement.location.start_line,
+                                         "dynamic route argument for #{statement.name}")
+      end
+
+      def route_blocker(path, line, reason)
+        Blocker.new(
+          kind: :rails_route_dynamic,
+          scope_kind: path ? :file : :global,
+          scope_value: path || '*',
+          source: :rails_rule,
+          reason: reason,
+          suggested_action: :review_dynamic_route,
+          metadata: {
+            'caller_domain' => 'runtime',
+            'rule_id' => 'rails.route',
+            'file' => path,
+            'line' => line
+          }.compact
+        )
       end
 
       def nested_route_context(line, context)
@@ -320,13 +382,14 @@ module Necropsy
 
       def matching_route_nodes(graph, node_id)
         exact = graph.definitions_for(node_id)
-        return exact.map(&:graph_id) unless exact.empty?
+        return exact.select { |node| node.visibility == :public }.map(&:graph_id) unless exact.empty?
         return [] unless node_id.include?('Controller#')
 
         controller, action = node_id.split('#', 2)
         expected_file = "app/controllers/#{underscore(controller.delete_suffix('Controller'))}_controller.rb"
         graph.method_nodes.filter_map do |node|
           next unless node.name == action && node.owner&.end_with?(controller)
+          next unless node.visibility == :public
           next unless node.file == expected_file
 
           node.graph_id
