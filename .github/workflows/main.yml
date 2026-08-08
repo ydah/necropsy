@@ -27,6 +27,8 @@ jobs:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
+          # ReleaseAudit verifies an integrity-bound golden snapshot from Git history.
+          fetch-depth: 0
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
