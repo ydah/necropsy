@@ -152,19 +152,128 @@
       "current_metrics": {
         "analysis_graph": {
           "scope": "analysis",
-          "nodes": 1975,
-          "definitions": 1886,
-          "call_sites": 15170,
-          "edges": 15283
+          "nodes": 1993,
+          "definitions": 1902,
+          "call_sites": 15348,
+          "edges": 15519
         },
-        "findings": 145,
+        "findings": 147,
         "actionable_candidates": 82,
-        "candidate_loc": 621,
-        "diagnostic_findings": 63
+        "candidate_loc": 622,
+        "diagnostic_findings": 65
       },
-      "added": [],
+      "added": [
+        {
+          "id": "Necropsy::Bench::ReviewQueue#validate_options!",
+          "definition_id": "def:v1:0ae44a8f731da2b338b26914945b6a338b41d5eee6622efac32e93f38e10494f",
+          "identity": "def:v1:0ae44a8f731da2b338b26914945b6a338b41d5eee6622efac32e93f38e10494f",
+          "after": {
+            "id": "Necropsy::Bench::ReviewQueue#validate_options!",
+            "definition_id": "def:v1:0ae44a8f731da2b338b26914945b6a338b41d5eee6622efac32e93f38e10494f",
+            "path": "lib/necropsy/bench/review_queue.rb",
+            "line": 54,
+            "end_line": 57,
+            "loc": 4,
+            "state": "unreachable",
+            "confidence": "low",
+            "candidate": true,
+            "diagnostic": false,
+            "category": "unreachable",
+            "unknown": false,
+            "rule_hits": [],
+            "risk_flags": [],
+            "blocker_kinds": [],
+            "reasons": [
+              "Lowered because this node is near unresolved metaprogramming."
+            ]
+          }
+        },
+        {
+          "id": "Necropsy::Bench::ReviewQueue#initialize",
+          "definition_id": "def:v1:8bbd2d0801726c9c679a6d4936dc427c01c6b9f9ebf5dfb24c69c0185f2b90c8",
+          "identity": "def:v1:8bbd2d0801726c9c679a6d4936dc427c01c6b9f9ebf5dfb24c69c0185f2b90c8",
+          "after": {
+            "id": "Necropsy::Bench::ReviewQueue#initialize",
+            "definition_id": "def:v1:8bbd2d0801726c9c679a6d4936dc427c01c6b9f9ebf5dfb24c69c0185f2b90c8",
+            "path": "lib/necropsy/bench/review_queue.rb",
+            "line": 17,
+            "end_line": 24,
+            "loc": 8,
+            "state": "blocked",
+            "confidence": "low",
+            "candidate": false,
+            "diagnostic": true,
+            "category": "unknown_dispatch",
+            "unknown": true,
+            "rule_hits": [],
+            "risk_flags": [
+              "analysis_incomplete",
+              "public_or_protected_visibility"
+            ],
+            "blocker_kinds": [
+              "partial_dispatch",
+              "unknown_dispatch"
+            ],
+            "reasons": [
+              "Blocked by 552 unresolved runtime dispatches.",
+              "Lowered because this node is near unresolved metaprogramming."
+            ]
+          }
+        }
+      ],
       "removed": [],
-      "state_changed": [],
+      "state_changed": [
+        {
+          "id": "Necropsy::Bench::FindingFacts#actionable?",
+          "definition_id": "def:v1:2493c12409215905a9578963febb90a105e39e32b71558d9453813098d80f6c8",
+          "identity": "def:v1:2493c12409215905a9578963febb90a105e39e32b71558d9453813098d80f6c8",
+          "before": {
+            "id": "Necropsy::Bench::FindingFacts#actionable?",
+            "definition_id": "def:v1:2493c12409215905a9578963febb90a105e39e32b71558d9453813098d80f6c8",
+            "path": "lib/necropsy/bench/finding_facts.rb",
+            "line": 21,
+            "end_line": 23,
+            "loc": 3,
+            "state": "unreachable",
+            "confidence": "low",
+            "candidate": true,
+            "diagnostic": false,
+            "category": "unreachable",
+            "unknown": false,
+            "rule_hits": [],
+            "risk_flags": [],
+            "blocker_kinds": [],
+            "reasons": [
+              "Lowered because this node is near unresolved metaprogramming."
+            ]
+          },
+          "after": {
+            "id": "Necropsy::Bench::FindingFacts#actionable?",
+            "definition_id": "def:v1:2493c12409215905a9578963febb90a105e39e32b71558d9453813098d80f6c8",
+            "path": "lib/necropsy/bench/finding_facts.rb",
+            "line": 21,
+            "end_line": 23,
+            "loc": 3,
+            "state": "blocked",
+            "confidence": "low",
+            "candidate": false,
+            "diagnostic": true,
+            "category": "partial_dispatch",
+            "unknown": true,
+            "rule_hits": [],
+            "risk_flags": [
+              "analysis_incomplete"
+            ],
+            "blocker_kinds": [
+              "partial_dispatch"
+            ],
+            "reasons": [
+              "Blocked by 1 unresolved runtime dispatch.",
+              "Lowered because this node is near unresolved metaprogramming."
+            ]
+          }
+        }
+      ],
       "confidence_changed": []
     }
   },
@@ -196,10 +305,10 @@
     "dynamic_evidence": {
       "available": true,
       "baseline_wall_time_seconds": 0.3476,
-      "current_wall_time_seconds": 0.163239,
+      "current_wall_time_seconds": 0.146051,
       "wall_time_limit_seconds": 1.0,
       "baseline_rss_kb": 57728,
-      "current_rss_kb": 56800,
+      "current_rss_kb": 57696,
       "rss_limit_kb": 123264,
       "rss_kind": "current_process_rss_after_corpus",
       "rss_scope": "benchmark_runner_process",
@@ -208,10 +317,10 @@
     "plain_ruby": {
       "available": true,
       "baseline_wall_time_seconds": 0.381025,
-      "current_wall_time_seconds": 0.171073,
+      "current_wall_time_seconds": 0.122945,
       "wall_time_limit_seconds": 1.0,
       "baseline_rss_kb": 59360,
-      "current_rss_kb": 57216,
+      "current_rss_kb": 62944,
       "rss_limit_kb": 124896,
       "rss_kind": "current_process_rss_after_corpus",
       "rss_scope": "benchmark_runner_process",
@@ -220,10 +329,10 @@
     "rails": {
       "available": true,
       "baseline_wall_time_seconds": 0.369907,
-      "current_wall_time_seconds": 0.196238,
+      "current_wall_time_seconds": 0.149768,
       "wall_time_limit_seconds": 1.119907,
       "baseline_rss_kb": 63168,
-      "current_rss_kb": 63920,
+      "current_rss_kb": 65904,
       "rss_limit_kb": 128704,
       "rss_kind": "current_process_rss_after_corpus",
       "rss_scope": "benchmark_runner_process",
@@ -232,10 +341,10 @@
     "rubocop_1_75_0": {
       "available": true,
       "baseline_wall_time_seconds": 5.559264,
-      "current_wall_time_seconds": 5.221403,
+      "current_wall_time_seconds": 5.50558,
       "wall_time_limit_seconds": 8.338896,
       "baseline_rss_kb": 349136,
-      "current_rss_kb": 345376,
+      "current_rss_kb": 355920,
       "rss_limit_kb": 436420,
       "rss_kind": "current_process_rss_after_corpus",
       "rss_scope": "benchmark_runner_process",
@@ -244,10 +353,10 @@
     "self": {
       "available": true,
       "baseline_wall_time_seconds": 22.508282,
-      "current_wall_time_seconds": 22.419826,
+      "current_wall_time_seconds": 24.104173,
       "wall_time_limit_seconds": 30.0,
       "baseline_rss_kb": 1136080,
-      "current_rss_kb": 1141168,
+      "current_rss_kb": 1175248,
       "rss_limit_kb": 1300000,
       "rss_kind": "current_process_rss_after_corpus",
       "rss_scope": "benchmark_runner_process",
@@ -281,7 +390,7 @@
     },
     "current": {
       "schema_version": 1,
-      "git_ref": "894fd11cfb7a0f81814bb3db63e94e331edfdcca",
+      "git_ref": "9698ce9551f0df9a18fa09bfc0020d880fd89dc4",
       "clean": true,
       "manifest_sha256": "228a46b3c73635b420d5135b4b2d485e38e827fd0ae33bf5c07bf1da2ef831ac",
       "audit_config_sha256": "b19a243d918b663419e7e5a671733ef41eb061ddc52eaf75658996ba3607e91e",
@@ -297,8 +406,8 @@
         "reports/plain_ruby.json": "fc939ec706e35ada3c59428856b9f8408ffc3f7468265a3c322c26c65c138169",
         "reports/rails.json": "c0d2195364260ff955ae933acfb57d4e3e9697185e619d79635f70ca0f4b01fb",
         "reports/rubocop_1_75_0.json": "48a136417c6b5802282720cad1f9a608a709b7a8b6e712de2ae228edd79413b5",
-        "reports/self.json": "2b08a19ef2b85a44e4c82176decb303ce9f55c2410590c088584622c80557aa2",
-        "summary.json": "c9398b400ef35e6a497361f05ea60c57f7d0575cf5f7cbceca7744e91b7e2f3b"
+        "reports/self.json": "dab9b43f2e78c3b35075768b953bec8a2cb79d3625bc0ad9d71005d1c3950fab",
+        "summary.json": "81d2e80f04dd9618ca1aaff27707a0818ec235d083dacf13c185d063eb103d5d"
       }
     }
   },
@@ -314,7 +423,7 @@
       ],
       "passed": true,
       "exit_status": 0,
-      "duration_seconds": 0.520941,
+      "duration_seconds": 0.554484,
       "summary": "17 examples, 0 failures"
     },
     {
@@ -328,7 +437,7 @@
       ],
       "passed": true,
       "exit_status": 0,
-      "duration_seconds": 0.438036,
+      "duration_seconds": 0.446656,
       "summary": "24 examples, 0 failures"
     },
     {
@@ -341,7 +450,7 @@
       ],
       "passed": true,
       "exit_status": 0,
-      "duration_seconds": 0.430141,
+      "duration_seconds": 0.468912,
       "summary": "10 examples, 0 failures"
     },
     {
@@ -354,7 +463,7 @@
       ],
       "passed": true,
       "exit_status": 0,
-      "duration_seconds": 0.709436,
+      "duration_seconds": 0.759857,
       "summary": "28 examples, 0 failures"
     }
   ],
