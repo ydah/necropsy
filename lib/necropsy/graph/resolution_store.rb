@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'digest'
+require 'json'
 
 module Necropsy
   module ResolutionStore
@@ -101,11 +102,11 @@ module Necropsy
 
     def resolution_record_key(record)
       [record.resolution.call_site_id, record.producer, record.producer_version.to_s,
-       canonical_payload(record.assumptions), canonical_payload(record.resolution.to_h)]
+       JSON.generate(record.assumptions), JSON.generate(record.resolution.to_h)]
     end
 
     def resolution_record_identity(record)
-      "resolution:v1:#{Digest::SHA256.hexdigest(canonical_payload(record.to_h))}"
+      "resolution:v1:#{Digest::SHA256.hexdigest(JSON.generate(record.to_h))}"
     end
 
     def sorted_resolution_records
@@ -211,7 +212,7 @@ module Necropsy
 
     def same_producer_conflicts
       sorted_resolution_records.group_by(&:identity_key).filter_map do |identity_key, records|
-        next unless records.map { |record| canonical_payload(record.resolution.to_h) }.uniq.length > 1
+        next unless records.map { |record| record.resolution.to_h }.uniq.length > 1
 
         conflict_payload('same_producer_divergence', records, identity_key.first)
       end

@@ -59,6 +59,8 @@ module Necropsy
       @dispatch_cache = nil
       @lookup_chain_cache = nil
       @owner_ancestor_cache = nil
+      @flow_lookup_cache = nil
+      @global_dynamic_ancestry_cache = {}
       added = nodes.add(node)
       register_duplicate_definition_blocker(node.symbol_id) if @duplicate_blockers_initialized
       refresh_resolution_derived_state
@@ -356,6 +358,10 @@ module Necropsy
     end
 
     def flow_instance_method_lookup(site)
+      @flow_lookup_cache ||= {}
+      cache_key = [site.call_site_id, flow_instance_types(site)]
+      return @flow_lookup_cache[cache_key] if @flow_lookup_cache.key?(cache_key)
+
       results = flow_instance_types(site).map do |owner|
         ordered_method_lookup(
           site,
@@ -364,9 +370,10 @@ module Necropsy
           completeness_entries: [[owner, '#']]
         )
       end
-      return results.first if results.one?
+      result = results.first if results.one?
+      return @flow_lookup_cache[cache_key] = result if result
 
-      merge_flow_method_lookups(results)
+      @flow_lookup_cache[cache_key] = merge_flow_method_lookups(results)
     end
 
     def merge_flow_method_lookups(results)
@@ -896,7 +903,10 @@ module Necropsy
     end
 
     def global_dynamic_ancestry?(site)
-      @blockers.any? do |blocker|
+      key = site.test ? :test : :runtime
+      return @global_dynamic_ancestry_cache[key] if @global_dynamic_ancestry_cache.key?(key)
+
+      @global_dynamic_ancestry_cache[key] = @blockers.any? do |blocker|
         next false unless blocker.kind == :dynamic_ancestry && blocker.scope_kind == :global
 
         blocker.caller_domain == :runtime || site.test

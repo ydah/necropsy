@@ -18,7 +18,8 @@ module Necropsy
       metadata = { 'original_message' => message, 'receiver_candidates' => receiver[:candidates] }
       metadata['arguments'] = call_arguments(node, offset: DYNAMIC_SENDS.include?(node.name) ? 1 : 0)
       receiver_fact = context.flow_result&.fact_for(node.receiver)
-      metadata['receiver_value_fact'] = receiver_fact.to_h if receiver_fact
+      compact_receiver_fact = compact_receiver_fact(receiver_fact)
+      metadata['receiver_value_fact'] = compact_receiver_fact if compact_receiver_fact
 
       if DYNAMIC_SENDS.include?(node.name)
         literal = first_symbol_argument(node) || first_string_argument(node)
@@ -51,6 +52,13 @@ module Necropsy
       return [] unless fact&.exact && %i[symbol_set string_set].include?(fact.kind)
 
       Array(fact.values).map(&:to_s).uniq.sort.first(FlowInterpreter::MAX_ATOMS)
+    end
+
+    def compact_receiver_fact(fact)
+      return unless fact&.exact
+      return unless %i[instance_types callable_set].include?(fact.kind)
+
+      fact.to_h.merge('summary' => nil)
     end
 
     def record_instantiation(node, context)
