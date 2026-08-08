@@ -208,6 +208,7 @@ module Necropsy
 
       handle_module_relation(node, context)
       handle_rails_callback(node, context)
+      return if handle_generated_rails_methods(node, context)
 
       record_instantiation(node, context)
       record_symbol_reference(node, context)

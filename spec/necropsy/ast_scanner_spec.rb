@@ -449,5 +449,55 @@ RSpec.describe Necropsy::AstScanner do
         expect(scan.entrypoint_hints.map(&:node_id)).not_to include('SpecOnlyController#prepare')
       end
     end
+
+    context 'with Rails generated methods' do
+      let(:config) { { frameworks: ['rails'] } }
+      let(:files) do
+        {
+          'app/models/generated.rb' => <<~RUBY
+            class GeneratedRecord < ApplicationRecord
+              enum :status, draft: 0, published: 1
+              store_accessor :settings, :color
+              belongs_to :account
+            end
+          RUBY
+        }
+      end
+
+      it 'keeps generated method declarations owner-scoped' do
+        names = scan.nodes.filter_map do |node|
+          node.name if node.owner == 'GeneratedRecord' && node.defined_via == :rails_generated
+        end
+
+        expect(names).to include('status', 'status=', 'draft?', 'published?', 'color', 'color=', 'account', 'account=')
+      end
+    end
+
+    context 'with conditional Rails callbacks' do
+      let(:config) { { frameworks: ['rails'] } }
+      let(:files) do
+        {
+          'app/controllers/callbacks_controller.rb' => <<~RUBY
+            class CallbacksController
+              before_action :always, if: enabled?
+              before_action :never, if: false
+              before_action :not_when, unless: true
+              def always; end
+              def never; end
+              def not_when; end
+            end
+          RUBY
+        }
+      end
+
+      it 'does not root statically disabled callbacks and blocks unknown conditions' do
+        ids = scan.entrypoint_hints.map(&:node_id)
+        symbols = ids
+
+        expect(symbols).to include('CallbacksController#always')
+        expect(symbols).not_to include('CallbacksController#never', 'CallbacksController#not_when')
+        expect(scan.semantic_blockers.map(&:kind)).to include(:rails_callback_condition)
+      end
+    end
   end
 end
