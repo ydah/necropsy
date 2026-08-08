@@ -53,7 +53,7 @@ module Necropsy
       findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings if barrier_matches.positive?
       performance = profiler&.report(
         counts: graph.performance_counts,
-        report_index_size_bytes: JSON.generate(graph.to_h).bytesize
+        report_index_size_bytes: report_index_size_bytes(graph)
       )
       Report.new(
         root: root,
@@ -74,6 +74,13 @@ module Necropsy
       return block.call unless profiler
 
       profiler.measure(name, &block)
+    end
+
+    def report_index_size_bytes(graph)
+      node_bytes = graph.nodes.values.sum { |node| JSON.generate(node.to_h).bytesize }
+      call_site_bytes = graph.call_sites.sum { |site| JSON.generate(site.to_h).bytesize }
+      edge_bytes = graph.edges.sum { |edge| JSON.generate(edge.to_h).bytesize }
+      node_bytes + call_site_bytes + edge_bytes
     end
 
     def normalize_rta_pruning(value)
