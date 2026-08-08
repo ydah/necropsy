@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 RSpec.describe Necropsy::Analyzers::Static::CHA do
-  it 'expands instance dispatch across descendants and included modules' do
+  it 'uses exact Ruby lookup for a known instance receiver' do
     caller = node('Caller#run', owner: 'Caller', name: 'run')
     base = node('Base#render', owner: 'Base', name: 'render')
     child = node('Child#render', owner: 'Child', name: 'render')
@@ -25,14 +25,13 @@ RSpec.describe Necropsy::Analyzers::Static::CHA do
 
     result = described_class.new.analyze(graph, nil)
 
-    expect(result.edge_evidences.map(&:callee_id)).to contain_exactly('Base#render', 'Child#render',
-                                                                      'Renderable#render')
+    expect(result.edge_evidences.map(&:callee_id)).to eq(['Base#render'])
     expect(result.edge_evidences.map { |edge| edge.evidence.grade }).to all(eq(:conservative))
     expect(result.evidences).to contain_exactly(*result.edge_evidences.map(&:evidence))
     expect(result.resolutions.first.resolution).to have_attributes(
       call_site_id: site.call_site_id,
-      target_definition_ids: %w[Base#render Child#render Renderable#render],
-      status: :partial
+      target_definition_ids: ['Base#render'],
+      status: :complete
     )
     expect(described_class.new.profile).to have_attributes(
       version: Necropsy::VERSION,

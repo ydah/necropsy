@@ -9,6 +9,7 @@ module Necropsy
       dynamic = false
       receiver = classify_receiver(node.receiver, context)
       metadata = { 'original_message' => message, 'receiver_candidates' => receiver[:candidates] }
+      metadata['arguments'] = call_arguments(node, offset: DYNAMIC_SENDS.include?(node.name) ? 1 : 0)
 
       if DYNAMIC_SENDS.include?(node.name)
         literal = first_symbol_argument(node) || first_string_argument(node)
@@ -65,7 +66,7 @@ module Necropsy
         receiver_name: receiver[:name],
         dynamic: false,
         metadata: { 'original_message' => 'new', 'receiver_candidates' => receiver[:candidates],
-                    'implicit_from' => 'new' }
+                    'implicit_from' => 'new', 'arguments' => call_arguments(node) }
       )
     end
 

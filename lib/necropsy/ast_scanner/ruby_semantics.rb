@@ -5,20 +5,20 @@ module Necropsy
     private
 
     def classify_receiver(receiver, context)
-      return { kind: :implicit, name: nil } unless receiver
-      return { kind: :self, name: context.owner } if receiver.is_a?(Prism::SelfNode)
+      return { kind: :implicit, name: context.owner, candidates: [context.owner].compact } unless receiver
+      return { kind: :self, name: context.owner, candidates: [context.owner].compact } if receiver.is_a?(Prism::SelfNode)
 
       constant = constant_name(receiver)
       if constant
         candidates = constant_candidates(constant, context.namespace)
-        return { kind: :constant, name: candidates.first, candidates: candidates }
+        return { kind: :constant, name: resolve_candidate_group(candidates), candidates: candidates }
       end
 
       if receiver.is_a?(Prism::CallNode) && receiver.name == :new
         receiver_constant = constant_name(receiver.receiver)
         if receiver_constant
           candidates = constant_candidates(receiver_constant, context.namespace)
-          return { kind: :instance, name: candidates.first, candidates: candidates }
+          return { kind: :instance, name: resolve_candidate_group(candidates), candidates: candidates }
         end
       end
 
@@ -71,6 +71,53 @@ module Necropsy
       end
     end
 
+    def method_signature(parameters)
+      return { 'complete' => false } unless parameters
+
+      forwarding = parameters.child_nodes.compact.any? { |parameter| parameter.type == :forwarding_parameter_node }
+      keywords = Array(parameters.keywords)
+      keyword_rest = parameters.keyword_rest
+      no_keywords = !keyword_rest.nil? && keyword_rest.type == :no_keywords_parameter_node
+      accepts_keywords = keywords.any? || (!keyword_rest.nil? && !no_keywords)
+      {
+        'complete' => !forwarding,
+        'minimum_positionals' => Array(parameters.requireds).length + Array(parameters.posts).length,
+        'maximum_positionals' => if parameters.rest
+                                   nil
+                                 else
+                                   Array(parameters.requireds).length +
+                                     Array(parameters.optionals).length + Array(parameters.posts).length
+                                 end,
+        'required_keywords' => keywords.select do |parameter|
+          parameter.type == :required_keyword_parameter_node
+        end.map { |parameter| parameter.name.to_s }.sort,
+        'accepted_keywords' => keywords.map { |parameter| parameter.name.to_s }.sort,
+        'accepts_keywords' => accepts_keywords,
+        'no_keywords' => no_keywords,
+        'keyword_rest' => !keyword_rest.nil? && !no_keywords
+      }
+    end
+
+    def call_arguments(node, offset: 0)
+      values = Array(node.arguments&.arguments).drop(offset)
+      keyword_hash = values.find { |argument| argument.is_a?(Prism::KeywordHashNode) }
+      positional = values.grep_v(Prism::KeywordHashNode)
+      keyword_elements = Array(keyword_hash&.elements)
+      {
+        'complete' => positional.none? do |argument|
+          %i[splat_node forwarding_arguments_node].include?(argument.type)
+        end && keyword_elements.none? { |element| element.type == :assoc_splat_node },
+        'positional_count' => positional.length,
+        'keywords' => keyword_elements.filter_map do |element|
+          literal_value(element.key).to_s if element.is_a?(Prism::AssocNode)
+        end.sort
+      }
+    end
+
+    def incomplete_arguments
+      { 'complete' => false, 'positional_count' => 0, 'keywords' => [] }
+    end
+
     def constant_name(node)
       return nil unless node
 
@@ -101,7 +148,18 @@ module Necropsy
       return unless node.respond_to?(:superclass)
 
       superclass = constant_name(node.superclass)
-      data[:superclass_candidates] = constant_candidates(superclass, context.namespace) if superclass
+      if superclass
+        data[:superclass_candidates] = constant_candidates(superclass, context.namespace)
+      elsif data[:superclass_candidates].empty?
+        data[:superclass_candidates] = implicit_superclass_candidates(namespace)
+      end
+    end
+
+    def implicit_superclass_candidates(namespace)
+      return [] if namespace == 'BasicObject'
+      return ['BasicObject'] if namespace == 'Object'
+
+      ['Object']
     end
 
     def class_record(namespace)
@@ -115,6 +173,8 @@ module Necropsy
         includes: [],
         prepends: [],
         extends: [],
+        singleton_includes: [],
+        singleton_prepends: [],
         dynamic: false
       }
     end
@@ -132,6 +192,8 @@ module Necropsy
           includes: resolve_candidate_groups(data.fetch(:includes)),
           prepends: resolve_candidate_groups(data.fetch(:prepends)),
           extends: resolve_candidate_groups(data.fetch(:extends)),
+          singleton_includes: resolve_candidate_groups(data.fetch(:singleton_includes)),
+          singleton_prepends: resolve_candidate_groups(data.fetch(:singleton_prepends)),
           dynamic: data.fetch(:dynamic)
         )
       end

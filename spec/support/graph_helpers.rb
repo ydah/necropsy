@@ -39,7 +39,7 @@ module GraphHelpers
   end
 
   def class_info(id, kind: :class, superclass: nil, superclass_candidates: [], includes: [], prepends: [], extends: [],
-                 dynamic: false, file: 'app/models/sample.rb', line: 1)
+                 singleton_includes: [], singleton_prepends: [], dynamic: false, file: 'app/models/sample.rb', line: 1)
     Necropsy::ClassInfo.new(
       id: id,
       kind: kind,
@@ -50,12 +50,15 @@ module GraphHelpers
       includes: includes,
       prepends: prepends,
       extends: extends,
+      singleton_includes: singleton_includes,
+      singleton_prepends: singleton_prepends,
       dynamic: dynamic
     )
   end
 
   def scan_result(nodes:, call_sites: [], instantiated_classes: Set.new, uncertainties: {}, class_infos: [],
-                  entrypoint_hints: [], source_domains: {}, scope_diagnostics: {})
+                  entrypoint_hints: [], source_domains: {}, scope_diagnostics: {}, method_signatures: {},
+                  semantic_blockers: [])
     Necropsy::ScanResult.new(
       nodes: nodes,
       call_sites: call_sites,
@@ -64,12 +67,14 @@ module GraphHelpers
       class_infos: class_infos,
       entrypoint_hints: entrypoint_hints,
       source_domains: source_domains,
-      scope_diagnostics: scope_diagnostics
+      scope_diagnostics: scope_diagnostics,
+      method_signatures: method_signatures,
+      semantic_blockers: semantic_blockers
     )
   end
 
   def graph_with(nodes:, call_sites: [], instantiated_classes: Set.new, uncertainties: {}, class_infos: [],
-                 entrypoint_hints: [], ambiguity_limit: 4)
+                 entrypoint_hints: [], ambiguity_limit: 4, method_signatures: {}, semantic_blockers: [])
     Necropsy::CallGraph.new(
       scan_result(
         nodes: nodes,
@@ -77,7 +82,9 @@ module GraphHelpers
         instantiated_classes: instantiated_classes,
         uncertainties: uncertainties,
         class_infos: class_infos,
-        entrypoint_hints: entrypoint_hints
+        entrypoint_hints: entrypoint_hints,
+        method_signatures: method_signatures,
+        semantic_blockers: semantic_blockers
       ),
       ambiguity_limit: ambiguity_limit
     )

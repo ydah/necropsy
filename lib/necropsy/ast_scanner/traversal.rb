@@ -9,6 +9,8 @@ module Necropsy
         module_function_sources[copy_id] = nodes.filter_map do |definition|
           definition.graph_id if definition.kind == :instance_method && definition.symbol_id == instance_id
         end
+        signatures = module_function_sources.fetch(copy_id).filter_map { |source_id| method_signatures[source_id] }.uniq
+        method_signatures[copy_id] = signatures.first if signatures.one?
       end
     end
 
@@ -41,7 +43,8 @@ module Necropsy
         test: test,
         singleton_scope: false,
         visibility: :public,
-        module_function: false
+        module_function: false,
+        static_ancestry: true
       )
       result = Prism.parse(File.read(file))
       root = add_definition(
@@ -89,8 +92,16 @@ module Necropsy
       when Prism::ConstantWriteNode
         visit_constant_write(node, context)
       else
-        node.child_nodes.compact.each { |child| visit(child, context) }
+        visit_generic_node(node, context)
       end
+    end
+
+    def visit_generic_node(node, context)
+      return visit_children(node, context) unless ANCESTRY_CONTROL_FLOW_TYPES.include?(node.type)
+
+      nested_context = context.dup
+      nested_context.static_ancestry = false
+      visit_children(node, nested_context)
     end
 
     def visit_namespace(node, context)
@@ -122,9 +133,10 @@ module Necropsy
         name: node.name.to_s,
         visibility: node.receiver ? :public : context.visibility
       )
+      method_signatures[definition.graph_id] = method_signature(node.parameters)
       record_module_function_copy(node, context, definition) if kind == :instance_method && context.module_function
-      if node.name == :method_missing
-        uncertainties[definition.graph_id] << "#{owner} defines method_missing"
+      if %i[method_missing respond_to_missing?].include?(node.name)
+        uncertainties[definition.graph_id] << "#{owner} defines #{node.name}"
         class_record(owner)[:dynamic] = true
       end
 
@@ -136,10 +148,12 @@ module Necropsy
       method_context.singleton_scope = false
       method_context.visibility = :public
       method_context.module_function = false
+      method_context.static_ancestry = false
       visit(node.body, method_context)
     end
 
     def visit_call(node, context)
+      return if handle_unsupported_semantics(node, context)
       return if handle_visibility(node, context)
       return if handle_module_function(node, context)
       return if handle_eval(node, context)
@@ -178,7 +192,11 @@ module Necropsy
           receiver_kind: :super,
           receiver_name: context.owner,
           dynamic: false,
-          metadata: { 'super' => true }
+          metadata: {
+            'super' => true,
+            'zsuper' => node.is_a?(Prism::ForwardingSuperNode),
+            'arguments' => node.is_a?(Prism::ForwardingSuperNode) ? incomplete_arguments : call_arguments(node)
+          }
         )
       end
       visit_children(node, context)

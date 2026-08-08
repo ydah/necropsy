@@ -47,6 +47,7 @@ module Necropsy
       block_context.singleton_scope = false
       block_context.visibility = :public
       block_context.module_function = false
+      block_context.static_ancestry = false
       visit(node.value.block.body, block_context)
     end
 

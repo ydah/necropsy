@@ -9,7 +9,7 @@ module Necropsy
 
     attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
                 :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors, :source_domains,
-                :scope_diagnostics
+                :scope_diagnostics, :method_signatures
 
     def initialize(scan_result, ambiguity_limit: 4)
       @nodes = DefinitionIndex.new
@@ -28,6 +28,7 @@ module Necropsy
         [file.to_s, domain.to_sym]
       end
       @scope_diagnostics = scan_result.scope_diagnostics.dup
+      @method_signatures = scan_result.method_signatures.dup
       @ambiguity_limit = ambiguity_limit
       @blockers = []
       initialize_blocker_indexes
@@ -45,6 +46,7 @@ module Necropsy
       register_duplicate_definition_blockers
       @duplicate_blockers_initialized = true
       register_incomplete_source_blockers
+      scan_result.semantic_blockers.each { |blocker| add_blocker(blocker) }
       retain_known_instantiated_classes
     end
 
@@ -298,9 +300,38 @@ module Necropsy
     end
 
     def resolve_call_site(site, rta: false)
-      candidates = rta ? rta_candidates_for_receiver(site) : candidates_for_receiver(site)
+      candidates = rta ? rta_candidates_for_receiver(site) : method_lookup(site).targets
       candidates = candidates.select { |node| rta_candidate?(node, site) } if rta
       candidates
+    end
+
+    def method_lookup(site)
+      return fallback_method_lookup(site, reason: 'dynamic_message') if site.dynamic
+
+      case site.receiver_kind
+      when :constant
+        owner = resolved_receiver_owner(site)
+        ordered_method_lookup(
+          site,
+          singleton_lookup_entries(owner),
+          reason: 'singleton_lookup',
+          completeness_entries: [[owner, '.']]
+        )
+      when :instance
+        owner = resolved_receiver_owner(site)
+        ordered_method_lookup(
+          site,
+          instance_lookup_entries(owner),
+          reason: 'instance_lookup',
+          completeness_entries: [[owner, '#']]
+        )
+      when :self, :implicit
+        self_method_lookup(site)
+      when :super
+        super_method_lookup(site)
+      else
+        fallback_method_lookup(site, reason: 'unknown_receiver')
+      end
     end
 
     def retain_rta_candidates(candidates, site)
@@ -340,18 +371,8 @@ module Necropsy
       resolved ||= resolve_call_site(site)
       return false if resolved.empty?
 
-      case site.receiver_kind
-      when :constant
-        receiver_candidates(site).none? { |name| definitions_for("#{name}.#{site.message}").any? }
-      when :instance
-        receiver_candidates(site).none? { |name| definitions_for("#{name}##{site.message}").any? }
-      when :implicit
-        same_owner_candidates(site).empty?
-      when :unknown
-        true
-      else
-        false
-      end
+      lookup = method_lookup(site)
+      !lookup.complete? && resolved.map(&:graph_id).sort == ambiguous_fallback_candidates(site.message).map(&:graph_id).sort
     end
 
     def to_h
@@ -573,58 +594,271 @@ module Necropsy
       source_nodes.all?(&:test) ? :test : :runtime
     end
 
-    def candidates_for_receiver(site)
-      case site.receiver_kind
-      when :constant
-        exact = first_defined_symbol(receiver_candidates(site).map { |name| "#{name}.#{site.message}" })
-        exact.empty? ? ambiguous_fallback_candidates(site.message) : exact
-      when :instance
-        exact = first_defined_symbol(receiver_candidates(site).map { |name| "#{name}##{site.message}" })
-        exact.empty? ? ambiguous_fallback_candidates(site.message) : exact
-      when :self
-        same_owner_candidates(site)
-      when :super
-        super_candidates(site)
-      when :implicit
-        same_owner_candidates(site).then do |matches|
-          matches.empty? ? ambiguous_fallback_candidates(site.message) : matches
-        end
-      else
-        ambiguous_fallback_candidates(site.message)
-      end
-    end
-
     def rta_candidates_for_receiver(site)
-      exact = candidates_for_receiver(site)
+      exact = method_lookup(site).targets
       return exact unless exact.empty?
 
       candidate_nodes(site.message)
     end
 
-    def same_owner_candidates(site)
-      caller = nodes[site.caller_id]
-      return [] unless caller&.owner
+    def self_method_lookup(site)
+      caller = nodes.exact(site.caller_id)
+      owner = caller&.owner || site.receiver_name
+      return fallback_method_lookup(site, reason: 'unknown_self_owner') unless owner
 
-      ids = [
-        "#{caller.owner}##{site.message}",
-        "#{caller.owner}.#{site.message}"
-      ]
-      ids.flat_map { |id| definitions_for(id) }
+      singleton = caller&.kind == :singleton_method || !caller&.method?
+      entries = singleton ? singleton_lookup_entries(owner) : instance_lookup_entries(owner)
+      separator = singleton ? '.' : '#'
+      result = ordered_method_lookup(
+        site,
+        entries,
+        reason: singleton ? 'singleton_self_lookup' : 'instance_self_lookup',
+        completeness_entries: [[owner, separator]]
+      )
+      return result unless result.unknown?
+
+      fallback_method_lookup(site, reason: 'self_lookup_fallback')
     end
 
-    def super_candidates(site)
-      caller = nodes[site.caller_id]
-      return [] unless caller&.owner
+    def super_method_lookup(site)
+      caller = nodes.exact(site.caller_id)
+      return fallback_method_lookup(site, reason: 'unknown_super_owner') unless caller&.owner
 
       separator = caller.kind == :singleton_method ? '.' : '#'
-      owner = class_info(caller.owner)&.superclass
-      while owner
-        candidates = definitions_for("#{owner}#{separator}#{site.message}")
-        return candidates unless candidates.empty?
+      info = class_info(caller.owner)
+      return module_super_method_lookup(site, caller, separator) if info&.kind == :module && separator == '#'
 
-        owner = class_info(owner)&.superclass
+      entries = separator == '.' ? singleton_lookup_entries(caller.owner) : instance_lookup_entries(caller.owner)
+      current_index = entries.index([caller.owner, separator])
+      return incomplete_method_lookup([], entries, 'current_implementation_not_in_lookup_chain') unless current_index
+
+      ordered_method_lookup(
+        site,
+        entries.drop(current_index + 1),
+        reason: 'super_next_implementation',
+        completeness_entries: entries.first(current_index + 1)
+      )
+    end
+
+    def module_super_method_lookup(site, caller, separator)
+      hosts = class_infos.values.select { |info| info.kind == :class }.sort_by(&:id).flat_map do |host|
+        [instance_lookup_entries(host.id), singleton_lookup_entries(host.id)].filter_map do |entries|
+          index = entries.index([caller.owner, separator])
+          entries.drop(index + 1) if index
+        end
       end
-      []
+      own_entries = instance_lookup_entries(caller.owner)
+      own_index = own_entries.index([caller.owner, separator])
+      hosts << own_entries.drop(own_index + 1) if own_index
+      results = hosts.map do |entries|
+        ordered_method_lookup(site, entries, reason: 'module_super_host_lookup', force_partial: true)
+      end
+      targets = results.flat_map(&:targets).uniq(&:graph_id).sort_by(&:graph_id)
+      chain = results.flat_map(&:lookup_chain).uniq
+      incomplete_method_lookup(targets, chain.map { |owner| [owner, '#'] }, 'module_super_open_hosts')
+    end
+
+    def ordered_method_lookup(site, entries, reason:, completeness_entries: [], force_partial: false)
+      entries = Array(entries)
+      target_index = entries.index do |owner, separator|
+        definitions_for("#{owner}#{separator}#{site.message}").any?
+      end
+      unless target_index
+        targets = dynamic_ancestry_candidates(site, [])
+        return incomplete_method_lookup(targets, entries, "#{reason}_missing")
+      end
+
+      target_entry = entries.fetch(target_index)
+      targets = definitions_for("#{target_entry.first}#{target_entry.last}#{site.message}")
+      prefix = completeness_entries + entries.first(target_index + 1)
+      complete = !force_partial && complete_lookup_prefix?(prefix) && !dynamic_lookup_chain?(entries) &&
+                 !global_dynamic_ancestry?(site)
+      targets = dynamic_ancestry_candidates(site, targets) if global_dynamic_ancestry?(site)
+      return incomplete_method_lookup(targets, entries, "#{reason}_incomplete") unless complete
+
+      if targets.any? { |target| protected_visibility_outcome(site, target) == :unknown }
+        return incomplete_method_lookup(targets, entries, "#{reason}_protected_context_unknown")
+      end
+
+      accepted, target_rejections = apply_complete_target_constraints(site, targets)
+      shadowed = shadowed_rejections(site.message, entries.drop(target_index + 1))
+      MethodLookup.new(
+        targets: accepted,
+        status: :complete,
+        rejected_targets: target_rejections + shadowed,
+        lookup_chain: entries.map(&:first),
+        reason: reason
+      )
+    end
+
+    def incomplete_method_lookup(targets, entries, reason)
+      targets = Array(targets)
+      MethodLookup.new(
+        targets: targets,
+        status: targets.empty? ? :unknown : :partial,
+        lookup_chain: Array(entries).map { |entry| entry.is_a?(Array) ? entry.first : entry },
+        reason: reason
+      )
+    end
+
+    def fallback_method_lookup(site, reason:)
+      incomplete_method_lookup(ambiguous_fallback_candidates(site.message), [], reason)
+    end
+
+    def apply_complete_target_constraints(site, targets)
+      accepted = []
+      rejected = []
+      targets.each do |target|
+        visibility_reason = visibility_rejection_reason(site, target)
+        if visibility_reason
+          rejected << RejectedTarget.new(definition_id: target.graph_id, reason: visibility_reason)
+        elsif arity_target_rejected?(site, target)
+          rejected << RejectedTarget.new(definition_id: target.graph_id, reason: 'arity_mismatch')
+        else
+          accepted << target
+        end
+      end
+      [accepted, rejected]
+    end
+
+    def visibility_rejection_reason(site, target)
+      return 'protected_visibility' if protected_visibility_outcome(site, target) == :reject
+
+      'private_visibility' if private_target_rejected?(site, target)
+    end
+
+    def protected_visibility_outcome(site, target)
+      return :allow unless target.visibility == :protected
+
+      original = site.metadata['original_message'] || site.metadata[:original_message]
+      return :reject if original.to_s == 'public_send'
+      return :allow if %w[send __send__ method].include?(original.to_s)
+      return :allow if %i[implicit self super].include?(site.receiver_kind)
+
+      caller_owner = nodes.exact(site.caller_id)&.owner
+      receiver_owner = resolved_receiver_owner(site)
+      return :unknown unless protected_context_known?(caller_owner, receiver_owner, target.owner)
+
+      caller_family = cached_lookup_chain(caller_owner).include?(target.owner)
+      receiver_family = cached_lookup_chain(receiver_owner).include?(target.owner)
+      caller_family && receiver_family ? :allow : :reject
+    end
+
+    def protected_context_known?(*owners)
+      owners.all? do |owner|
+        info = class_info(owner)
+        info && !info.dynamic
+      end
+    end
+
+    def private_target_rejected?(site, target)
+      return false unless target.visibility == :private
+      return false if %i[implicit self super].include?(site.receiver_kind)
+
+      original = site.metadata['original_message'] || site.metadata[:original_message]
+      return false if %w[send __send__ method].include?(original.to_s)
+
+      if original.to_s == 'respond_to?'
+        include_private = if site.metadata.key?('include_private')
+                            site.metadata['include_private']
+                          else
+                            site.metadata[:include_private]
+                          end
+        return include_private == false
+      end
+
+      true
+    end
+
+    def arity_target_rejected?(site, target)
+      arguments = site.metadata['arguments'] || site.metadata[:arguments]
+      signature = method_signatures[target.graph_id]
+      return false unless arguments.is_a?(Hash) && signature.is_a?(Hash)
+      return false unless hash_value(arguments, 'complete') && hash_value(signature, 'complete')
+
+      keywords = Array(hash_value(arguments, 'keywords')).map(&:to_s)
+      required = Array(hash_value(signature, 'required_keywords')).map(&:to_s)
+      accepted = Array(hash_value(signature, 'accepted_keywords')).map(&:to_s)
+      keyword_rest = hash_value(signature, 'keyword_rest')
+      accepts_keywords = hash_value(signature, 'accepts_keywords')
+      accepts_keywords = required.any? || accepted.any? || keyword_rest if accepts_keywords.nil?
+      no_keywords = hash_value(signature, 'no_keywords')
+
+      count = hash_value(arguments, 'positional_count').to_i
+      if keywords.any? && !accepts_keywords
+        return true if no_keywords
+
+        count += 1
+      end
+
+      minimum = hash_value(signature, 'minimum_positionals').to_i
+      maximum = hash_value(signature, 'maximum_positionals')
+      return true if count < minimum || (!maximum.nil? && count > maximum.to_i)
+      return false unless accepts_keywords
+      return true unless (required - keywords).empty?
+
+      !keyword_rest && !(keywords - accepted).empty?
+    end
+
+    def hash_value(hash, key)
+      hash.key?(key) ? hash[key] : hash[key.to_sym]
+    end
+
+    def shadowed_rejections(message, entries)
+      entries.flat_map do |owner, separator|
+        definitions_for("#{owner}#{separator}#{message}").map do |target|
+          RejectedTarget.new(definition_id: target.graph_id, reason: 'shadowed_by_lookup_order')
+        end
+      end
+    end
+
+    def complete_lookup_prefix?(entries)
+      entries.all? do |owner, _separator|
+        info = class_info(owner)
+        info && !info.dynamic
+      end
+    end
+
+    def dynamic_lookup_chain?(entries)
+      entries.any? { |owner, _separator| class_info(owner)&.dynamic }
+    end
+
+    def global_dynamic_ancestry?(site)
+      @blockers.any? do |blocker|
+        next false unless blocker.kind == :dynamic_ancestry && blocker.scope_kind == :global
+
+        blocker.caller_domain == :runtime || site.test
+      end
+    end
+
+    def dynamic_ancestry_candidates(site, targets)
+      return targets unless global_dynamic_ancestry?(site)
+
+      (Array(targets) + ambiguous_fallback_candidates(site.message)).uniq(&:graph_id).sort_by(&:graph_id)
+    end
+
+    def resolved_receiver_owner(site)
+      candidates = receiver_candidates(site)
+      candidates.find { |owner| class_info(owner) } || candidates.first
+    end
+
+    def instance_lookup_entries(owner)
+      cached_lookup_chain(owner).map { |candidate| [candidate, '#'] }
+    end
+
+    def singleton_lookup_entries(owner, seen = Set.new)
+      return [] unless owner && seen.add?(owner)
+
+      info = class_info(owner)
+      return [[owner, '.']] unless info
+
+      prepends = info.singleton_prepends.reverse.flat_map do |extension|
+        method_lookup_chain(extension).map { |candidate| [candidate, '#'] }
+      end
+      extensions = info.singleton_includes.reverse.flat_map do |extension|
+        method_lookup_chain(extension).map { |candidate| [candidate, '#'] }
+      end
+      [*prepends, [owner, '.'], *extensions, *singleton_lookup_entries(info.superclass, seen)]
     end
 
     def receiver_candidates(site)
@@ -716,14 +950,6 @@ module Necropsy
 
     def resolve_definitions(identifier)
       nodes.resolve(identifier)
-    end
-
-    def first_defined_symbol(symbol_ids)
-      symbol_ids.each do |symbol_id|
-        definitions = definitions_for(symbol_id)
-        return definitions unless definitions.empty?
-      end
-      []
     end
 
     def add_physical_edge(caller_id, callee_id, evidence)

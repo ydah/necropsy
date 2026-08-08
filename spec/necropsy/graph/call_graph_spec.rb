@@ -276,7 +276,7 @@ RSpec.describe Necropsy::CallGraph do
       call_sites: [site],
       instantiated_classes: Set['Live'],
       class_infos: [
-        class_info('Base'),
+        class_info('Base', prepends: ['ExternalPrefix']),
         class_info('Live', superclass: 'Base'),
         class_info('Dead', superclass: 'Base')
       ]

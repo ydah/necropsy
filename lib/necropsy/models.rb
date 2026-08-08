@@ -347,6 +347,48 @@ module Necropsy
     end
   end
 
+  MethodLookup = Data.define(
+    :targets,
+    :status,
+    :rejected_targets,
+    :lookup_chain,
+    :reason
+  ) do
+    def initialize(targets:, status:, rejected_targets: [], lookup_chain: [], reason: nil)
+      status = status.to_sym
+      raise ArgumentError, "invalid method lookup status: #{status.inspect}" unless RESOLUTION_STATUSES.include?(status)
+
+      targets = Array(targets).uniq(&:graph_id).sort_by(&:graph_id).freeze
+      rejected_targets = Array(rejected_targets).uniq.sort_by do |target|
+        [target.definition_id, target.reason, target.evidence_ids]
+      end.freeze
+      lookup_chain = Array(lookup_chain).map(&:to_s).freeze
+      super
+    end
+
+    def complete?
+      status == :complete
+    end
+
+    def partial?
+      status == :partial
+    end
+
+    def unknown?
+      status == :unknown
+    end
+
+    def to_h
+      {
+        'target_definition_ids' => targets.map(&:graph_id),
+        'status' => status.to_s,
+        'rejected_targets' => rejected_targets.map(&:to_h),
+        'lookup_chain' => lookup_chain,
+        'reason' => reason
+      }
+    end
+  end
+
   Evidence = Data.define(
     :analyzer,
     :kind,
@@ -511,8 +553,41 @@ module Necropsy
     :includes,
     :prepends,
     :extends,
+    :singleton_includes,
+    :singleton_prepends,
     :dynamic
   ) do
+    class << self
+      alias_method :data_new, :new
+
+      def new(*values, **attributes)
+        return data_new(*values, **attributes) unless values.length == 10 && attributes.empty?
+
+        id, kind, file, line, superclass, superclass_candidates, includes, prepends, extends, dynamic = values
+        data_new(
+          id: id,
+          kind: kind,
+          file: file,
+          line: line,
+          superclass: superclass,
+          superclass_candidates: superclass_candidates,
+          includes: includes,
+          prepends: prepends,
+          extends: extends,
+          dynamic: dynamic
+        )
+      end
+      alias_method :[], :new
+
+      private :data_new
+    end
+
+    def initialize(id:, kind:, file:, line:, superclass:, superclass_candidates:, includes:, prepends:, extends:,
+                   dynamic:, singleton_includes: [], singleton_prepends: [])
+      singleton_includes = extends if singleton_includes.empty? && !extends.empty?
+      super
+    end
+
     def to_h
       {
         'id' => id,
@@ -524,6 +599,8 @@ module Necropsy
         'includes' => includes,
         'prepends' => prepends,
         'extends' => extends,
+        'singleton_includes' => singleton_includes,
+        'singleton_prepends' => singleton_prepends,
         'dynamic' => dynamic
       }
     end

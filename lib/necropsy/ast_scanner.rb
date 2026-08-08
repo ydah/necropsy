@@ -22,10 +22,13 @@ module Necropsy
     :file_statuses,
     :source_errors,
     :source_domains,
-    :scope_diagnostics
+    :scope_diagnostics,
+    :method_signatures,
+    :semantic_blockers
   ) do
     def initialize(nodes:, call_sites:, instantiated_classes:, uncertainties:, class_infos:, entrypoint_hints:,
-                   file_statuses: {}, source_errors: [], source_domains: {}, scope_diagnostics: {})
+                   file_statuses: {}, source_errors: [], source_domains: {}, scope_diagnostics: {},
+                   method_signatures: {}, semantic_blockers: [])
       super
     end
   end
@@ -45,6 +48,10 @@ module Necropsy
     ].freeze
     VISIBILITY_MACROS = %i[public protected private public_class_method private_class_method].freeze
     SYMBOL_REFERENCE_CALLS = %i[method respond_to? try try!].freeze
+    ANCESTRY_CONTROL_FLOW_TYPES = %i[
+      and_node block_node case_node else_node for_node if_node lambda_node
+      or_node rescue_modifier_node rescue_node until_node when_node while_node
+    ].freeze
     RAILS_BUILTIN_VALIDATORS = %w[
       absence acceptance allow_blank allow_nil comparison confirmation exclusion format if inclusion length message numericality
       on presence strict uniqueness unless
@@ -63,6 +70,7 @@ module Necropsy
       :singleton_scope,
       :visibility,
       :module_function,
+      :static_ancestry,
       keyword_init: true
     )
 
@@ -83,6 +91,8 @@ module Necropsy
       @call_site_ordinals = Hash.new(0)
       @module_function_sources = {}
       @deferred_module_functions = {}
+      @method_signatures = {}
+      @semantic_blockers = []
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
     end
 
@@ -100,7 +110,9 @@ module Necropsy
         file_statuses: file_statuses,
         source_errors: source_errors,
         source_domains: source_domains,
-        scope_diagnostics: scope_diagnostics
+        scope_diagnostics: scope_diagnostics,
+        method_signatures: method_signatures,
+        semantic_blockers: semantic_blockers.sort_by { |blocker| BoundedCanonicalizer.dump(blocker.to_h) }
       )
     end
 
@@ -108,6 +120,7 @@ module Necropsy
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
-                :deferred_module_functions, :call_site_ordinals, :source_domains, :scope_diagnostics
+                :deferred_module_functions, :call_site_ordinals, :source_domains, :scope_diagnostics,
+                :method_signatures, :semantic_blockers
   end
 end

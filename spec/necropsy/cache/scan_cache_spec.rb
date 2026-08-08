@@ -170,6 +170,39 @@ RSpec.describe Necropsy::Cache::ScanCache do
     end
   end
 
+  it 'round-trips lookup signatures, eigenclass ancestry, and semantic blockers' do
+    source = <<~RUBY
+      module CachedMix
+      end
+      class CachedLookup
+        class << self
+          include CachedMix
+        end
+        def render(value, mode:)
+        end
+        include Object.const_get('RuntimeMix')
+      end
+      using CachedMix
+    RUBY
+
+    with_project(files: { 'app/lookup.rb' => source }) do |root|
+      first = project_for(root).scan_result
+      second = project_for(root).scan_result
+      definition = first.nodes.find { |node| node.symbol_id == 'CachedLookup#render' }
+      cached_info = second.class_infos.find { |info| info.id == 'CachedLookup' }
+
+      expect(second).to eq(first)
+      expect(second.method_signatures.fetch(definition.graph_id)).to include(
+        'complete' => true,
+        'minimum_positionals' => 1,
+        'maximum_positionals' => 1,
+        'required_keywords' => ['mode']
+      )
+      expect(cached_info.singleton_includes).to eq(['CachedMix'])
+      expect(second.semantic_blockers.map(&:kind)).to include(:dynamic_ancestry, :unsupported_refinement)
+    end
+  end
+
   it 'falls back to a fresh scan when a legacy cache version is present' do
     with_project(files: { 'app/sample.rb' => 'class LegacyCache; def run = helper; def helper; end; end' }) do |root|
       project = project_for(root)

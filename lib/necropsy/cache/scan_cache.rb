@@ -6,7 +6,7 @@ require 'json'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 10
+      VERSION = 11
 
       def initialize(project:)
         @project = project
@@ -94,7 +94,9 @@ module Necropsy
           'file_statuses' => result.file_statuses.transform_values(&:to_s),
           'source_errors' => result.source_errors.map(&:to_h),
           'source_domains' => result.source_domains.transform_values(&:to_s),
-          'scope_diagnostics' => result.scope_diagnostics
+          'scope_diagnostics' => result.scope_diagnostics,
+          'method_signatures' => result.method_signatures,
+          'semantic_blockers' => result.semantic_blockers.map(&:to_h)
         }
       end
 
@@ -109,7 +111,21 @@ module Necropsy
           file_statuses: (data['file_statuses'] || {}).transform_values(&:to_sym),
           source_errors: Array(data['source_errors']).map { |error| deserialize_source_error(error) },
           source_domains: (data['source_domains'] || {}).transform_values(&:to_sym),
-          scope_diagnostics: data['scope_diagnostics'] || {}
+          scope_diagnostics: data['scope_diagnostics'] || {},
+          method_signatures: data['method_signatures'] || {},
+          semantic_blockers: Array(data['semantic_blockers']).map { |blocker| deserialize_blocker(blocker) }
+        )
+      end
+
+      def deserialize_blocker(data)
+        Blocker.new(
+          kind: data.fetch('kind').to_sym,
+          scope_kind: data.fetch('scope_kind').to_sym,
+          scope_value: data['scope_value'],
+          source: data['source'],
+          reason: data.fetch('reason'),
+          suggested_action: data.fetch('suggested_action', 'review').to_sym,
+          metadata: data['metadata'] || {}
         )
       end
 
@@ -168,6 +184,8 @@ module Necropsy
           includes: Array(data['includes']),
           prepends: Array(data['prepends']),
           extends: Array(data['extends']),
+          singleton_includes: Array(data['singleton_includes']),
+          singleton_prepends: Array(data['singleton_prepends']),
           dynamic: data['dynamic']
         )
       end

@@ -10,13 +10,22 @@ module Necropsy
           uncertainties = {}
           blockers = []
           graph.call_sites.each do |site|
-            candidates = graph.resolve_call_site(site)
-            fallback = graph.fallback_resolution?(site, resolved: candidates)
-            site_edges = edge_evidences_for(site, candidates, fallback)
+            lookup = graph.method_lookup(site)
+            candidates = lookup.targets
+            fallback = %w[dynamic_message unknown_receiver unknown_self_owner self_lookup_fallback].include?(
+              lookup.reason
+            )
+            site_edges = edge_evidences_for(site, candidates, fallback, lookup)
             edge_evidences.concat(site_edges)
-            resolutions << resolution_record(site, candidates, site_edges)
-            record_unresolved_uncertainty(graph, site, candidates, uncertainties)
-            blocker = unresolved_blocker(graph, site, candidates)
+            resolutions << resolution_record(
+              site,
+              candidates,
+              site_edges,
+              status: lookup.status,
+              rejected_targets: lookup.rejected_targets
+            )
+            record_unresolved_uncertainty(graph, site, lookup, uncertainties)
+            blocker = unresolved_blocker(graph, site, lookup)
             blockers << blocker if blocker
           end
 
@@ -44,8 +53,15 @@ module Necropsy
 
         private
 
-        def edge_evidences_for(site, candidates, fallback)
+        def edge_evidences_for(site, candidates, fallback, lookup)
           candidates.map do |candidate|
+            grade = if lookup.complete?
+                      :exact
+                    elsif fallback
+                      :heuristic
+                    else
+                      :conservative
+                    end
             EdgeEvidence.new(
               caller_id: site.caller_id,
               callee_id: candidate.graph_id,
@@ -53,8 +69,12 @@ module Necropsy
                 kind: :call_edge,
                 details: "Name resolution#{' fallback' if fallback} at #{site.file}:#{site.line}",
                 weight: fallback ? 0.35 : 1.0,
-                metadata: site.to_h.merge('target_definition_id' => candidate.graph_id),
-                grade: fallback ? :heuristic : :exact,
+                metadata: site.to_h.merge(
+                  'target_definition_id' => candidate.graph_id,
+                  'lookup_status' => lookup.status.to_s,
+                  'lookup_chain' => lookup.lookup_chain
+                ),
+                grade: grade,
                 relation: :call_edge,
                 source: call_site_evidence_source(site).merge('target_definition_id' => candidate.graph_id),
                 scope: call_site_evidence_scope(site).merge('target_definition_id' => candidate.graph_id)
@@ -63,8 +83,8 @@ module Necropsy
           end
         end
 
-        def record_unresolved_uncertainty(graph, site, candidates, uncertainties)
-          return if site.dynamic || candidates.any?
+        def record_unresolved_uncertainty(graph, site, lookup, uncertainties)
+          return if site.dynamic || lookup.targets.any? || lookup.complete?
           return if graph.candidate_nodes(site.message).empty? && site.receiver_kind != :unknown
 
           uncertainties[site.caller_id] ||= []
@@ -72,8 +92,8 @@ module Necropsy
             "Unknown receiver for #{site.message} at #{site.file}:#{site.line}; dispatch may be ambiguous"
         end
 
-        def unresolved_blocker(graph, site, candidates)
-          return if candidates.any?
+        def unresolved_blocker(graph, site, lookup)
+          return if lookup.targets.any? || lookup.complete?
 
           candidate_count = graph.candidate_nodes(site.message).size
           limit_exceeded = graph.ambiguity_exceeded?(site.message)

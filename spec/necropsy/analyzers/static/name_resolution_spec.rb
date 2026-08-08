@@ -15,7 +15,7 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
       analyzer: :name_resolution,
       producer: :name_resolution,
       producer_version: Necropsy::VERSION,
-      grade: :exact,
+      grade: :conservative,
       relation: :call_edge
     )
     expect(emitted.source).to include('call_site_id' => site.call_site_id, 'file' => site.file, 'line' => site.line)
@@ -63,11 +63,11 @@ RSpec.describe Necropsy::Analyzers::Static::NameResolution do
     callee = node('Sample#callee', name: 'callee')
     site = call_site(caller_id: caller.id, message: 'callee')
     graph = graph_with(nodes: [caller, callee], call_sites: [site])
-    allow(graph).to receive(:resolve_call_site).and_call_original
+    allow(graph).to receive(:method_lookup).and_call_original
 
     described_class.new.analyze(graph, nil)
 
-    expect(graph).to have_received(:resolve_call_site).once
+    expect(graph).to have_received(:method_lookup).once
   end
 
   it 'emits one conservative resolution record for every call site' do

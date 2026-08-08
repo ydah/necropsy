@@ -82,6 +82,19 @@ RSpec.describe 'Necropsy model objects' do
     end
   end
 
+  describe Necropsy::ClassInfo do
+    it 'keeps legacy positional construction compatible while defaulting singleton ancestry' do
+      values = ['Host', :class, 'host.rb', 1, 'Parent', ['Parent'], ['Included'], ['Prepended'], ['Extended'], false]
+
+      info = described_class.new(*values)
+
+      expect(described_class[*values]).to eq(info)
+      expect(info).to have_attributes(
+        id: 'Host', singleton_includes: ['Extended'], singleton_prepends: [], dynamic: false
+      )
+    end
+  end
+
   describe Necropsy::EntryPoint do
     it 'models runtime, test, and external roots with provenance' do
       test_root = Necropsy::EntryPoint.new(node_id: 'spec.rb', reason: :test_suite)

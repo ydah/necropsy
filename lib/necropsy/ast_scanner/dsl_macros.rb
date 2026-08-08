@@ -8,14 +8,59 @@ module Necropsy
       return unless MODULE_RELATION_MACROS.include?(node.name)
       return unless context.owner
 
-      class_record(context.owner)[:extends] << [context.owner] if node.name == :extend && arguments(node).any?(Prism::SelfNode)
+      unless static_module_relation?(node, context)
+        record_semantic_blocker(
+          :dynamic_ancestry,
+          node,
+          context,
+          "#{node.name} is not an unconditional load-time ancestry mutation",
+          suggested_action: :make_ancestry_static,
+          force_global: true
+        )
+        return
+      end
+
+      if node.name == :extend && arguments(node).any?(Prism::SelfNode)
+        class_record(context.owner)[:extends] << [context.owner]
+        class_record(context.owner)[:singleton_includes] << [context.owner]
+      end
+
+      dynamic_arguments = arguments(node).reject do |argument|
+        constant_name(argument) || (node.name == :extend && argument.is_a?(Prism::SelfNode))
+      end
+      unless dynamic_arguments.empty?
+        class_record(context.owner)[:dynamic] = true
+        record_semantic_blocker(
+          :dynamic_ancestry,
+          node,
+          context,
+          "#{node.name} has a runtime-computed module and lookup cannot be closed",
+          suggested_action: :make_ancestry_static
+        )
+      end
 
       constants = arguments(node).filter_map { |argument| constant_name(argument) }
       return if constants.empty?
 
       data = class_record(context.owner)
-      key = :"#{node.name}s"
-      constants.each { |constant| data[key] << constant_candidates(constant, context.namespace) }
+      key = module_relation_key(node.name, context)
+      constants.reverse_each do |constant|
+        candidates = constant_candidates(constant, context.namespace)
+        data[key] << candidates
+        data[:extends] << candidates if key == :singleton_includes && node.name == :extend
+      end
+    end
+
+    def static_module_relation?(node, context)
+      context.static_ancestry && node.receiver.nil?
+    end
+
+    def module_relation_key(name, context)
+      return :singleton_includes if context.singleton_scope && name == :include
+      return :singleton_prepends if context.singleton_scope && name == :prepend
+      return :singleton_includes if name == :extend
+
+      :"#{name}s"
     end
 
     def handle_rails_callback(node, context)

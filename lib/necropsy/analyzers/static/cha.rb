@@ -7,7 +7,8 @@ module Necropsy
         def analyze(graph, _project)
           edge_evidences = []
           resolutions = graph.call_sites.map do |site|
-            targets = candidates(graph, site)
+            lookup = graph.method_lookup(site)
+            targets = lookup.complete? ? lookup.targets : candidates(graph, site)
             site_edges = targets.map do |candidate|
               EdgeEvidence.new(
                 caller_id: site.caller_id,
@@ -24,7 +25,18 @@ module Necropsy
               )
             end
             edge_evidences.concat(site_edges)
-            resolution_record(site, targets, site_edges)
+            status = if lookup.complete?
+                       :complete
+                     else
+                       (targets.empty? ? :unknown : :partial)
+                     end
+            resolution_record(
+              site,
+              targets,
+              site_edges,
+              status: status,
+              rejected_targets: lookup.complete? ? lookup.rejected_targets : []
+            )
           end
 
           AnalyzerResult.new(
@@ -49,16 +61,20 @@ module Necropsy
         end
 
         def candidates(graph, site)
-          case site.receiver_kind
-          when :constant
-            constant_targets(graph, site)
-          when :instance
-            instance_targets(graph, site)
-          when :self, :implicit
-            self_targets(graph, site)
-          else
-            graph.resolve_call_site(site)
-          end.uniq(&:graph_id)
+          lookup = graph.method_lookup(site)
+          return lookup.targets if lookup.complete?
+
+          conservative = case site.receiver_kind
+                         when :constant
+                           constant_targets(graph, site)
+                         when :instance
+                           instance_targets(graph, site)
+                         when :self, :implicit
+                           self_targets(graph, site)
+                         else
+                           graph.resolve_call_site(site)
+                         end
+          (lookup.targets + conservative).uniq(&:graph_id)
         end
 
         private
