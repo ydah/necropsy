@@ -2,39 +2,134 @@
   "schema_version": 1,
   "corpus": "plain_ruby",
   "metrics": {
-    "nodes": 8,
-    "definitions": 6,
-    "call_sites": 7,
-    "edges": 3,
-    "findings": 3
+    "analysis_graph": {
+      "scope": "analysis",
+      "nodes": 8,
+      "definitions": 6,
+      "call_sites": 7,
+      "edges": 3
+    },
+    "findings": 3,
+    "actionable_candidates": 0,
+    "candidate_loc": 0,
+    "diagnostic_findings": 3
   },
   "states": {
-    "unreachable": 3
+    "blocked": 3
+  },
+  "quality": {
+    "scope": "report",
+    "candidate_count": 0,
+    "candidate_loc": 0,
+    "diagnostic_count": 3,
+    "blocked_count": 3,
+    "blocked_rate": 1.0,
+    "unknown_finding_count": 3,
+    "unknown_finding_rate": 1.0,
+    "resolution_counts": {
+      "total": 21,
+      "complete": 6,
+      "partial": 3,
+      "unknown": 12
+    },
+    "unknown_resolution_rate": 0.5714,
+    "rule_counts": {},
+    "risk_counts": {
+      "analysis_incomplete": 3,
+      "public_or_protected_visibility": 3
+    },
+    "by_category": {
+      "unparsed_external_reference": {
+        "findings": 3,
+        "candidate_count": 0,
+        "candidate_loc": 0,
+        "blocked_count": 3,
+        "blocked_rate": 1.0,
+        "unknown_count": 3,
+        "unknown_rate": 1.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "analysis_incomplete": 3,
+          "public_or_protected_visibility": 3
+        }
+      }
+    }
   },
   "findings": [
     {
       "id": "PlainSeed::Formatter#public_extension",
+      "definition_id": "def:v1:7366747698494278ed20d632c891ee1e5b70d1efd9d592d7715ed51da6741be8",
       "path": "lib/plain_seed.rb",
       "line": 17,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "end_line": 19,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "PlainSeed::Formatter#unused",
+      "definition_id": "def:v1:f2b441b18942ad826f5d08ae9c1fa8daf2a898c76ba8caa06004c6089c457f55",
       "path": "lib/plain_seed.rb",
       "line": 13,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "end_line": 15,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     },
     {
       "id": "PlainSeed::Runner#legacy",
+      "definition_id": "def:v1:a91ec9a867cc0bf56979fbb89dcbbab1288c8458c63386d5cbd2030f992e6f36",
       "path": "lib/plain_seed.rb",
       "line": 27,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "end_line": 29,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch."
+      ]
     }
   ]
 }

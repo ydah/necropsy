@@ -2,488 +2,3459 @@
   "schema_version": 1,
   "corpus": "self",
   "metrics": {
-    "nodes": 1119,
-    "definitions": 998,
-    "call_sites": 13779,
-    "edges": 6068,
-    "findings": 50
+    "analysis_graph": {
+      "scope": "analysis",
+      "nodes": 1975,
+      "definitions": 1886,
+      "call_sites": 15170,
+      "edges": 15283
+    },
+    "findings": 145,
+    "actionable_candidates": 70,
+    "candidate_loc": 513,
+    "diagnostic_findings": 75
   },
   "states": {
-    "blocked": 2,
-    "test_only_reachable": 22,
-    "unreachable": 26
+    "blocked": 75,
+    "unreachable": 70
+  },
+  "quality": {
+    "scope": "report",
+    "candidate_count": 70,
+    "candidate_loc": 513,
+    "diagnostic_count": 75,
+    "blocked_count": 75,
+    "blocked_rate": 0.5172,
+    "unknown_finding_count": 75,
+    "unknown_finding_rate": 0.5172,
+    "resolution_counts": {
+      "total": 45510,
+      "complete": 7086,
+      "partial": 17119,
+      "unknown": 21305
+    },
+    "unknown_resolution_rate": 0.4681,
+    "rule_counts": {},
+    "risk_counts": {
+      "analysis_incomplete": 75,
+      "generated_method": 23,
+      "public_or_protected_visibility": 47
+    },
+    "by_category": {
+      "generated_method": {
+        "findings": 6,
+        "candidate_count": 6,
+        "candidate_loc": 17,
+        "blocked_count": 0,
+        "blocked_rate": 0.0,
+        "unknown_count": 0,
+        "unknown_rate": 0.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "generated_method": 6,
+          "public_or_protected_visibility": 4
+        }
+      },
+      "partial_dispatch": {
+        "findings": 54,
+        "candidate_count": 0,
+        "candidate_loc": 0,
+        "blocked_count": 54,
+        "blocked_rate": 1.0,
+        "unknown_count": 54,
+        "unknown_rate": 1.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "analysis_incomplete": 54,
+          "generated_method": 10,
+          "public_or_protected_visibility": 11
+        }
+      },
+      "unknown_dispatch": {
+        "findings": 9,
+        "candidate_count": 0,
+        "candidate_loc": 0,
+        "blocked_count": 9,
+        "blocked_rate": 1.0,
+        "unknown_count": 9,
+        "unknown_rate": 1.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "analysis_incomplete": 9,
+          "public_or_protected_visibility": 9
+        }
+      },
+      "unparsed_external_reference": {
+        "findings": 12,
+        "candidate_count": 0,
+        "candidate_loc": 0,
+        "blocked_count": 12,
+        "blocked_rate": 1.0,
+        "unknown_count": 12,
+        "unknown_rate": 1.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "analysis_incomplete": 12,
+          "generated_method": 7,
+          "public_or_protected_visibility": 12
+        }
+      },
+      "unreachable": {
+        "findings": 64,
+        "candidate_count": 64,
+        "candidate_loc": 496,
+        "blocked_count": 0,
+        "blocked_rate": 0.0,
+        "unknown_count": 0,
+        "unknown_rate": 0.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "public_or_protected_visibility": 11
+        }
+      }
+    }
   },
   "findings": [
     {
       "id": "Necropsy::Analyzer#analyze",
+      "definition_id": "def:v1:f290071d31474fc8fbe88732556be27a984b1674ded865c8377be0931c061cd9",
       "path": "lib/necropsy/analyzer.rb",
-      "line": 5,
+      "line": 68,
+      "end_line": 70,
+      "loc": 3,
       "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
       "reasons": [
-        "Blocked by 1 unresolved runtime dispatch."
-      ]
-    },
-    {
-      "id": "Necropsy::Analyzer#profile",
-      "path": "lib/necropsy/analyzer.rb",
-      "line": 9,
-      "state": "blocked",
-      "confidence": "low",
-      "reasons": [
-        "Blocked by 1 unresolved runtime dispatch."
+        "Blocked by 24 unresolved runtime dispatches."
       ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#coverage_result",
+      "definition_id": "def:v1:2c408254cc594761bbc40efa2956d53b6de310ad62bdfa86e30eeada4fef5f5a",
       "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
-      "line": 64,
-      "state": "test_only_reachable",
+      "line": 66,
+      "end_line": 77,
+      "loc": 12,
+      "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": []
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#install_at_exit",
+      "definition_id": "def:v1:db87aeef77474c45a0dde6ec14cc2e1e9e4511057eb1521a85bf34ffc53351ab",
       "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
-      "line": 36,
-      "state": "unreachable",
+      "line": 38,
+      "end_line": 49,
+      "loc": 12,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#method_coverage?",
+      "definition_id": "def:v1:b46d1fddac85dc1a48f3d3c0ced37789e62ff707c9048226393624ce1bfe9cce",
       "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
-      "line": 77,
-      "state": "test_only_reachable",
+      "line": 79,
+      "end_line": 81,
+      "loc": 3,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::CoverageCollector#start_coverage",
+      "definition_id": "def:v1:078dcf1060d215c37d17a654940f2ccad64d574cd76a7ef5037ebd6196247b5e",
       "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
-      "line": 57,
+      "line": 59,
+      "end_line": 64,
+      "loc": 6,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": []
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::CoverageCollector.install_at_exit",
+      "definition_id": "def:v1:e06a722e6671a8cac4e6a24e1883e1c6cc830979ceb06401022fd1740916421d",
       "path": "lib/necropsy/analyzers/dynamic/coverage_collector.rb",
-      "line": 16,
+      "line": 18,
+      "end_line": 20,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::ObservationPolicy#compatible_merge",
+      "definition_id": "def:v1:556dcac42733c0a0f9f2bceb1f35743329f3fb5ff513eff1bd14e77e76cfad96",
+      "path": "lib/necropsy/analyzers/dynamic/observation_policy.rb",
+      "line": 51,
+      "end_line": 60,
+      "loc": 10,
       "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::ObservationPolicy#evidence_scope",
+      "definition_id": "def:v1:fd518daeec3e637cbd13a3ff270acf89ba3dad28d0817d7dce17737848554de8",
+      "path": "lib/necropsy/analyzers/dynamic/observation_policy.rb",
+      "line": 62,
+      "end_line": 75,
+      "loc": 14,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::ObservationPolicy#metadata",
+      "definition_id": "def:v1:ddc9cc5a9c4211ee08fc3cafa0769ad35c8a7486eb0a3fdaefd0bf6753ef908e",
       "path": "lib/necropsy/analyzers/dynamic/observation_policy.rb",
       "line": 9,
+      "end_line": 49,
+      "loc": 41,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 7 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::ObservationPolicy#source_revision",
+      "definition_id": "def:v1:daf44c5e2fd20014cf17f3edec9df5b0ee8c88eb30df8dfe78f1eed62878f5e3",
+      "path": "lib/necropsy/analyzers/dynamic/observation_policy.rb",
+      "line": 77,
+      "end_line": 81,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::ObservationPolicy#source_revision_status",
+      "definition_id": "def:v1:86ccf62f8735bc5ce9e1b43068d615828dcd5015c4d50fc4c3705bbaa6ce5290",
+      "path": "lib/necropsy/analyzers/dynamic/observation_policy.rb",
+      "line": 84,
+      "end_line": 91,
+      "loc": 8,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::RuntimeReference#malformed?",
+      "definition_id": "def:v1:acd90202e384ffffc12cda3e7772de3626ed3c537a429377479ec5ecb25b543f",
+      "path": "lib/necropsy/analyzers/dynamic/runtime_reference.rb",
+      "line": 64,
+      "end_line": 66,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::RuntimeReference#preferred",
+      "definition_id": "def:v1:c96935a3c74bfb7b2584a764eed9e2dda79ac41da8d00a13b5eee2bc86056d55",
+      "path": "lib/necropsy/analyzers/dynamic/runtime_reference.rb",
+      "line": 54,
+      "end_line": 62,
+      "loc": 9,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Analyzers::Dynamic::RuntimeReference.malformed?",
+      "definition_id": "def:v1:0850b239e67b07b8e59aa7e1abcba1f33feadf7fea94b54ee61bacf0c8462a4b",
+      "path": "lib/necropsy/analyzers/dynamic/runtime_reference.rb",
+      "line": 64,
+      "end_line": 66,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "generated_method",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::TracePointCollector#install_at_exit",
+      "definition_id": "def:v1:9fa9f4457a428ad3ad8f5850680ebb04393de30c9c3bef37a142749bc16a0816",
       "path": "lib/necropsy/analyzers/dynamic/trace_point_collector.rb",
-      "line": 44,
-      "state": "unreachable",
+      "line": 48,
+      "end_line": 58,
+      "loc": 11,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Analyzers::Dynamic::TracePointCollector.install_at_exit",
+      "definition_id": "def:v1:dc5e9859b5a2fbaa6f59ad269895bf2882938def419b477af01a241f3cf08fc3",
       "path": "lib/necropsy/analyzers/dynamic/trace_point_collector.rb",
-      "line": 16,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "line": 18,
+      "end_line": 20,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
     },
     {
       "id": "Necropsy::AstScanner::Context#file=",
+      "definition_id": "def:v1:9c79eafc397cb76a9ac355f7d79e81c284a5426a05ecd1ec83d48599f0345941",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 49,
-      "state": "unreachable",
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::AstScanner::Context#module_function",
+      "definition_id": "def:v1:db431ac5f25a99c22a20d339e4cd8d4d4b5a70c3a58e7545212b19e3043174b5",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 49,
-      "state": "unreachable",
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::AstScanner::Context#relative_file=",
+      "definition_id": "def:v1:70eb89b62a333022ee792c3df0a96e920b668dfe83b9e77088bcfa46923140a7",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 49,
-      "state": "unreachable",
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
       "reasons": [
-        "Lowered because this node is generated by a Ruby accessor DSL."
-      ]
-    },
-    {
-      "id": "Necropsy::AstScanner::Context#root_id=",
-      "path": "lib/necropsy/ast_scanner.rb",
-      "line": 49,
-      "state": "unreachable",
-      "confidence": "low",
-      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::AstScanner::Context#test=",
+      "definition_id": "def:v1:99b9d04256753ab05ac2eead7f3e3ee083d757ebf5bbe8e50c3e874aa3b73372",
       "path": "lib/necropsy/ast_scanner.rb",
-      "line": 49,
+      "line": 60,
+      "end_line": 76,
+      "loc": 17,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#actionable?",
+      "definition_id": "def:v1:2493c12409215905a9578963febb90a105e39e32b71558d9453813098d80f6c8",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 21,
+      "end_line": 23,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
-        "Lowered because this node is generated by a Ruby accessor DSL."
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#category",
+      "definition_id": "def:v1:ea8d0216786e566c2ba54c8cf37467f6c84b5f13b2ce6520692e68cdb9a6575f",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 64,
+      "end_line": 75,
+      "loc": 12,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#explicit_category",
+      "definition_id": "def:v1:280e68bb1dda667c60cfe521af96fbb571b0991b462c09fd565baf1f72ec0ca5",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 140,
+      "end_line": 148,
+      "loc": 9,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#loc",
+      "definition_id": "def:v1:6b1f5edfb78455a880b008f3cf65036982503133f88fea598683a87c4aa8cfab",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 25,
+      "end_line": 31,
+      "loc": 7,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#positive_integer",
+      "definition_id": "def:v1:6cbfc53ef2b7b07f44fc70e7ba63311f710b6a5b4997ded09c62a467bb7494f4",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 128,
+      "end_line": 131,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#ratio",
+      "definition_id": "def:v1:9753386b3dff42008154a96d89a02448be4ac3a56825d8c8204a8b00df1a5ac0",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 112,
+      "end_line": 114,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 10 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#report_risk_counts",
+      "definition_id": "def:v1:53118c11a100eb25bb772ffcae174c84c830283b3e70484a8a524e76ef425a8d",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 88,
+      "end_line": 90,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#report_rule_counts",
+      "definition_id": "def:v1:519e8495aaa1c029589404dedc40661bd3c10ef6aeed45f5932da1d5df2a02fb",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 77,
+      "end_line": 86,
+      "loc": 10,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#resolution_counts",
+      "definition_id": "def:v1:cfa8deb1eb3e1bfcd856f605e47c1622f54a76225466be13a657b9d8d82153bb",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 96,
+      "end_line": 110,
+      "loc": 15,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#risk_flags",
+      "definition_id": "def:v1:cc6b6e6ee556b80bbae48edab131b95f733479f64ef349c426793ffccf173c99",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 37,
+      "end_line": 49,
+      "loc": 13,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#rule_hits",
+      "definition_id": "def:v1:5bcf232599203e8bbeff4dbe61363e42b1410a401f5494899a7ef3101b431122",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 51,
+      "end_line": 62,
+      "loc": 12,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Bench::FindingFacts#stringify_keys",
+      "definition_id": "def:v1:d89c344ff26af5cd36e783dbee8f71a7a4bb42118345be7446fdd9bb95f22b9e",
+      "path": "lib/necropsy/bench/finding_facts.rb",
+      "line": 121,
+      "end_line": 125,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 6 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit#initialize",
+      "definition_id": "def:v1:95433fb03453fafe2cf6990ef569b343ad656348eeae928ee7019c4e4219eb6e",
       "path": "lib/necropsy/bench/release_audit.rb",
-      "line": 14,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "line": 18,
+      "end_line": 20,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 548 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::AdversarialRunner#initialize",
+      "definition_id": "def:v1:fad9417f263f84e25e91b069152da40bc7e83eac75c7eb98f8472ebd07833f79",
       "path": "lib/necropsy/bench/release_audit/adversarial_runner.rb",
       "line": 9,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "end_line": 13,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 548 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::ArtifactWriter#initialize",
+      "definition_id": "def:v1:21e7e1b82f6d3a50ffaba4c93b1c28b5af345c69b9f28f196f6e2c3b08e9b7ab",
       "path": "lib/necropsy/bench/release_audit/artifact_writer.rb",
       "line": 10,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
-    },
-    {
-      "id": "Necropsy::Bench::ReleaseAudit::GitSnapshot#git_ref",
-      "path": "lib/necropsy/bench/release_audit/git_snapshot.rb",
-      "line": 22,
-      "state": "test_only_reachable",
+      "end_line": 13,
+      "loc": 4,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
       "reasons": [
-        "Lowered because this node is generated by a Ruby accessor DSL."
+        "Blocked by 548 unresolved runtime dispatches."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::GitSnapshot#initialize",
+      "definition_id": "def:v1:9d6dde636c911de3d5769258d3232d4fa4f5d35cc20fc46d03cada6991f0bd1f",
       "path": "lib/necropsy/bench/release_audit/git_snapshot.rb",
       "line": 10,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
-    },
-    {
-      "id": "Necropsy::Bench::ReleaseAudit::GitSnapshot#report",
-      "path": "lib/necropsy/bench/release_audit/git_snapshot.rb",
-      "line": 24,
-      "state": "test_only_reachable",
+      "end_line": 14,
+      "loc": 5,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
       "reasons": [
-        "Lowered because this node is near unresolved metaprogramming."
+        "Blocked by 548 unresolved runtime dispatches."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::GitSnapshot#reports",
+      "definition_id": "def:v1:295f400406b1a4a31e5cf9343cbafad931bbf6833d6cc72d454631f4ebfac6e4",
       "path": "lib/necropsy/bench/release_audit/git_snapshot.rb",
       "line": 16,
-      "state": "test_only_reachable",
+      "end_line": 18,
+      "loc": 3,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 8 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
-      "id": "Necropsy::Bench::ReleaseAudit::GitSnapshot#reports_path",
-      "path": "lib/necropsy/bench/release_audit/git_snapshot.rb",
-      "line": 22,
-      "state": "test_only_reachable",
-      "confidence": "low",
-      "reasons": [
-        "Lowered because this node is generated by a Ruby accessor DSL."
-      ]
-    },
-    {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#artifact_digests",
+      "definition_id": "def:v1:6faf9b64eccf7fa6139ce7a527aca05c7f0d5057099663d6b1eb8364e4714aba",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 102,
-      "state": "test_only_reachable",
+      "end_line": 112,
+      "loc": 11,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#capture",
+      "definition_id": "def:v1:f277296c87b17d7924652a70c50a3b830f49a106a6bc2b4c7f8ee50c07649177",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 124,
-      "state": "test_only_reachable",
+      "end_line": 129,
+      "loc": 6,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#capture_source!",
+      "definition_id": "def:v1:c563db469c679d61f8664566e7435522b71623caff054645e81c50142464a814",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 22,
-      "state": "test_only_reachable",
-      "confidence": "medium",
-      "reasons": []
+      "end_line": 31,
+      "loc": 10,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#complete",
+      "definition_id": "def:v1:8845e315339e570d025f0cde85d70492e45717afa338127edc096046cdec0296",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 33,
-      "state": "test_only_reachable",
-      "confidence": "medium",
-      "reasons": []
+      "end_line": 38,
+      "loc": 6,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#config_path",
+      "definition_id": "def:v1:6b182b386a95a228e7ab3a842dac4babe29c2259a2be0571b96c0aee29084dee",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 60,
-      "state": "test_only_reachable",
+      "end_line": 60,
+      "loc": 1,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 4 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#digest",
+      "definition_id": "def:v1:11ffc271d51a6d4a0386b1a0bdaad954a60d04a2c8cba3996f26b2fdd57bb972",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 75,
-      "state": "test_only_reachable",
+      "end_line": 77,
+      "loc": 3,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#ensure_clean!",
+      "definition_id": "def:v1:97f0d1f77c9da04487680916cc5fd93a0edfd9362b8196f5b8c11149e353ea29",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 62,
-      "state": "test_only_reachable",
+      "end_line": 66,
+      "loc": 5,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#environment",
+      "definition_id": "def:v1:2a81bcba83190c300a1ec5261cca29df7ae91378fb5a23c4e50b81b109750909",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 79,
-      "state": "test_only_reachable",
+      "end_line": 90,
+      "loc": 12,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#git_head",
+      "definition_id": "def:v1:8a6a928cba3f5a784bc2811f573d8c5a956c336b856ad01a090509abca3686f6",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 68,
-      "state": "test_only_reachable",
+      "end_line": 73,
+      "loc": 6,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#initialize",
+      "definition_id": "def:v1:90d47867ca58ae271b8a8fcee2fa0265e1bd88694fcf00c8e3a1bd39f9f633ec",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 14,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "end_line": 20,
+      "loc": 7,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 548 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#load_and_validate!",
+      "definition_id": "def:v1:c81fe9fc98770f815c844549ca87941d52275a3292630b1964a7e7a567c65339",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 44,
-      "state": "test_only_reachable",
+      "end_line": 56,
+      "loc": 13,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
       "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#manifest_path",
+      "definition_id": "def:v1:41de7085d28a64e41258ec2272e36fb337fe94d875d036f87071c6d3073666a1",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 60,
-      "state": "test_only_reachable",
+      "end_line": 60,
+      "loc": 1,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#operating_system",
+      "definition_id": "def:v1:a083f21af36454ccf211a16e564b1131e29581487383c62a368c2bf733fb8189",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 114,
-      "state": "test_only_reachable",
+      "end_line": 122,
+      "loc": 9,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#output_dir",
+      "definition_id": "def:v1:17de6153edeacf061145421276ac1279dac59e73a5ec1d26d62aa7e9cd7c84be",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 60,
-      "state": "test_only_reachable",
+      "end_line": 60,
+      "loc": 1,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
       "reasons": [
+        "Blocked by 10 unresolved runtime dispatches.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::Bench::ReleaseAudit::RunProvenance#validate_environment!",
+      "definition_id": "def:v1:bd5a31c2545d925a209e41d79841157717e013ba3a177b33ce77da349d42c15d",
       "path": "lib/necropsy/bench/release_audit/run_provenance.rb",
       "line": 92,
-      "state": "test_only_reachable",
+      "end_line": 100,
+      "loc": 9,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
-      "id": "Necropsy::Bench::ReportNormalizer#dump",
-      "path": "lib/necropsy/bench/report_normalizer.rb",
-      "line": 25,
-      "state": "test_only_reachable",
-      "confidence": "medium",
-      "reasons": []
-    },
-    {
       "id": "Necropsy::Bench::SeedRunner#initialize",
+      "definition_id": "def:v1:8e30fa79d64d2b819e3c3b004344f41466f4e6beba0ffb15c03347dd9ffb13b7",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 15,
-      "state": "unreachable",
-      "confidence": "medium",
-      "reasons": []
+      "line": 16,
+      "end_line": 38,
+      "loc": 23,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 547 unresolved runtime dispatches."
+      ]
     },
     {
       "id": "Necropsy::Bench::SeedRunner#read_git_revision",
+      "definition_id": "def:v1:13ff67beab72218cc8749225c0496177fe90fb5f2bf9c1ea638a97a4155d0dff",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 191,
+      "line": 204,
+      "end_line": 209,
+      "loc": 6,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::SeedRunner#read_process_rss",
+      "definition_id": "def:v1:fedfcd023bbe8b4757c2a8a0895eac71b2d0799fbffa655cb4c9e9d9e06a2699",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 165,
+      "line": 178,
+      "end_line": 202,
+      "loc": 25,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::Bench::SeedRunner#tracked_git_dirty?",
+      "definition_id": "def:v1:f0ba4cbd7303f2357f7742c36344f541531a11e3f570b7192baa6553012f55c5",
       "path": "lib/necropsy/bench/seed_runner.rb",
-      "line": 198,
+      "line": 211,
+      "end_line": 216,
+      "loc": 6,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#active_containers",
+      "definition_id": "def:v1:14f831d6b4450bf12812c6498d82035893ec4c2e97fcefabad69acabdf352704",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 45,
+      "end_line": 45,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#append",
+      "definition_id": "def:v1:c2dab320605412e753b0a08147625bb5617caab4a0651e01ac40c69cb22fd96b",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 172,
+      "end_line": 177,
+      "loc": 6,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#canonical_float",
+      "definition_id": "def:v1:89852cf4b27af586b6d7f324ce138d871cd1e49883213d1501f19dd86d7fc121",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 162,
+      "end_line": 166,
+      "loc": 5,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#canonical_string",
+      "definition_id": "def:v1:d5cff430a4d5d99b98df16614226b97d0e1c04019044dd998c564fec27c95ea6",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 154,
+      "end_line": 160,
+      "loc": 7,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 6 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#check_depth!",
+      "definition_id": "def:v1:816d9583ddb0f336aacaa2519ca74f875141fb6de137be4819cb0a4ca8a3d5b8",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 196,
+      "end_line": 200,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#check_scalar_size!",
+      "definition_id": "def:v1:fcae9d41850c5594bb85f9e8e45ed3bdd91b20f989b8558d5b22d2c052e83e4a",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 190,
+      "end_line": 194,
+      "loc": 5,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#count_item!",
+      "definition_id": "def:v1:f2334c47dd4ad52edb2f6e52deaa1df2f1c8a83bb3da42cdad6c8f0290831b55",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 202,
+      "end_line": 205,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#encoded_string",
+      "definition_id": "def:v1:66d7b57a76e88a9a4999c276fdd149741c0d5b550ec9d4a3eb0d58a43137f6a6",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 150,
+      "end_line": 152,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#enter_container!",
+      "definition_id": "def:v1:80312dd5df38e3f3728e4a6a1f9f95acb5236fa84a973e8081c0f4089e586e4e",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 179,
+      "end_line": 184,
+      "loc": 6,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#json_string",
+      "definition_id": "def:v1:557c2bce01094a45acaea7dc8d46d749b09474f3b1c65f0dd1dc7f5ff8d4b1dd",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 168,
+      "end_line": 170,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#leave_container",
+      "definition_id": "def:v1:5fffaaddb21f356b2c65b88dd185b6c415d87d08f9dc0b8aebddc69ff1f272cd",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 186,
+      "end_line": 188,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#max_depth",
+      "definition_id": "def:v1:09a697f9396fc8393a80ee75eeb5899cc20edffcdc3675cb606a4db4d97b6f66",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 45,
+      "end_line": 45,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#max_items",
+      "definition_id": "def:v1:e69dbb252f11ce6836abfb094b9cddecd076f7bda95fcb01266fb3b1c4fc4413",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 45,
+      "end_line": 45,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#max_string_bytes",
+      "definition_id": "def:v1:0ade86865b209686298dde73e58fce75e7c8174661df7d74f358a123f7401ef4",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 45,
+      "end_line": 45,
+      "loc": 1,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "generated_method",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "generated_method"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#max_total_bytes",
+      "definition_id": "def:v1:7e3dfc28e422c97b2868e5cb1e0aed9473963e45cc71f4f08633fd0ef582fe35",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 45,
+      "end_line": 45,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#process_array_next",
+      "definition_id": "def:v1:93f8305b9f4266a25d470ee03e73e1b059aed811fc63d8430a88640a5d8fc31e",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 85,
+      "end_line": 95,
+      "loc": 11,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#process_hash_next",
+      "definition_id": "def:v1:66c6d46d09f575c6d6e863e7ea99744fca862e936a205a07b70ad0b924883ece",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 102,
+      "end_line": 119,
+      "loc": 18,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#process_hash_pair_complete",
+      "definition_id": "def:v1:1de6212da27516a4977319ea36c8d379e02e4ad432d206db38136f86f723e152",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 121,
+      "end_line": 124,
+      "loc": 4,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#process_object_complete",
+      "definition_id": "def:v1:2b228c0b059990d69845afbdb750a8e507bb1c9bb87d25c6a47cca092e170ef2",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 141,
+      "end_line": 144,
+      "loc": 4,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#process_raw",
+      "definition_id": "def:v1:55d7395cdfe126022c7239a3c5bd52a623c3f948d3b7c438478b228c42736e0a",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 146,
+      "end_line": 148,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#process_value",
+      "definition_id": "def:v1:52107371edae3671b0d81c23d96710bf7d3b64ca6158d07302ffd4e86c60abb6",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 62,
+      "end_line": 77,
+      "loc": 16,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#start_array",
+      "definition_id": "def:v1:00765fe57965bfcf55f4d45096c93e403b2805a13f1fe7d742c1e9adf15a6a75",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 79,
+      "end_line": 83,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#start_hash",
+      "definition_id": "def:v1:4ad7cb5f0fe43a544530b4722448ea9429bb5cb7932b2320218e9d730e156f54",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 97,
+      "end_line": 100,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::BoundedCanonicalizer#start_object",
+      "definition_id": "def:v1:e04777fabe3733cf229c295c3e41d046a35a4712483467777814581e0854b6a9",
+      "path": "lib/necropsy/bounded_canonicalizer.rb",
+      "line": 126,
+      "end_line": 139,
+      "loc": 14,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::CallGraph#dynamic_enabled?",
+      "definition_id": "def:v1:023c2654c0b531772b21eecb19e07fddf1b1f2883e9e7b586da8d90dba4e9827",
       "path": "lib/necropsy/graph/call_graph.rb",
-      "line": 112,
+      "line": 171,
+      "end_line": 173,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::CallGraph#fallback_resolution?",
+      "definition_id": "def:v1:779b22cd29d5bf497d5c86f87776f5353b53104e8505b4b5501a6d9ce70757cc",
+      "path": "lib/necropsy/graph/call_graph.rb",
+      "line": 459,
+      "end_line": 465,
+      "loc": 7,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::CallGraph#modules_for",
+      "definition_id": "def:v1:b04884facb8e85f99683828556d2058c3bb8a636dc4f1ba117346a439fa8a738",
+      "path": "lib/necropsy/graph/call_graph.rb",
+      "line": 296,
+      "end_line": 301,
+      "loc": 6,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::CallGraph#runtime_feedback",
+      "definition_id": "def:v1:158684f0a76f7d31fc1ed358f82231de0afe6aa72c75b53da89ee62ac552c67f",
       "path": "lib/necropsy/graph/call_graph.rb",
       "line": 175,
+      "end_line": 181,
+      "loc": 7,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
-      "id": "Necropsy::Configuration#min_observation_days",
-      "path": "lib/necropsy/configuration.rb",
-      "line": 86,
-      "state": "test_only_reachable",
+      "id": "Necropsy::CallSiteIdentity#derived_id",
+      "definition_id": "def:v1:738560a675fa8201981c3404c8b5c6dce685355c17619742d66c0c02db76531b",
+      "path": "lib/necropsy/call_site_identity.rb",
+      "line": 30,
+      "end_line": 37,
+      "loc": 8,
+      "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::CallSiteIdentity#identifier",
+      "definition_id": "def:v1:ba2de419619707559bafa5fd004124599f141442359704790b7fa05a7765c4dd",
+      "path": "lib/necropsy/call_site_identity.rb",
+      "line": 47,
+      "end_line": 49,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 11 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::CallSiteIdentity#legacy_id",
+      "definition_id": "def:v1:13d3a437359541fee89b3537c70adc865b0219cdc4a07dad42f5b85bd2601f5e",
+      "path": "lib/necropsy/call_site_identity.rb",
+      "line": 39,
+      "end_line": 45,
+      "loc": 7,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::CallSiteIdentity#source_id",
+      "definition_id": "def:v1:a905746dec724a03abcd55109941e41e51bdd268a99b5ae8ec847898ab3371c9",
+      "path": "lib/necropsy/call_site_identity.rb",
+      "line": 17,
+      "end_line": 28,
+      "loc": 12,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Configuration#include_paths",
+      "definition_id": "def:v1:1d24927a239a37fd7260adb630556b6863b12e2b4986e83d4dca54c197e57863",
+      "path": "lib/necropsy/configuration.rb",
+      "line": 195,
+      "end_line": 197,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::Configuration#min_observation_days",
+      "definition_id": "def:v1:edf797eb3d424fc7c7199300f4c6b176faf8ab96a5a9dc4efdf921b8967577b2",
+      "path": "lib/necropsy/configuration.rb",
+      "line": 113,
+      "end_line": 117,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::ConventionRules::Rule#initialize",
+      "definition_id": "def:v1:9375e3e5b18274fe196bd330e040edef4712db65542c820101c1a65402f08141",
+      "path": "lib/necropsy/convention_rules.rb",
+      "line": 6,
+      "end_line": 33,
+      "loc": 28,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 548 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity#definition_id",
+      "definition_id": "def:v1:7cbf6e6bbf9354358269ecbbc8d9c2ef898a397e60079401dec436073bb8689a",
+      "path": "lib/necropsy/definition_identity.rb",
+      "line": 17,
+      "end_line": 23,
+      "loc": 7,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 6 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity#excluded_key?",
+      "definition_id": "def:v1:e6b0dac2ca82d3774be9ab5b0f8350faeb69cccf4d9b32722976137a22ec371a",
+      "path": "lib/necropsy/definition_identity.rb",
+      "line": 25,
+      "end_line": 28,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity.excluded_key?",
+      "definition_id": "def:v1:9de917759cf84bed3d3df74f81113da174815ea62d1e654757a8a6353db9eb86",
+      "path": "lib/necropsy/definition_identity.rb",
+      "line": 25,
+      "end_line": 28,
+      "loc": 4,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "generated_method",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "generated_method"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#active_containers",
+      "definition_id": "def:v1:cf913853f7bb4f408c009f597903121d3077ed111701304c0a4e35794c6e74ba",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 49,
+      "end_line": 49,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#check_depth!",
+      "definition_id": "def:v1:1253af15fc79840d080b60693b82920ecce9f335ab286708104d0508f8cc8772",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 215,
+      "end_line": 219,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#enter_container!",
+      "definition_id": "def:v1:c02828002f340ddc9520eb6539cbb4e334d9fccfd5d5e7c9662bda59ebad8b91",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 204,
+      "end_line": 209,
+      "loc": 6,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 3 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#json_string",
+      "definition_id": "def:v1:dcb39e614767c9d0f18481458f11453bfc389be7e1de633d53efa0cc02d50ec0",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 194,
+      "end_line": 196,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 5 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#leave_container",
+      "definition_id": "def:v1:85a556c25377489ed61bf8fcbeb731848733289741397beffc4558a600e284e9",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 211,
+      "end_line": 213,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 4 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#max_depth",
+      "definition_id": "def:v1:022e9b6b8011fdb86aabdba85f905578458c72acbba12aa5e52f541da6ac1fea",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 49,
+      "end_line": 49,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#process_array_next",
+      "definition_id": "def:v1:a2f53d68d409094d9ab194208294e615672e8f0a855289ef053aaf61ec545148",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 124,
+      "end_line": 134,
+      "loc": 11,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#process_hash_next",
+      "definition_id": "def:v1:8f584502a13a09678ca62ef079b96a64c8c383e25a94122f16e3d027056d8133",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 141,
+      "end_line": 158,
+      "loc": 18,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#process_hash_pair_complete",
+      "definition_id": "def:v1:d46972fc392b61f39f5a7a38438171cf13ec958537bd66d2dea6d56321055137",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 160,
+      "end_line": 163,
+      "loc": 4,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#process_node_field",
+      "definition_id": "def:v1:b592b4654a23e191f81e6acdf4f7437352ff5fae2d4f89b48cdc76f6b28e2316",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 99,
+      "end_line": 111,
+      "loc": 13,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#process_node_field_complete",
+      "definition_id": "def:v1:7513417ff7d35ba021b87e484426c6f888646af3fe6f9b952384ef5ebd8b0918",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 113,
+      "end_line": 116,
+      "loc": 4,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#process_raw",
+      "definition_id": "def:v1:0078b981958bdb63f41913029c0cd72397214b0b6d396e04b6f1adea319def14",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 165,
+      "end_line": 167,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#process_value",
+      "definition_id": "def:v1:1dc38d16e50ab81feb2dc7305292f159c1cdbe1b6d1b46c90df5d67c16de77f2",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 70,
+      "end_line": 86,
+      "loc": 17,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#start_array",
+      "definition_id": "def:v1:e8bbb200a7b0093669928f0529327df469904cc7dd519acb87a3b0e344d6d2b9",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 118,
+      "end_line": 122,
+      "loc": 5,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#start_hash",
+      "definition_id": "def:v1:f83e82d3cf23b5bedb0b3588d7906faf48fdbe6eb33570be8a1f9e8cb532807c",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 136,
+      "end_line": 139,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#start_node",
+      "definition_id": "def:v1:55ebf5b6a8e261ad45e5b42993e1a4d942f7f0f6ddc533139e5bb0bdf4f536f2",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 88,
+      "end_line": 97,
+      "loc": 10,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#tagged_scalar",
+      "definition_id": "def:v1:4592c7633f291d4bfc384b5cbadb4f1ec60febe5d170e60d613494f1d7d56366",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 169,
+      "end_line": 171,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest#write_float",
+      "definition_id": "def:v1:5140fbaf5e7d3e6e2d995334c396d1dea3943f608571643a0fbf26788659cf0a",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 173,
+      "end_line": 177,
+      "loc": 5,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIdentity::CanonicalDigest::StringOutput#initialize",
+      "definition_id": "def:v1:c695c90f3af534eeb0f47e1a19b654abd138a1938493aab8c95597db93d6bcc7",
+      "path": "lib/necropsy/definition_identity/canonical_digest.rb",
+      "line": 250,
+      "end_line": 253,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 548 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::DefinitionIndex::AmbiguousDefinitionError#initialize",
+      "definition_id": "def:v1:9309d856a92158f435084e3eb1ba68eb2170b868da2df3431c7ae809ca10d9c7",
+      "path": "lib/necropsy/graph/definition_index.rb",
+      "line": 32,
+      "end_line": 35,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 551 unresolved runtime dispatches.",
         "Lowered because this node is near unresolved metaprogramming."
       ]
     },
     {
       "id": "Necropsy::EntryPoints::Rails#helper_referenced?",
+      "definition_id": "def:v1:4c1d5f1fb513a949de15428bb0f1785473b061fe301d322f4d4fcd3b178441c7",
       "path": "lib/necropsy/entry_points/rails.rb",
-      "line": 329,
+      "line": 399,
+      "end_line": 401,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
       "reasons": []
     },
     {
       "id": "Necropsy::EntryPoints::Rails::RouteContext#controller=",
+      "definition_id": "def:v1:086f891a79af5d878ad3f580dbea367763cf0e99defa77a9699ac6eea10b1fe1",
       "path": "lib/necropsy/entry_points/rails.rb",
       "line": 12,
-      "state": "unreachable",
+      "end_line": 12,
+      "loc": 1,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::EntryPoints::Rails::RouteContext#modules=",
+      "definition_id": "def:v1:30c0c19ac4cb3be46bf457ee5eae28d8f20eaf99a007e86090494648b7bf6004",
       "path": "lib/necropsy/entry_points/rails.rb",
       "line": 12,
-      "state": "unreachable",
+      "end_line": 12,
+      "loc": 1,
+      "state": "blocked",
       "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
       "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
         "Lowered because this node is generated by a Ruby accessor DSL."
       ]
     },
     {
       "id": "Necropsy::EntryPoints::Rails::RouteContext#resource=",
+      "definition_id": "def:v1:b21d475b4325e308bf2a94b7cbca69cbd9e98cdfdd841fc4d49a9895b1ba2a85",
       "path": "lib/necropsy/entry_points/rails.rb",
       "line": 12,
+      "end_line": 12,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unparsed_external_reference",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "unparsed_external_reference"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::EvidenceCollection#collect",
+      "definition_id": "def:v1:e25f3f0513a55e2facf1354ced7bf6d45e926bed6bab2f7385d5f0c31f9ce3be",
+      "path": "lib/necropsy/analyzer.rb",
+      "line": 44,
+      "end_line": 49,
+      "loc": 6,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::EvidenceCollection#identity",
+      "definition_id": "def:v1:f1d6c7d143c388cfec1ff9cdfab3ca0977c431d17074dd156ed812b7315ab761",
+      "path": "lib/necropsy/analyzer.rb",
+      "line": 56,
+      "end_line": 62,
+      "loc": 7,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::EvidenceCollection#unwrap",
+      "definition_id": "def:v1:d18cecb1af3178eefdb31aa238e7a9e5b0bc81365d11601111745e1609bc71da",
+      "path": "lib/necropsy/analyzer.rb",
+      "line": 51,
+      "end_line": 53,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 1 unresolved runtime dispatch.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::EvidenceIdentity#fast_payload",
+      "definition_id": "def:v1:7b2b7d17e2d92ffb4130dd3a14ee7cb23d61b0861d06e1bc99c5bc7a1ab9ec07",
+      "path": "lib/necropsy/analyzer.rb",
+      "line": 25,
+      "end_line": 36,
+      "loc": 12,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 4 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::EvidenceIdentity#generate_fast",
+      "definition_id": "def:v1:72a582833ed5c08d3b08a5153586b380e9cd2811379fd508a4df312b2f2155b8",
+      "path": "lib/necropsy/analyzer.rb",
+      "line": 19,
+      "end_line": 23,
+      "loc": 5,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Guardrail::Baseline::Comparison#new_findings",
+      "definition_id": "def:v1:dc12c094f2d8b3f9fb38522fd0845e0bbb8569bf85e408138e3e1dfe5234c131",
+      "path": "lib/necropsy/guardrail/baseline.rb",
+      "line": 12,
+      "end_line": 16,
+      "loc": 5,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "generated_method",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::MethodLookup#partial?",
+      "definition_id": "def:v1:88e123ba38babd0af1116d2fa2cb344194029f51a0ceee14c758d94d7553db60",
+      "path": "lib/necropsy/models.rb",
+      "line": 373,
+      "end_line": 375,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::ModelNormalization#attributes",
+      "definition_id": "def:v1:535cc32a87e6b242f2cc904425690c186d1617183fb13bcdd13056d86ac8c1e5",
+      "path": "lib/necropsy/models.rb",
+      "line": 24,
+      "end_line": 28,
+      "loc": 5,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::ModelNormalization#canonical",
+      "definition_id": "def:v1:4b2a32cf62215c6049aaddc51da7b39d727ab68f91c964afdbe655b0757c3507",
+      "path": "lib/necropsy/models.rb",
+      "line": 58,
+      "end_line": 78,
+      "loc": 21,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 4 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::ModelNormalization#canonical_string",
+      "definition_id": "def:v1:2108c12647457263fb6b7930be06584b95140f5703f57da71cf026fdbb22baf4",
+      "path": "lib/necropsy/models.rb",
+      "line": 80,
+      "end_line": 83,
+      "loc": 4,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 5 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::PerformanceProfiler#phases",
+      "definition_id": "def:v1:9ed74d5e8d7eae67d040b0ae7082026275e449eeb58438468f9e71dff6f5c0de",
+      "path": "lib/necropsy/performance_profiler.rb",
+      "line": 19,
+      "end_line": 19,
+      "loc": 1,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "generated_method",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::Report#diagnostic_findings",
+      "definition_id": "def:v1:2f01d45b435f7a47181c66a604fa260338bf155fe561cf56bccb664b97459360",
+      "path": "lib/necropsy/report.rb",
+      "line": 46,
+      "end_line": 48,
+      "loc": 3,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 2 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Report#project",
+      "definition_id": "def:v1:fab02095bf1575383419e7b49d091e3fd9f962990aa936568cbd7a9f96421d48",
+      "path": "lib/necropsy/report.rb",
+      "line": 15,
+      "end_line": 15,
+      "loc": 1,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 27 unresolved runtime dispatches.",
+        "Lowered because this node is generated by a Ruby accessor DSL."
+      ]
+    },
+    {
+      "id": "Necropsy::Root#external?",
+      "definition_id": "def:v1:cc9038caeac5f4834f9b57e9934508cc4c7c18387ff090318607e2ebb3b2c78a",
+      "path": "lib/necropsy/models.rb",
+      "line": 530,
+      "end_line": 532,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Root#runtime?",
+      "definition_id": "def:v1:d5ef3f7ead0103b5aa1bbe1fa7fc2bfffa01bfe0bb06740ce0654d96ab5625de",
+      "path": "lib/necropsy/models.rb",
+      "line": 526,
+      "end_line": 528,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::Root#test?",
+      "definition_id": "def:v1:9d3f32ea6e7b850a8d7a328e5cae7be42cb8a5bd3d72b38515d5e4b34dcd2d93",
+      "path": "lib/necropsy/models.rb",
+      "line": 522,
+      "end_line": 524,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::RuntimeFeedback#initialize",
+      "definition_id": "def:v1:6b73a9016a2a4c26be6aa32c4c0112cf03896c74b3a8cf31766a4a3744d34afd",
+      "path": "lib/necropsy/runtime_feedback.rb",
+      "line": 16,
+      "end_line": 25,
+      "loc": 10,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "unknown_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 548 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::RuntimeFeedback#normalize_observed_targets",
+      "definition_id": "def:v1:78143a18058e181c3b34b631a9cf76126224ccbcc26bf6c07906210358ccfc40",
+      "path": "lib/necropsy/runtime_feedback.rb",
+      "line": 96,
+      "end_line": 114,
+      "loc": 19,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::RuntimeFeedback#normalize_static_targets",
+      "definition_id": "def:v1:38320ddb02a163313daf80913fd24a8bd3828878357bd1809495fc9c2974a4dd",
+      "path": "lib/necropsy/runtime_feedback.rb",
+      "line": 87,
+      "end_line": 94,
+      "loc": 8,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::RuntimeFeedback#write_fixture_candidates",
+      "definition_id": "def:v1:286e280032f755311dde413a08b4abd085146ad2225acd2d507550580bcefb2e",
+      "path": "lib/necropsy/runtime_feedback.rb",
+      "line": 63,
+      "end_line": 76,
+      "loc": 14,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::RuntimeFeedback.from_graph",
+      "definition_id": "def:v1:28981e0e40f334eee85704d453a01195cac99d3ef242d75737742ce1a4ac02d2",
+      "path": "lib/necropsy/runtime_feedback.rb",
+      "line": 78,
+      "end_line": 83,
+      "loc": 6,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::TypeFact#initialize",
+      "definition_id": "def:v1:4edbf266d47d1f2f7d74f0dab60c05534bceeed8d64868e0bdd18b92dc7efdb8",
+      "path": "lib/necropsy/type_facts.rb",
+      "line": 7,
+      "end_line": 21,
+      "loc": 15,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch",
+        "unknown_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 551 unresolved runtime dispatches.",
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::TypeFact#safe_for_resolution?",
+      "definition_id": "def:v1:6b233f4e09c92e4bf945c9e7e080a3737178ab6b68a81805fe8b08cd310d4255",
+      "path": "lib/necropsy/type_facts.rb",
+      "line": 23,
+      "end_line": 25,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
+      ]
+    },
+    {
+      "id": "Necropsy::TypeProvider#facts",
+      "definition_id": "def:v1:fedd149b6904c477e7c9d2a10652c631e159df73a5375efbc185c1c864921a89",
+      "path": "lib/necropsy/type_facts.rb",
+      "line": 49,
+      "end_line": 51,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::TypeProvider#profile",
+      "definition_id": "def:v1:856489d262780973bde387933a7a93317d0f64ca2848d845aba5c5382c6ffb08",
+      "path": "lib/necropsy/type_facts.rb",
+      "line": 41,
+      "end_line": 47,
+      "loc": 7,
+      "state": "blocked",
+      "confidence": "low",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "partial_dispatch",
+      "unknown": true,
+      "rule_hits": [],
+      "risk_flags": [
+        "analysis_incomplete"
+      ],
+      "blocker_kinds": [
+        "partial_dispatch"
+      ],
+      "reasons": [
+        "Blocked by 15 unresolved runtime dispatches."
+      ]
+    },
+    {
+      "id": "Necropsy::TypeProvider.facts",
+      "definition_id": "def:v1:8a68d5f5c61c896f15f91fc16b88c2d7cdf8a75bb9a50f802d2d6fff5c89115a",
+      "path": "lib/necropsy/type_facts.rb",
+      "line": 49,
+      "end_line": 51,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "generated_method",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": []
+    },
+    {
+      "id": "Necropsy::ValueFact#exact_instance_types?",
+      "definition_id": "def:v1:f35c24ea8e4253b0fe2dfe6b63ed456b3ce53490e0194e5ae880245711f2a67f",
+      "path": "lib/necropsy/models.rb",
+      "line": 715,
+      "end_line": 717,
+      "loc": 3,
+      "state": "unreachable",
+      "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
+      "reasons": [
+        "Lowered because this node is near unresolved metaprogramming."
       ]
     }
   ]

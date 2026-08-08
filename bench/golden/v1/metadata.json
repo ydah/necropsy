@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
-  "update_reason": "Complete 0.2.1 safety audit",
+  "update_reason": "refresh v1 normalized reports after bounded evidence and production corpus scope changes",
   "artifacts": {
-    "candidate_union.json": "080bdcee349253e9a1313f0f8cad39da98e8898460f4e272a69efe12f05b40e5",
-    "reports/dynamic_evidence.json": "f3c0d56cc4dc89f68fede9b34b551cd9423577f95fea37b17896bf54453ed91d",
-    "reports/plain_ruby.json": "0aa08379241266e828fc64a2018c673f7ca2e1a664f9786c44dbac606c5a08d1",
-    "reports/rails.json": "7a18e296e2ad72944161bd4c7a528768f6ce2c9fadbd078731ebac5241117d24",
-    "reports/rubocop_1_75_0.json": "56c6c0c0071f5ba0672d018c4f1835f7d789e35fea669d2cb44f23d07bc1d9a7",
-    "reports/self.json": "66c4cf7819dae14a315a9542d185382a5866e3632fab2b97e2424860cc61ce87"
+    "candidate_union.json": "1613af7e9ea4115fded5ef6cc89bac0b4e488cce917dd6b41c1eb64cfbcc4839",
+    "reports/dynamic_evidence.json": "bd82a2b9fb2fae3777d81743917f2df59744798c5f58747219565436134de7ed",
+    "reports/plain_ruby.json": "fc939ec706e35ada3c59428856b9f8408ffc3f7468265a3c322c26c65c138169",
+    "reports/rails.json": "c0d2195364260ff955ae933acfb57d4e3e9697185e619d79635f70ca0f4b01fb",
+    "reports/rubocop_1_75_0.json": "48a136417c6b5802282720cad1f9a608a709b7a8b6e712de2ae228edd79413b5",
+    "reports/self.json": "e515ea2364a5745f886f23d15c935df7d9e217f0f28a168af9e06882dbde861f"
   }
 }

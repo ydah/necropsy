@@ -2,49 +2,174 @@
   "schema_version": 1,
   "corpus": "rails",
   "metrics": {
-    "nodes": 32,
-    "definitions": 23,
-    "call_sites": 49,
-    "edges": 17,
-    "findings": 4
+    "analysis_graph": {
+      "scope": "analysis",
+      "nodes": 32,
+      "definitions": 23,
+      "call_sites": 49,
+      "edges": 17
+    },
+    "findings": 4,
+    "actionable_candidates": 3,
+    "candidate_loc": 7,
+    "diagnostic_findings": 1
   },
   "states": {
     "test_only_reachable": 1,
     "unreachable": 3
   },
+  "quality": {
+    "scope": "report",
+    "candidate_count": 3,
+    "candidate_loc": 7,
+    "diagnostic_count": 1,
+    "blocked_count": 0,
+    "blocked_rate": 0.0,
+    "unknown_finding_count": 0,
+    "unknown_finding_rate": 0.0,
+    "resolution_counts": {
+      "total": 147,
+      "complete": 22,
+      "partial": 22,
+      "unknown": 103
+    },
+    "unknown_resolution_rate": 0.7007,
+    "rule_counts": {
+      "callback_registered": 1,
+      "rails_component": 1,
+      "rails_route": 9,
+      "rails_view_helper": 2,
+      "rails_view_reference": 1
+    },
+    "risk_counts": {
+      "generated_method": 1,
+      "public_or_protected_visibility": 4
+    },
+    "by_category": {
+      "generated_method": {
+        "findings": 1,
+        "candidate_count": 1,
+        "candidate_loc": 1,
+        "blocked_count": 0,
+        "blocked_rate": 0.0,
+        "unknown_count": 0,
+        "unknown_rate": 0.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "generated_method": 1,
+          "public_or_protected_visibility": 1
+        }
+      },
+      "test_only_reachable": {
+        "findings": 1,
+        "candidate_count": 0,
+        "candidate_loc": 0,
+        "blocked_count": 0,
+        "blocked_rate": 0.0,
+        "unknown_count": 0,
+        "unknown_rate": 0.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "public_or_protected_visibility": 1
+        }
+      },
+      "unreachable": {
+        "findings": 2,
+        "candidate_count": 2,
+        "candidate_loc": 6,
+        "blocked_count": 0,
+        "blocked_rate": 0.0,
+        "unknown_count": 0,
+        "unknown_rate": 0.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "public_or_protected_visibility": 2
+        }
+      }
+    }
+  },
   "findings": [
     {
       "id": "Sample::Widget#<=>",
+      "definition_id": "def:v1:d785fc9e7140c3c1b0231b4b81f69bef10f93cf597e7edc8fada0bd37aa3ea83",
       "path": "app/models/widget.rb",
       "line": 43,
+      "end_line": 45,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "low",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Lowered because <=> is a Ruby protocol method invoked implicitly."
       ]
     },
     {
       "id": "Sample::Widget#alias_live",
+      "definition_id": "def:v1:116fa7b0d782f572553497fc44cdfba132618efcdbfff2694f9d7b540b4003d2",
       "path": "app/models/widget.rb",
       "line": 37,
+      "end_line": 37,
+      "loc": 1,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "generated_method",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "generated_method",
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": []
     },
     {
       "id": "Sample::Widget#dead_model",
+      "definition_id": "def:v1:4eb57429e3a250519819576bc125a4271340303473f23bc6d5c0e4192cf89819",
       "path": "app/models/widget.rb",
       "line": 51,
+      "end_line": 53,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": []
     },
     {
       "id": "Sample::Widget#test_only",
+      "definition_id": "def:v1:8a2c86b54d2d1ac0212463c51cff24b81d2e8a46eb5eb3ecd8db86e74911f0eb",
       "path": "app/models/widget.rb",
       "line": 55,
+      "end_line": 57,
+      "loc": 3,
       "state": "test_only_reachable",
       "confidence": "medium",
+      "candidate": false,
+      "diagnostic": true,
+      "category": "test_only_reachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": []
     }
   ]

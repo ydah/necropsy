@@ -2,52 +2,142 @@
   "schema_version": 1,
   "corpus": "dynamic_evidence",
   "metrics": {
-    "nodes": 6,
-    "definitions": 5,
-    "call_sites": 4,
-    "edges": 2,
-    "findings": 4
+    "analysis_graph": {
+      "scope": "analysis",
+      "nodes": 6,
+      "definitions": 5,
+      "call_sites": 4,
+      "edges": 2
+    },
+    "findings": 4,
+    "actionable_candidates": 4,
+    "candidate_loc": 12,
+    "diagnostic_findings": 0
   },
   "states": {
     "unreachable": 4
   },
+  "quality": {
+    "scope": "report",
+    "candidate_count": 4,
+    "candidate_loc": 12,
+    "diagnostic_count": 0,
+    "blocked_count": 0,
+    "blocked_rate": 0.0,
+    "unknown_finding_count": 0,
+    "unknown_finding_rate": 0.0,
+    "resolution_counts": {
+      "total": 12,
+      "complete": 4,
+      "partial": 2,
+      "unknown": 6
+    },
+    "unknown_resolution_rate": 0.5,
+    "rule_counts": {},
+    "risk_counts": {
+      "public_or_protected_visibility": 4
+    },
+    "by_category": {
+      "unreachable": {
+        "findings": 4,
+        "candidate_count": 4,
+        "candidate_loc": 12,
+        "blocked_count": 0,
+        "blocked_rate": 0.0,
+        "unknown_count": 0,
+        "unknown_rate": 0.0,
+        "rule_counts": {},
+        "risk_counts": {
+          "public_or_protected_visibility": 4
+        }
+      }
+    }
+  },
   "findings": [
     {
       "id": "DynamicSeed#dead",
+      "definition_id": "def:v1:462aacae140d5237759b4516e121ed032ed65edd9e9460e5c2c0aaced5d3f05b",
       "path": "lib/dynamic_seed.rb",
       "line": 16,
+      "end_line": 18,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
     },
     {
       "id": "DynamicSeed#helper",
+      "definition_id": "def:v1:b5057efa66e7850ebbcc22e4c3d19accd0e1537ca2b2f4b6bee7614d3ca8518e",
       "path": "lib/dynamic_seed.rb",
       "line": 8,
+      "end_line": 10,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
     },
     {
       "id": "DynamicSeed#public_hook",
+      "definition_id": "def:v1:2f73f908d6c20c6c52ae5d106e2f4efda727c0f2227c7fcbd1a2a529990c05f7",
       "path": "lib/dynamic_seed.rb",
       "line": 20,
+      "end_line": 22,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
     },
     {
       "id": "DynamicSeed#run",
+      "definition_id": "def:v1:62bc0fd1e53699ef877f7dec4e15fc86e37fbeed0a23abd58ee4fe7d34bd010d",
       "path": "lib/dynamic_seed.rb",
       "line": 4,
+      "end_line": 6,
+      "loc": 3,
       "state": "unreachable",
       "confidence": "medium",
+      "candidate": true,
+      "diagnostic": false,
+      "category": "unreachable",
+      "unknown": false,
+      "rule_hits": [],
+      "risk_flags": [
+        "public_or_protected_visibility"
+      ],
+      "blocker_kinds": [],
       "reasons": [
         "Runtime observations did not include this definition; classification and confidence are unchanged."
       ]
