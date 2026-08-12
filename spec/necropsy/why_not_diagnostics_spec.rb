@@ -288,8 +288,8 @@ RSpec.describe 'why-not diagnostics' do
         name: :oversized_rule,
         kind: :static,
         soundness: :partial,
-        description: oversized,
-        assumptions: [oversized]
+        description: oversized.byteslice(0, 4_096),
+        assumptions: [oversized.byteslice(0, 512)]
       )
     )
     report = Necropsy::Report.new(
