@@ -198,6 +198,13 @@ RSpec.describe Necropsy::Confidence::Scorer do
     end
 
     context 'with a quarantine annotation' do
+      let(:clock) { Necropsy::Clock.new }
+      let(:today) { clock.date }
+      subject(:findings) do
+        described_class.new(graph: graph, reachability: reachability, project: project_for(project_root),
+                            clock: clock).findings
+      end
+
       let(:files) do
         {
           'app/quarantined.rb' => <<~RUBY
@@ -209,7 +216,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
           RUBY
         }
       end
-      let(:since) { (Date.today - 31).iso8601 }
+      let(:since) { (today - 31).iso8601 }
       let(:fingerprint) { Digest::SHA256.hexdigest('unreachable:Quarantined#dead') }
       let(:fingerprint_clause) { "fingerprint=#{fingerprint}" }
       let(:dead) { node('Quarantined#dead', owner: 'Quarantined', name: 'dead', file: 'app/quarantined.rb', line: 3) }
@@ -228,7 +235,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
       end
 
       context 'at the expiry boundary' do
-        let(:since) { (Date.today - 30).iso8601 }
+        let(:since) { (today - 30).iso8601 }
 
         it 'requires review without changing deadness' do
           expect(findings.first).to have_attributes(
@@ -241,7 +248,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
       end
 
       context 'immediately before expiry' do
-        let(:since) { (Date.today - 29).iso8601 }
+        let(:since) { (today - 29).iso8601 }
 
         it 'keeps the same state and does not require review' do
           expect(findings.first).to have_attributes(
