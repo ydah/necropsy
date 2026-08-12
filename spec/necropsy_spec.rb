@@ -346,9 +346,14 @@ RSpec.describe Necropsy do
       path.end_with?('/.', '/..')
     end, dir)
     model_path = File.join(dir, 'app/models/widget.rb')
+    initial = described_class.analyze(root: dir)
+    target = initial.findings.find { |item| item.node.id == 'Sample::Widget#dead_model' }
     lines = File.readlines(model_path, chomp: true)
     index = lines.index { |line| line.include?('def dead_model') }
-    lines.insert(index, '    # necropsy:quarantine since=2000-01-01')
+    lines.insert(
+      index,
+      "    # necropsy:quarantine since=2000-01-01 fingerprint=#{target.physical_fingerprint}"
+    )
     File.write(model_path, "#{lines.join("\n")}\n")
 
     report = described_class.analyze(root: dir)
