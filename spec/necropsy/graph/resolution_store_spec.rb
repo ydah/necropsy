@@ -55,6 +55,32 @@ RSpec.describe Necropsy::ResolutionStore do
     expect(graph.edges).to eq([])
   end
 
+  it 'indexes call sites by message and accepted or rejected physical definition' do
+    caller = node('Caller#run')
+    accepted = node('Accepted#render', owner: 'Accepted', name: 'render')
+    rejected = node('Rejected#render', owner: 'Rejected', name: 'render')
+    named_site = call_site(caller_id: caller.graph_id, message: 'render', call_site_id: 'call:v1:named')
+    resolved_site = call_site(caller_id: caller.graph_id, message: 'dispatch', call_site_id: 'call:v1:indexed')
+    graph = graph_with(nodes: [caller, accepted, rejected], call_sites: [named_site, resolved_site])
+    resolution = Necropsy::Resolution.new(
+      call_site_id: resolved_site.call_site_id,
+      target_definition_ids: [accepted.graph_id],
+      status: :complete,
+      rejected_targets: [
+        Necropsy::RejectedTarget.new(definition_id: rejected.graph_id, reason: 'visibility')
+      ]
+    )
+    record = Necropsy::ResolutionRecord.new(
+      resolution: resolution, producer: 'index_spec', producer_version: '1', assumptions: []
+    )
+
+    apply_resolutions(graph, record)
+
+    expect(graph.call_sites_for_message('render')).to eq([named_site])
+    expect(graph.call_sites_resolving_definition(accepted.graph_id)).to eq([resolved_site])
+    expect(graph.call_sites_resolving_definition(rejected.graph_id)).to eq([resolved_site])
+  end
+
   it 'keeps partial known targets while blocking only the residual scope' do
     caller = node('Caller#run')
     known = node('Known#render', owner: 'Known', name: 'render')

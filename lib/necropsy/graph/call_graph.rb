@@ -91,6 +91,11 @@ module Necropsy
       nodes.definitions_for(symbol_id)
     end
 
+    def call_sites_for_message(message)
+      @call_sites_by_message ||= call_sites.group_by { |site| site.message.to_s }.transform_values(&:freeze).freeze
+      @call_sites_by_message.fetch(message.to_s, [])
+    end
+
     def apply_result(result, refresh: true)
       staged = transactional_copy
       staged.send(:apply_result!, result, refresh: refresh)
@@ -694,6 +699,7 @@ module Necropsy
 
         call_sites << site
         @call_sites_by_id[site.call_site_id] = [site]
+        @call_sites_by_message = nil
       end
     end
 

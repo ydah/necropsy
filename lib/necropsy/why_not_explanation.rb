@@ -17,12 +17,10 @@ module Necropsy
     end
 
     def call(node)
-      finding = report.findings.find { |candidate| candidate.node.graph_id == node.graph_id }
+      finding = report.finding_for_definition(node.graph_id)
       blockers = canonical_sort(finding ? finding.blockers : graph.matching_blockers(node))
-      all_records = graph.resolution_records
-      records_by_site = all_records.group_by { |record| record.resolution.call_site_id }
-      sites = incoming_call_sites(node, records_by_site)
-      site_records = sites.to_h { |site| [site.call_site_id, records_by_site.fetch(site.call_site_id, [])] }
+      sites = incoming_call_sites(node)
+      site_records = sites.to_h { |site| [site.call_site_id, graph.resolution_records(site.call_site_id)] }
       rejections = target_rejections(node, site_records)
       definitions = graph.definitions_for(node.symbol_id)
       state = state(node, finding)
@@ -116,17 +114,9 @@ module Necropsy
       flags.sort
     end
 
-    def incoming_call_sites(node, records_by_site)
-      graph.call_sites.select do |site|
-        records = records_by_site.fetch(site.call_site_id, [])
-        site.message.to_s == node.name.to_s || records.any? { |record| resolution_mentions?(record, node.graph_id) }
-      end.sort_by { |site| [site.file.to_s, site.line.to_i, site.call_site_id.to_s] }
-    end
-
-    def resolution_mentions?(record, definition_id)
-      resolution = record.resolution
-      resolution.target_definition_ids.include?(definition_id) ||
-        resolution.rejected_targets.any? { |target| target.definition_id == definition_id }
+    def incoming_call_sites(node)
+      sites = graph.call_sites_for_message(node.name) + graph.call_sites_resolving_definition(node.graph_id)
+      sites.uniq.sort_by { |site| [site.file.to_s, site.line.to_i, site.call_site_id.to_s] }
     end
 
     def call_site_payload(site, node, records)

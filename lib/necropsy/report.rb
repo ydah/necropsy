@@ -59,6 +59,11 @@ module Necropsy
       reported_findings.dup
     end
 
+    def finding_for_definition(definition_id)
+      @findings_by_definition ||= findings.to_h { |finding| [finding.node.graph_id, finding] }.freeze
+      @findings_by_definition[definition_id.to_s]
+    end
+
     def report_path?(path)
       included_in_report?(path) && !excluded_from_report?(path)
     end

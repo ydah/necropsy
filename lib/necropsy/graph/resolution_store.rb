@@ -23,6 +23,11 @@ module Necropsy
       counts.freeze
     end
 
+    def call_sites_resolving_definition(definition_id)
+      ids = resolution_call_site_ids_by_definition.fetch(definition_id.to_s, EMPTY_RESOLUTION_RECORDS)
+      ids.flat_map { |call_site_id| @call_sites_by_id.fetch(call_site_id, EMPTY_RESOLUTION_RECORDS) }
+    end
+
     def resolution_conflicts
       compute_resolution_conflicts
     end
@@ -52,6 +57,7 @@ module Necropsy
       @resolution_records_by_key[resolution_record_key(record)] = record
       @sorted_resolution_records = nil
       @resolution_records_by_call_site = nil
+      @resolution_call_site_ids_by_definition = nil
     rescue KeyError, ArgumentError, NoMethodError, BoundedCanonicalizer::Error, SystemStackError => e
       store_malformed_resolution_issue(record, e)
     end
@@ -133,6 +139,18 @@ module Necropsy
       @resolution_records_by_call_site ||= sorted_resolution_records.group_by do |record|
         record.resolution.call_site_id
       end.transform_values(&:freeze).freeze
+    end
+
+    def resolution_call_site_ids_by_definition
+      @resolution_call_site_ids_by_definition ||= begin
+        index = Hash.new { |hash, key| hash[key] = [] }
+        sorted_resolution_records.each do |record|
+          resolution = record.resolution
+          definition_ids = resolution.target_definition_ids + resolution.rejected_targets.map(&:definition_id)
+          definition_ids.uniq.each { |definition_id| index[definition_id] << resolution.call_site_id }
+        end
+        index.transform_values { |ids| ids.uniq.sort.freeze }.freeze
+      end
     end
 
     def rebuild_resolution_derived_state
