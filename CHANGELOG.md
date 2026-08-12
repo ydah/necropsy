@@ -4,6 +4,10 @@ All notable changes to Necropsy are documented in this file.
 
 ## Unreleased
 
+No unreleased changes.
+
+## 0.3.0 - 2026-08-13
+
 - Preserve repeated and reopened Ruby definitions as distinct physical graph nodes while retaining logical method names for compatibility; ambiguous runtime references no longer silently select one definition.
 - Record structured call-site resolution, scoped blockers, evidence grades, and analyzer provenance, with conservative adaptation for existing custom static analyzers.
 - Store graph evidence once and expose exact, conservative, and scope-filtered observed views while preserving conservative reachability and the existing nested edge JSON.
@@ -13,6 +17,11 @@ All notable changes to Necropsy are documented in this file.
 - Add `why-not` human and versioned JSON diagnostics covering physical definitions, examined calls and resolutions, blockers, world policy, external text matches, analysis failures, enabled rules, and suggested evidence.
 - Write physical-definition baseline schema v2 while continuing to read logical v1 baselines; CI now stops for an explicit review when a legacy entry maps to multiple definitions.
 - Expose legacy and physical fingerprints additively in JSON and SARIF, and show both logical-symbol and physical-definition candidate views in benchmark output.
+- Fail closed on analyzer, parser, source-revision, reference-scan, and unsafe RTA failures; expose explicit health status, strict-health policy, machine-readable failure reports, and graph self-checks.
+- Harden Ruby semantic traversal and finite value flow for modifier definitions, default arguments, dynamic sends, short-circuit paths, unsupported control flow, reflective hooks, and receiver-aware core protocol calls.
+- Add conservative Rails and framework conventions for generated methods, associations, enums, scopes, callbacks, ActionCable, ActiveJob, Sidekiq, GraphQL, serializers, ViewComponent, routes, ERB, inflections, and structural dependency detection.
+- Add bounded and deterministic external-reference scanning with qualified-owner matching, streaming limits, byte/match/time budgets, unsafe-skip blockers, and safe repository discovery.
+- Add deterministic NDJSON graph export, content-addressed cache metadata, reproducible runtime artifacts, performance distributions, macro-averaged evaluation, AST fuzzing, runtime target oracles, mutation safety harnesses, and a generated semantics matrix.
 
 ## 0.2.1 - 2026-08-04
 
