@@ -10,6 +10,7 @@ module Necropsy
       blocker, key = canonical_blocker(blocker)
       return blocker unless @blocker_keys.add?(key)
 
+      @dynamic_ancestry_cache = {} if blocker.kind == :dynamic_ancestry
       @blockers << blocker
       @blocker_keys_by_object[blocker] = key
       index_blocker(blocker)

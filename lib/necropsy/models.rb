@@ -882,7 +882,8 @@ module Necropsy
     :observation,
     :blockers,
     :resolutions,
-    :evidences
+    :evidences,
+    :derived_call_sites
   ) do
     class << self
       alias_method :data_new, :new
@@ -895,6 +896,8 @@ module Necropsy
       private
 
       def compatible_new(*values, **attributes)
+        return data_new(*values, []) if attributes.empty? && values.length == 7
+
         return data_new(*values, **attributes) unless attributes.empty? && [4, 5].include?(values.length)
 
         edge_evidences, alive_evidences, uncertainties, observation, blockers = values
@@ -907,7 +910,7 @@ module Necropsy
     end
 
     def initialize(edge_evidences:, alive_evidences:, uncertainties:, observation:, blockers: [], resolutions: nil,
-                   evidences: [])
+                   evidences: [], derived_call_sites: [])
       resolutions = normalize_resolutions(resolutions) unless resolutions.nil?
       super
     end
@@ -915,7 +918,7 @@ module Necropsy
     def self.empty
       new(
         edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [],
-        resolutions: [], evidences: []
+        resolutions: [], evidences: [], derived_call_sites: []
       )
     end
 

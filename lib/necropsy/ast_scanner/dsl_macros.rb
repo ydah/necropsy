@@ -9,13 +9,16 @@ module Necropsy
       return unless context.owner
 
       unless static_module_relation?(node, context)
+        constants = arguments(node).filter_map { |argument| constant_name(argument) }
+        class_record(context.owner)[:dynamic] = true
         record_semantic_blocker(
           :dynamic_ancestry,
           node,
           context,
           "#{node.name} is not an unconditional load-time ancestry mutation",
           suggested_action: :make_ancestry_static,
-          force_global: true
+          scope_owner: [context.owner, *constants].uniq,
+          force_global: %w[BasicObject Kernel Object].include?(context.owner)
         )
         return
       end

@@ -99,11 +99,11 @@ module Necropsy
       EvidenceCollection.collect(*collections)
     end
 
-    def resolution_record(site, targets, evidences, status: nil, rejected_targets: [])
+    def resolution_record(site, targets, evidences, status: nil, rejected_targets: [], unknown_scope: nil)
       analyzer_profile = profile
       target_ids = targets.map(&:graph_id).uniq.sort
       status ||= target_ids.empty? ? :unknown : :partial
-      unknown_scope = residual_scope(site) unless status == :complete
+      unknown_scope = status == :complete ? nil : (unknown_scope || residual_scope(site))
       ResolutionRecord.new(
         resolution: Resolution.new(
           call_site_id: site.call_site_id,

@@ -101,7 +101,7 @@ module GraphHelpers
   end
 
   def analyzer_result(edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {}, blockers: [],
-                      resolutions: nil, evidences: [])
+                      resolutions: nil, evidences: [], derived_call_sites: [])
     Necropsy::AnalyzerResult.new(
       edge_evidences: edge_evidences,
       alive_evidences: alive_evidences,
@@ -109,7 +109,8 @@ module GraphHelpers
       observation: observation,
       blockers: blockers,
       resolutions: resolutions,
-      evidences: evidences
+      evidences: evidences,
+      derived_call_sites: derived_call_sites
     )
   end
 

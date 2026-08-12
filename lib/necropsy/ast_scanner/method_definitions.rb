@@ -146,7 +146,7 @@ module Necropsy
         'caller_domain' => context.test ? 'test' : 'runtime',
         'caller_id' => context.current_caller_id,
         'semantic_operation' => (node.respond_to?(:name) ? node.name : node.type).to_s,
-        'owner_scope' => [scope_owner].compact,
+        'owner_scope' => Array(scope_owner).compact,
         'file' => context.relative_file,
         'line' => node.location.start_line,
         'reason_code' => kind.to_s

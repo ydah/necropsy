@@ -13,6 +13,9 @@ module Necropsy
           reverse_each select sort sort_by take take_while to_a to_h
         ].freeze
         COMPARISON_MESSAGES = %w[< <= > >= between? clamp sort sort_by max min].freeze
+        CORE_ENUMERABLE_RECEIVERS = %w[Array Enumerator Hash Range Set].freeze
+        CORE_COMPARISON_RECEIVERS = %w[Array].freeze
+        KERNEL_OUTPUT_MESSAGES = %w[print puts warn].freeze
 
         attr_reader :pruning, :emit_redundant_edges
 
@@ -36,6 +39,8 @@ module Necropsy
 
         def analyze(graph, _project)
           sites = expanded_call_sites(graph)
+          original_call_site_ids = graph.call_sites.to_set(&:call_site_id)
+          derived_sites = sites.reject { |site| original_call_site_ids.include?(site.call_site_id) }
           instantiated_metadata = instantiated_classes_metadata(graph)
           analyses = sites.map do |site|
             targets = rta_candidates(graph, site)
@@ -66,9 +71,9 @@ module Necropsy
           end
           edge_evidences = analyses.flat_map(&:last)
           analyses_by_call_site_id = analyses.to_h { |site, targets, edges| [site.call_site_id, [targets, edges]] }
-          resolutions = graph.call_sites.map do |site|
+          resolutions = sites.map do |site|
             targets, edges = analyses_by_call_site_id.fetch(site.call_site_id)
-            resolution_record(site, targets, edges)
+            resolution_record(site, targets, edges, unknown_scope: graph.residual_scope_for(site))
           end
 
           AnalyzerResult.new(
@@ -77,7 +82,8 @@ module Necropsy
             uncertainties: {},
             observation: { 'rta' => { 'pruning' => pruning.to_s, 'analyzed_sites' => sites.map(&:to_h) } },
             resolutions: resolutions,
-            evidences: result_evidences(edge_evidences)
+            evidences: result_evidences(edge_evidences),
+            derived_call_sites: derived_sites
           )
         end
 
@@ -99,57 +105,107 @@ module Necropsy
 
         def expanded_call_sites(graph)
           graph.call_sites.flat_map do |site|
-            [site, *implicit_sites(site)]
+            [site, *implicit_sites(site, graph: graph)]
           end
         end
 
-        def implicit_sites(site)
-          implicit_messages(site.message).map do |message|
-            CallSite.new(
-              call_site_id: CallSiteIdentity.derived_id(
-                parent_call_site_id: site.call_site_id,
-                derivation: :rta_implicit,
-                caller_definition_id: site.caller_id,
-                message: message
-              ),
-              caller_id: site.caller_id,
-              message: message,
-              receiver_kind: site.receiver_kind,
-              receiver_name: site.receiver_name,
-              file: site.file,
-              line: site.line,
-              test: site.test,
-              dynamic: site.dynamic,
-              metadata: site.metadata.merge(
-                'implicit_from' => site.message,
-                'derived_from_call_site_id' => site.call_site_id,
-                'derived_via' => 'rta_implicit'
-              )
-            )
+        def implicit_sites(site, graph: nil)
+          summaries = []
+          if core_enumerable_receiver?(site) && ENUMERABLE_MESSAGES.include?(site.message) && site.message != 'each'
+            summaries << ['each', :same_receiver]
           end
+          comparison = core_comparison_receiver?(site) && COMPARISON_MESSAGES.include?(site.message)
+          summaries << ['<=>', :element_receiver] if comparison
+          summaries << ['to_s', :first_argument] if kernel_output_call?(site, graph)
+          summaries.map { |message, receiver| derived_protocol_site(site, message, receiver) }
         end
 
-        def implicit_messages(message)
-          messages = []
-          messages << 'each' if ENUMERABLE_MESSAGES.include?(message) && message != 'each'
-          messages << '<=>' if COMPARISON_MESSAGES.include?(message)
-          messages << 'to_s' if %w[puts print warn].include?(message)
-          messages
+        def implicit_messages(site, graph: nil)
+          implicit_sites(site, graph: graph).map(&:message)
         end
 
         private
 
+        def derived_protocol_site(site, message, receiver)
+          receiver_kind, receiver_name, receiver_metadata = protocol_receiver(site, receiver)
+          CallSite.new(
+            call_site_id: CallSiteIdentity.derived_id(
+              parent_call_site_id: site.call_site_id,
+              derivation: :rta_implicit,
+              caller_definition_id: site.caller_id,
+              message: message
+            ),
+            caller_id: site.caller_id,
+            message: message,
+            receiver_kind: receiver_kind,
+            receiver_name: receiver_name,
+            file: site.file,
+            line: site.line,
+            test: site.test,
+            dynamic: false,
+            metadata: site.metadata.except('receiver_candidates', 'receiver_value_fact').merge(
+              receiver_metadata,
+              'implicit_from' => site.message,
+              'protocol_receiver' => receiver.to_s,
+              'derived_from_call_site_id' => site.call_site_id,
+              'derived_via' => 'rta_implicit'
+            )
+          )
+        end
+
+        def protocol_receiver(site, receiver)
+          if receiver == :same_receiver
+            metadata = site.metadata.slice('receiver_candidates', 'receiver_value_fact')
+            return [site.receiver_kind, site.receiver_name, metadata]
+          end
+
+          fact = Array(site.metadata['argument_value_facts']).first if receiver == :first_argument
+          return receiver_from_fact(fact) if fact
+
+          [:unknown, nil, { 'receiver_candidates' => [] }]
+        end
+
+        def receiver_from_fact(fact)
+          values = Array(fact['values']).map(&:to_s).reject(&:empty?).uniq.sort
+          return [:unknown, nil, { 'receiver_candidates' => [] }] if values.empty?
+
+          [:instance, values.first, { 'receiver_candidates' => values, 'receiver_value_fact' => fact }]
+        end
+
+        def core_enumerable_receiver?(site)
+          receiver_owners(site).intersect?(CORE_ENUMERABLE_RECEIVERS)
+        end
+
+        def core_comparison_receiver?(site)
+          receiver_owners(site).intersect?(CORE_COMPARISON_RECEIVERS)
+        end
+
+        def receiver_owners(site)
+          values = Array(site.metadata['receiver_candidates'])
+          values = [site.receiver_name] if values.empty?
+          values.compact.map(&:to_s)
+        end
+
+        def kernel_output_call?(site, graph)
+          return false unless KERNEL_OUTPUT_MESSAGES.include?(site.message)
+          return false unless %i[implicit self].include?(site.receiver_kind)
+          return true unless graph
+
+          graph.method_lookup(site).targets.empty?
+        end
+
         def rta_candidates(graph, site)
-          candidates = Analyzers::Static::CHA.new.candidates(graph, site)
+          candidates = graph.cha_method_lookup(site).targets
           candidates = fallback_candidates(graph, site) if candidates.empty?
           graph.retain_rta_candidates(candidates, site)
         end
 
         def fallback_candidates(graph, site)
-          return graph.candidate_nodes(site.message) if site.receiver_kind == :unknown
+          domain = site.test ? :test : :runtime
+          return graph.candidate_nodes(site.message, domain: domain) if site.receiver_kind == :unknown
           return [] unless graph.ambiguous_resolution?
 
-          graph.ambiguous_fallback_candidates(site.message)
+          graph.ambiguous_fallback_candidates(site.message, domain: domain)
         end
 
         # A full allocation list in every RTA evidence record makes evidence

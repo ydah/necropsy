@@ -20,6 +20,10 @@ module Necropsy
       receiver_fact = context.flow_result&.fact_for(node.receiver)
       compact_receiver_fact = compact_receiver_fact(receiver_fact)
       metadata['receiver_value_fact'] = compact_receiver_fact if compact_receiver_fact
+      argument_facts = arguments(node).map do |argument|
+        compact_receiver_fact(context.flow_result&.fact_for(argument))
+      end
+      metadata['argument_value_facts'] = argument_facts if argument_facts.any?
 
       if DYNAMIC_SENDS.include?(node.name)
         literal = literal_argument(node, index: 0)

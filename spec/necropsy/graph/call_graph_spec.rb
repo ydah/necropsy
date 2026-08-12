@@ -286,6 +286,18 @@ RSpec.describe Necropsy::CallGraph do
     expect(graph.send(:dispatched_instance_owner, 'Sample', 'run')).to eq('Sample')
   end
 
+  it 'does not let test helpers consume the runtime ambiguity budget' do
+    runtime = node('Runtime#render', owner: 'Runtime', name: 'render')
+    tests = 5.times.map do |index|
+      node("SpecHelper#{index}#render", owner: "SpecHelper#{index}", name: 'render', test: true)
+    end
+    graph = graph_with(nodes: [runtime, *tests], ambiguity_limit: 1)
+
+    expect(graph.candidate_nodes('render')).to contain_exactly(runtime, *tests)
+    expect(graph.ambiguous_fallback_candidates('render', domain: :runtime)).to eq([runtime])
+    expect(graph.ambiguity_exceeded?('render', domain: :runtime)).to be(false)
+  end
+
   it 'resolves super calls to the nearest ancestor implementation' do
     parent = node('Parent#render', owner: 'Parent', name: 'render')
     child = node('Child#render', owner: 'Child', name: 'render')

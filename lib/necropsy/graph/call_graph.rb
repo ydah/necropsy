@@ -57,12 +57,13 @@ module Necropsy
 
       @method_nodes = nil
       @nodes_by_name = nil
+      @runtime_nodes_by_name = nil
       @dispatch_cache = nil
       @lookup_chain_cache = nil
       @owner_ancestor_cache = nil
       @flow_lookup_cache = nil
       @rta_instantiated_owner_cache = {}
-      @global_dynamic_ancestry_cache = {}
+      @dynamic_ancestry_cache = {}
       added = nodes.add(node)
       register_duplicate_definition_blocker(node.symbol_id) if @duplicate_blockers_initialized
       refresh_resolution_derived_state
@@ -95,6 +96,7 @@ module Necropsy
     end
 
     def apply_result!(result, refresh: true)
+      register_result_call_sites(result)
       dynamic_result = dynamic_result?(result)
       edge_matches = result.edge_evidences.map do |edge|
         next apply_dynamic_edge(edge) if dynamic_result
@@ -310,20 +312,21 @@ module Necropsy
       (info.prepends + info.includes + info.extends).uniq
     end
 
-    def candidate_nodes(message)
-      nodes_by_name.fetch(message, [])
+    def candidate_nodes(message, domain: nil)
+      index = domain&.to_sym == :runtime ? runtime_nodes_by_name : nodes_by_name
+      index.fetch(message, [])
     end
 
-    def ambiguous_fallback_candidates(message)
-      candidates = candidate_nodes(message)
+    def ambiguous_fallback_candidates(message, domain: nil)
+      candidates = candidate_nodes(message, domain: domain)
       return candidates if candidates.one?
       return [] if candidates.size > @ambiguity_limit
 
       candidates
     end
 
-    def ambiguity_exceeded?(message)
-      candidate_nodes(message).size > ambiguity_limit
+    def ambiguity_exceeded?(message, domain: nil)
+      candidate_nodes(message, domain: domain).size > ambiguity_limit
     end
 
     def ambiguous_resolution?
@@ -344,6 +347,35 @@ module Necropsy
       candidates = rta ? rta_candidates_for_receiver(site) : method_lookup(site).targets
       candidates = candidates.select { |node| rta_candidate?(node, site) } if rta
       candidates
+    end
+
+    def cha_method_lookup(site)
+      primary = method_lookup(site)
+      return primary if primary.complete?
+
+      lookups = case site.receiver_kind
+                when :constant
+                  receiver_candidates(site).map { |owner| canonical_receiver_lookup(site, owner, :constant) }
+                when :instance
+                  receiver_candidates(site).flat_map do |owner|
+                    descendants_of(owner).map { |candidate| canonical_receiver_lookup(site, candidate, :instance) }
+                  end
+                else
+                  []
+                end
+      targets = [primary, *lookups].flat_map(&:targets).uniq(&:graph_id).sort_by(&:graph_id)
+      chain = [primary, *lookups].flat_map(&:lookup_chain).uniq
+      incomplete_method_lookup(targets, chain, 'cha_canonical_lookup')
+    end
+
+    def residual_scope_for(site)
+      return UnknownScope.new(scope_kind: :message, scope_value: site.message, match: :exact) if site.receiver_kind == :unknown
+
+      owners = receiver_candidates(site)
+      owners = [nodes.exact(site.caller_id)&.owner].compact if owners.empty?
+      return UnknownScope.new(scope_kind: :message, scope_value: site.message, match: :exact) if owners.empty?
+
+      UnknownScope.new(scope_kind: :owner, scope_value: owners.sort, match: :exact)
     end
 
     def method_lookup(site)
@@ -460,7 +492,7 @@ module Necropsy
     def constructor_dispatch_exact?(owner, site)
       info = class_info(owner)
       return false unless info && !info.dynamic
-      return false if global_dynamic_ancestry?(site)
+      return false if dynamic_ancestry_uncertain?(site)
 
       entries = singleton_lookup_entries(owner)
       return false if dynamic_lookup_chain?(entries)
@@ -526,12 +558,15 @@ module Necropsy
       return false if resolved.empty?
 
       lookup = method_lookup(site)
-      !lookup.complete? && resolved.map(&:graph_id).sort == ambiguous_fallback_candidates(site.message).map(&:graph_id).sort
+      domain = site.test ? :test : :runtime
+      fallback = ambiguous_fallback_candidates(site.message, domain: domain)
+      !lookup.complete? && resolved.map(&:graph_id).sort == fallback.map(&:graph_id).sort
     end
 
     def to_h
       {
         'nodes' => nodes.values.map(&:to_h),
+        'call_sites' => call_sites.map(&:to_h),
         'edges' => edges.map(&:to_h),
         'edge_projection' => 'conservative',
         'edge_relations' => edge_relations.map(&:to_h),
@@ -553,6 +588,26 @@ module Necropsy
     end
 
     private
+
+    def runtime_nodes_by_name
+      @runtime_nodes_by_name ||= method_nodes.reject(&:test).group_by(&:name).freeze
+    end
+
+    def canonical_receiver_lookup(site, owner, kind)
+      entries = kind == :constant ? singleton_lookup_entries(owner) : instance_lookup_entries(owner)
+      separator = kind == :constant ? '.' : '#'
+      scoped_site = site.with(
+        receiver_kind: kind,
+        receiver_name: owner,
+        metadata: site.metadata.merge('receiver_candidates' => [owner])
+      )
+      ordered_method_lookup(
+        scoped_site,
+        entries,
+        reason: "cha_#{kind}_lookup",
+        completeness_entries: [[owner, separator]]
+      )
+    end
 
     def transactional_copy
       copy = dup
@@ -608,6 +663,20 @@ module Necropsy
       Array(records).each do |evidence|
         record = evidence_with_identity(evidence)
         register_evidence(record) unless evidence_payload_registered?(record)
+      end
+    end
+
+    def register_result_call_sites(result)
+      sites = result.respond_to?(:derived_call_sites) ? result.derived_call_sites : []
+      Array(sites).each do |site|
+        raise TypeError, 'derived call sites must be CallSite values' unless site.is_a?(CallSite)
+
+        existing = call_sites.select { |candidate| candidate.call_site_id == site.call_site_id }
+        next if existing.include?(site)
+        raise Error, "Conflicting derived call site identity: #{site.call_site_id}" if existing.any?
+
+        call_sites << site
+        @call_sites_by_id[site.call_site_id] = [site]
       end
     end
 
@@ -801,7 +870,7 @@ module Necropsy
       exact = method_lookup(site).targets
       return exact unless exact.empty?
 
-      candidate_nodes(site.message)
+      candidate_nodes(site.message, domain: site.test ? :test : :runtime)
     end
 
     def self_method_lookup(site)
@@ -875,8 +944,8 @@ module Necropsy
       targets = definitions_for("#{target_entry.first}#{target_entry.last}#{site.message}")
       prefix = completeness_entries + entries.first(target_index + 1)
       complete = !force_partial && complete_lookup_prefix?(prefix) && !dynamic_lookup_chain?(entries) &&
-                 !global_dynamic_ancestry?(site)
-      targets = dynamic_ancestry_candidates(site, targets) if global_dynamic_ancestry?(site)
+                 !dynamic_ancestry_uncertain?(site)
+      targets = dynamic_ancestry_candidates(site, targets) if dynamic_ancestry_uncertain?(site)
       return incomplete_method_lookup(targets, entries, "#{reason}_incomplete") unless complete
 
       if targets.any? { |target| protected_visibility_outcome(site, target) == :unknown }
@@ -905,7 +974,8 @@ module Necropsy
     end
 
     def fallback_method_lookup(site, reason:)
-      incomplete_method_lookup(ambiguous_fallback_candidates(site.message), [], reason)
+      domain = site.test ? :test : :runtime
+      incomplete_method_lookup(ambiguous_fallback_candidates(site.message, domain: domain), [], reason)
     end
 
     def apply_complete_target_constraints(site, targets)
@@ -1026,21 +1096,27 @@ module Necropsy
       entries.any? { |owner, _separator| class_info(owner)&.dynamic }
     end
 
-    def global_dynamic_ancestry?(site)
-      key = site.test ? :test : :runtime
-      return @global_dynamic_ancestry_cache[key] if @global_dynamic_ancestry_cache.key?(key)
+    def dynamic_ancestry_uncertain?(site)
+      owners = receiver_candidates(site)
+      owners = [nodes.exact(site.caller_id)&.owner].compact if owners.empty?
+      key = [site.test ? :test : :runtime, owners.sort]
+      return @dynamic_ancestry_cache[key] if @dynamic_ancestry_cache.key?(key)
 
-      @global_dynamic_ancestry_cache[key] = @blockers.any? do |blocker|
-        next false unless blocker.kind == :dynamic_ancestry && blocker.scope_kind == :global
+      @dynamic_ancestry_cache[key] = @blockers.any? do |blocker|
+        next false unless blocker.kind == :dynamic_ancestry
+        next false unless blocker.caller_domain == :runtime || site.test
+        next true if blocker.scope_kind == :global
+        next false unless blocker.scope_kind == :owner
 
-        blocker.caller_domain == :runtime || site.test
+        Array(blocker.scope_value).map(&:to_s).intersect?(owners)
       end
     end
 
     def dynamic_ancestry_candidates(site, targets)
-      return targets unless global_dynamic_ancestry?(site)
+      return targets unless dynamic_ancestry_uncertain?(site)
 
-      (Array(targets) + ambiguous_fallback_candidates(site.message)).uniq(&:graph_id).sort_by(&:graph_id)
+      domain = site.test ? :test : :runtime
+      (Array(targets) + ambiguous_fallback_candidates(site.message, domain: domain)).uniq(&:graph_id).sort_by(&:graph_id)
     end
 
     def resolved_receiver_owner(site)

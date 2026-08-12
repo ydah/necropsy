@@ -293,11 +293,15 @@ RSpec.describe 'structured analysis models' do
       full = [[], [], {}, {}, [], [record], [:evidence]]
 
       expect(described_class[*legacy_four]).to eq(described_class.new(*legacy_four))
-      expect(described_class.new(*legacy_four)).to have_attributes(blockers: [], resolutions: nil, evidences: [])
+      expect(described_class.new(*legacy_four)).to have_attributes(
+        blockers: [], resolutions: nil, evidences: [], derived_call_sites: []
+      )
       expect(described_class[*legacy_five]).to eq(described_class.new(*legacy_five))
       expect(described_class.new(*legacy_five)).to have_attributes(blockers: [:blocker], resolutions: nil)
       expect(described_class[*full]).to eq(described_class.new(*full))
-      expect(described_class.new(*full)).to have_attributes(resolutions: [record], evidences: [:evidence])
+      expect(described_class.new(*full)).to have_attributes(
+        resolutions: [record], evidences: [:evidence], derived_call_sites: []
+      )
     end
 
     it 'distinguishes legacy omission from an explicit empty native result' do

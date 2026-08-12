@@ -61,6 +61,27 @@ RSpec.describe Necropsy::Analyzers::Static::CHA do
     expect(described_class.new.analyze(graph, nil).edge_evidences.map(&:callee_id)).to eq(['Messages#deliver'])
   end
 
+  it 'does not mix singleton extensions into incomplete instance lookup' do
+    caller = node('Caller#run', owner: 'Caller', name: 'run')
+    included = node('Included#render', owner: 'Included', name: 'render')
+    extended = node('Extended#render', owner: 'Extended', name: 'render')
+    site = call_site(caller_id: caller.id, message: 'render', receiver_kind: :instance, receiver_name: 'DynamicHost')
+    graph = graph_with(
+      nodes: [caller, included, extended],
+      call_sites: [site],
+      class_infos: [
+        class_info('DynamicHost', includes: ['Included'], extends: ['Extended'], dynamic: true),
+        class_info('Included', kind: :module),
+        class_info('Extended', kind: :module)
+      ]
+    )
+
+    resolution = described_class.new.analyze(graph, nil).resolutions.first.resolution
+
+    expect(resolution).to have_attributes(status: :partial, target_definition_ids: ['Included#render'])
+    expect(resolution.unknown_scope).to have_attributes(scope_kind: :owner, scope_value: ['DynamicHost'])
+  end
+
   it 'emits an unknown resolution for every site without a known target' do
     caller = node('Caller#run')
     first = call_site(caller_id: caller.graph_id, message: 'first', line: 2)

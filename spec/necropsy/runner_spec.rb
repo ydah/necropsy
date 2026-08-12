@@ -286,6 +286,8 @@ RSpec.describe Necropsy::Runner do
       expect(render_targets(report)).to eq(['Live#render'])
       expect(report.graph.profiles.find { |profile| profile.name == :rta }.description).to include('mode legacy')
       expect(report.graph.observation.dig('rta', 'pruning')).to eq('legacy')
+      expect(report.analysis_health).to have_attributes(status: :invalid)
+      expect(report.analysis_health.reasons).to include(include('code' => 'unsound_rta_pruning'))
     end
   end
 

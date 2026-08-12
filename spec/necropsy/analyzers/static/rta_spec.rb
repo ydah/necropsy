@@ -50,11 +50,19 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
       )
     end
 
-    it 'keeps derived implicit sites as positive evidence without registering invalid resolutions' do
-      protocol_target = node('Live#each', owner: 'Live', name: 'each')
-      protocol_site = call_site(caller_id: caller.graph_id, message: 'map', receiver_kind: :unknown)
+    it 'registers receiver-transformed protocol sites and their resolutions' do
+      protocol_target = node('Live#to_s', owner: 'Live', name: 'to_s')
+      wrong_receiver_target = node('Caller#to_s', owner: 'Caller', name: 'to_s')
+      protocol_site = call_site(
+        caller_id: caller.graph_id,
+        message: 'puts',
+        receiver_kind: :implicit,
+        metadata: {
+          'argument_value_facts' => [{ 'kind' => 'instance_types', 'values' => ['Live'], 'exact' => true }]
+        }
+      )
       protocol_graph = graph_with(
-        nodes: [caller, protocol_target],
+        nodes: [caller, protocol_target, wrong_receiver_target],
         call_sites: [protocol_site],
         instantiated_classes: Set['Live'],
         class_infos: [class_info('Live')]
@@ -63,14 +71,20 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
       protocol_result = analyzer.analyze(protocol_graph, nil)
       protocol_graph.apply_result(protocol_result)
 
-      expect(protocol_result.resolutions.map { |record| record.resolution.call_site_id }).to eq(
-        [protocol_site.call_site_id]
+      derived_site = protocol_result.derived_call_sites.fetch(0)
+      expect(derived_site).to have_attributes(message: 'to_s', receiver_kind: :instance, receiver_name: 'Live')
+      expect(protocol_result.resolutions.map { |record| record.resolution.call_site_id }).to contain_exactly(
+        protocol_site.call_site_id, derived_site.call_site_id
       )
       derived = protocol_result.edge_evidences.find { |edge| edge.callee_id == protocol_target.graph_id }
+      expect(protocol_result.edge_evidences.map(&:callee_id)).not_to include(wrong_receiver_target.graph_id)
       expect(derived.evidence.metadata.fetch('metadata')).to include(
         'derived_from_call_site_id' => protocol_site.call_site_id,
-        'derived_via' => 'rta_implicit'
+        'derived_via' => 'rta_implicit',
+        'protocol_receiver' => 'first_argument'
       )
+      expect(protocol_graph.call_sites).to include(derived_site)
+      expect(protocol_graph.resolution_records(derived_site.call_site_id)).not_to be_empty
       expect(protocol_graph.resolution_issues).to eq([])
     end
 
@@ -87,7 +101,12 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
   describe '#implicit_sites' do
     subject(:implicit_sites) { analyzer.implicit_sites(site) }
 
-    let(:site) { call_site(caller_id: 'Caller#run', message: 'map', receiver_kind: :unknown) }
+    let(:site) do
+      call_site(
+        caller_id: 'Caller#run', message: 'map', receiver_kind: :instance, receiver_name: 'Array',
+        metadata: { 'receiver_candidates' => ['Array'] }
+      )
+    end
 
     it 'adds protocol calls for common Ruby methods' do
       expect(implicit_sites.map(&:message)).to include('each')
@@ -114,9 +133,28 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
   end
 
   describe '#implicit_messages' do
-    it 'adds comparison and string conversion protocols' do
-      expect(analyzer.implicit_messages('sort')).to include('<=>', 'each')
-      expect(analyzer.implicit_messages('puts')).to eq(['to_s'])
+    it 'transforms comparison and string conversion receivers' do
+      sort = call_site(
+        caller_id: 'Caller#run', message: 'sort', receiver_kind: :instance, receiver_name: 'Array',
+        metadata: { 'receiver_candidates' => ['Array'] }
+      )
+      output = call_site(
+        caller_id: 'Caller#run', message: 'puts', receiver_kind: :implicit,
+        metadata: {
+          'argument_value_facts' => [{ 'kind' => 'instance_types', 'values' => ['Value'], 'exact' => true }]
+        }
+      )
+
+      expect(analyzer.implicit_messages(sort)).to contain_exactly('<=>', 'each')
+      converted = analyzer.implicit_sites(output).fetch(0)
+      expect(converted).to have_attributes(message: 'to_s', receiver_name: 'Value')
+      expect(converted.metadata).to include('protocol_receiver' => 'first_argument')
+    end
+
+    it 'does not derive Enumerable protocols from arbitrary user method names' do
+      user_call = call_site(caller_id: 'Caller#run', message: 'map', receiver_kind: :instance, receiver_name: 'Live')
+
+      expect(analyzer.implicit_sites(user_call)).to be_empty
     end
   end
 end

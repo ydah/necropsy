@@ -22,7 +22,8 @@ module Necropsy
               candidates,
               site_edges,
               status: lookup.status,
-              rejected_targets: lookup.rejected_targets
+              rejected_targets: lookup.rejected_targets,
+              unknown_scope: graph.residual_scope_for(site)
             )
             record_unresolved_uncertainty(graph, site, lookup, uncertainties)
             blocker = unresolved_blocker(graph, site, lookup)
@@ -85,7 +86,9 @@ module Necropsy
 
         def record_unresolved_uncertainty(graph, site, lookup, uncertainties)
           return if site.dynamic || lookup.targets.any? || lookup.complete?
-          return if graph.candidate_nodes(site.message).empty? && site.receiver_kind != :unknown
+
+          domain = site.test ? :test : :runtime
+          return if graph.candidate_nodes(site.message, domain: domain).empty? && site.receiver_kind != :unknown
 
           uncertainties[site.caller_id] ||= []
           uncertainties[site.caller_id] <<
@@ -95,8 +98,9 @@ module Necropsy
         def unresolved_blocker(graph, site, lookup)
           return if lookup.targets.any? || lookup.complete?
 
-          candidate_count = graph.candidate_nodes(site.message).size
-          limit_exceeded = graph.ambiguity_exceeded?(site.message)
+          domain = site.test ? :test : :runtime
+          candidate_count = graph.candidate_nodes(site.message, domain: domain).size
+          limit_exceeded = graph.ambiguity_exceeded?(site.message, domain: domain)
           return unless limit_exceeded || site.receiver_kind == :unknown
 
           reason_code = limit_exceeded ? :ambiguity_limit_exceeded : :unknown_receiver

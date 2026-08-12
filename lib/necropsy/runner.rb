@@ -6,7 +6,7 @@ module Necropsy
   class Runner
     ANALYZER_ERROR_MESSAGE_BYTES = 500
     INVALID_BLOCKER_KINDS = %i[
-      analyzer_failure blocker_invalid evidence_collision rails_route_health resolution_invalid
+      analyzer_failure blocker_invalid evidence_collision rails_route_health resolution_invalid unsound_rta_pruning
     ].freeze
     DEGRADED_BLOCKER_KINDS = %i[
       reference_scan_incomplete reference_scope_incomplete source_discovery_incomplete
@@ -30,6 +30,7 @@ module Necropsy
         CallGraph.new(project.scan_result, ambiguity_limit: config.ambiguity_limit)
       end
       project.scope_blockers.each { |blocker| graph.add_blocker(blocker) }
+      graph.add_blocker(unsound_rta_pruning_blocker) if rta_pruning == :legacy
       rta_results = []
 
       measure_phase(profiler, 'entry_points') { apply_entry_points(graph, project) }
@@ -207,6 +208,18 @@ module Necropsy
           'error_class' => error.class.name,
           'error_message' => error_message
         }
+      )
+    end
+
+    def unsound_rta_pruning_blocker
+      Blocker.new(
+        kind: :unsound_rta_pruning,
+        scope_kind: :global,
+        scope_value: '*',
+        source: :configuration,
+        reason: 'Legacy RTA pruning can remove reachable targets without complete allocation evidence',
+        suggested_action: :use_rank_only_rta,
+        metadata: { 'caller_domain' => 'runtime', 'rta_pruning' => 'legacy' }
       )
     end
 
