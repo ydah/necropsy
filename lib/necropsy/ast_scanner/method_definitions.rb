@@ -8,8 +8,18 @@ module Necropsy
       return false unless node.name == :define_method
       return false unless context.owner
 
-      method_name = first_symbol_argument(node)
-      return false unless method_name
+      method_name = literal_argument(node, index: 0)
+      unless method_name
+        record_semantic_blocker(
+          :dynamic_definition,
+          node,
+          context,
+          'define_method name is not statically bounded',
+          suggested_action: :make_method_name_literal
+        )
+        visit_synthetic_body(node.block&.body, context, :dynamic_define_method)
+        return true
+      end
 
       kind, separator = method_kind_and_separator(context)
       id = "#{context.owner}#{separator}#{method_name}"
@@ -43,8 +53,20 @@ module Necropsy
       return false unless node.name == :define_singleton_method
 
       owner = definition_owner_for_call(node, context)
-      method_name = first_symbol_argument(node) || first_string_argument(node)
-      return false unless owner && method_name
+      method_name = literal_argument(node, index: 0)
+      unless owner && method_name
+        record_semantic_blocker(
+          :dynamic_singleton_definition,
+          node,
+          context,
+          'define_singleton_method receiver or name is not statically bounded',
+          suggested_action: :make_singleton_definition_static,
+          scope_owner: owner,
+          force_global: !owner
+        )
+        visit_synthetic_body(node.block&.body, context, :dynamic_define_singleton_method)
+        return true
+      end
 
       id = "#{owner}.#{method_name}"
       definition = add_definition(
@@ -73,10 +95,10 @@ module Necropsy
     end
 
     def handle_eval(node, context)
-      return false unless %i[class_eval module_eval instance_eval eval].include?(node.name)
+      return false unless %i[class_eval class_exec module_eval module_exec instance_eval instance_exec eval].include?(node.name)
 
       owner = eval_owner(node, context)
-      unless %i[class_eval module_eval].include?(node.name) && node.block && owner
+      unless node.block && owner && node.name != :eval
         record_semantic_blocker(
           :variable_eval,
           node,
@@ -84,16 +106,17 @@ module Necropsy
           'Eval receiver or source is not statically bounded',
           suggested_action: :replace_variable_eval,
           scope_owner: node.name == :eval ? nil : owner,
-          receiver_kind: node.name == :instance_eval ? :constant : nil,
+          receiver_kind: %i[instance_eval instance_exec].include?(node.name) ? :constant : nil,
           force_global: node.name == :eval
         )
+        visit_synthetic_body(node.block&.body, context, :dynamic_eval)
         return true
       end
 
       block_context = context.dup
       block_context.namespace = owner
       block_context.owner = owner
-      block_context.singleton_scope = false
+      block_context.singleton_scope = %i[instance_eval instance_exec].include?(node.name)
       block_context.visibility = :public
       block_context.module_function = false
       block_context.static_ancestry = false
@@ -116,13 +139,13 @@ module Necropsy
 
     def record_semantic_blocker(kind, node, context, reason, suggested_action: :review,
                                 scope_owner: context.owner, receiver_kind: nil, force_global: false)
-      global = force_global || kind == :dynamic_ancestry || !scope_owner
+      global = force_global || !scope_owner
       scope_kind = global ? :global : :owner
       scope_value = global ? '*' : scope_owner
       metadata = {
         'caller_domain' => context.test ? 'test' : 'runtime',
         'caller_id' => context.current_caller_id,
-        'semantic_operation' => node.name.to_s,
+        'semantic_operation' => (node.respond_to?(:name) ? node.name : node.type).to_s,
         'owner_scope' => [scope_owner].compact,
         'file' => context.relative_file,
         'line' => node.location.start_line,
@@ -144,16 +167,26 @@ module Necropsy
       return false unless VISIBILITY_MACROS.include?(node.name)
       return false unless context.owner
 
-      names = symbol_arguments(node)
+      modifier_definitions = arguments(node).grep(Prism::DefNode)
       class_method = node.name.to_s.end_with?('_class_method')
       visibility = node.name.to_s.delete_suffix('_class_method').to_sym
+      unless modifier_definitions.empty?
+        modifier_definitions.each do |definition|
+          definition_context = context.dup
+          definition_context.visibility = visibility
+          visit_def(definition, definition_context)
+        end
+        return true
+      end
+
+      names = symbol_arguments(node)
       if names.empty?
         unless class_method
           context.visibility = visibility
           context.module_function = false
         end
       else
-        names.each { |name| update_method_visibility(context, name, visibility, singleton: class_method) }
+        names.each { |name| update_method_visibility(context, name, visibility, node, singleton: class_method) }
       end
       true
     end
@@ -161,6 +194,17 @@ module Necropsy
     def handle_module_function(node, context)
       return false unless node.name == :module_function
       return false unless context.owner
+
+      modifier_definitions = arguments(node).grep(Prism::DefNode)
+      unless modifier_definitions.empty?
+        modifier_definitions.each do |definition|
+          definition_context = context.dup
+          definition_context.module_function = true
+          definition_context.visibility = :private
+          visit_def(definition, definition_context)
+        end
+        return true
+      end
 
       names = symbol_arguments(node)
       if names.empty?
@@ -189,6 +233,45 @@ module Necropsy
       true
     end
 
+    def handle_method_removal(node, context)
+      return false unless %i[remove_method undef_method].include?(node.name)
+      return false unless context.owner
+
+      names = symbol_arguments(node)
+      if names.empty?
+        record_semantic_blocker(
+          :dynamic_method_removal,
+          node,
+          context,
+          "#{node.name} target is not statically bounded",
+          suggested_action: :make_method_name_literal,
+          force_global: true
+        )
+        return true
+      end
+
+      names.each do |name|
+        semantic_blockers << Blocker.new(
+          kind: node.name,
+          scope_kind: :message,
+          scope_value: name,
+          source: 'ast_scanner',
+          reason: "#{context.owner} #{node.name}s #{name}; activation order is not closed",
+          suggested_action: :review_method_activation,
+          metadata: {
+            'caller_domain' => context.test ? 'test' : 'runtime',
+            'caller_id' => context.current_caller_id,
+            'owner_scope' => [context.owner],
+            'file' => context.relative_file,
+            'line' => node.location.start_line,
+            'message' => name,
+            'reason_code' => node.name.to_s
+          }
+        )
+      end
+      true
+    end
+
     def visit_alias_method_node(node, context)
       return visit_children(node, context) unless context.owner
 
@@ -201,6 +284,7 @@ module Necropsy
       kind = context.singleton_scope ? :singleton_method : :instance_method
       separator = kind == :singleton_method ? '.' : '#'
       id = "#{context.owner}#{separator}#{new_name}"
+      physical_source = physical_alias_source(context, source_node, old_name, kind)
       definition = add_definition(
         symbol_id: id,
         kind: kind,
@@ -209,8 +293,10 @@ module Necropsy
         defined_via: :alias_method,
         owner: context.owner,
         name: new_name,
-        visibility: context.visibility
+        visibility: physical_source&.visibility || context.visibility
       )
+      metadata = { 'original_message' => old_name, 'alias_method' => true }
+      metadata['physical_target_definition_id'] = physical_source.graph_id if physical_source
       add_scanned_call_site(
         source_node: source_node,
         context: context,
@@ -220,8 +306,17 @@ module Necropsy
         receiver_kind: :self,
         receiver_name: context.owner,
         dynamic: false,
-        metadata: { 'original_message' => old_name, 'alias_method' => true }
+        metadata: metadata
       )
+    end
+
+    def physical_alias_source(context, source_node, old_name, kind)
+      return unless context.static_ancestry
+
+      nodes.select do |definition|
+        definition.kind == kind && definition.owner == context.owner && definition.name == old_name &&
+          definition.file == context.relative_file && definition.line <= source_node.location.start_line
+      end.max_by { |definition| [definition.line, definition.ordinal] }
     end
   end
 end

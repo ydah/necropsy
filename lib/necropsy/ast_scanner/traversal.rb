@@ -33,6 +33,7 @@ module Necropsy
       test = project.test_file?(file)
       context = Context.new(
         namespace: nil,
+        lexical_nesting: [],
         owner: nil,
         current_caller_id: nil,
         current_method_name: nil,
@@ -108,8 +109,10 @@ module Necropsy
     def visit_namespace(node, context)
       namespace = qualify_constant(constant_name(node.constant_path), context.namespace)
       record_class_info(node, namespace, context)
+      visit(node.superclass, context) if node.respond_to?(:superclass) && node.superclass
       child_context = context.dup
       child_context.namespace = namespace
+      child_context.lexical_nesting = [namespace, *context.lexical_nesting].compact.uniq
       child_context.owner = namespace
       child_context.singleton_scope = false
       child_context.visibility = :public
@@ -119,7 +122,19 @@ module Necropsy
 
     def visit_def(node, context)
       owner = definition_owner(node, context)
-      return visit_children(node, context) unless owner
+      unless owner
+        visit(node.receiver, context) if node.receiver
+        record_semantic_blocker(
+          :dynamic_singleton_definition,
+          node,
+          context,
+          'singleton method receiver is not statically bounded',
+          suggested_action: :make_singleton_receiver_static,
+          force_global: true
+        )
+        visit_synthetic_body(node.body, context, :dynamic_singleton_method)
+        return
+      end
 
       kind = node.receiver || context.singleton_scope ? :singleton_method : :instance_method
       separator = kind == :singleton_method ? '.' : '#'
@@ -167,7 +182,7 @@ module Necropsy
       method_context.static_ancestry = false
       method_context.flow_result = FlowInterpreter.new(
         constant_resolver: lambda do |constant|
-          resolve_candidate_group(constant_candidates(constant, method_context.namespace))
+          resolve_candidate_group(constant_candidates(constant, method_context.lexical_nesting))
         end
       ).analyze(node.body)
       method_context.flow_result.issues.each do |issue|
@@ -179,7 +194,17 @@ module Necropsy
           suggested_action: :review_value_flow
         )
       end
+      visit_default_parameters(node.parameters, method_context)
       visit(node.body, method_context)
+    end
+
+    def visit_default_parameters(parameters, context)
+      return unless parameters
+
+      defaults = [*Array(parameters.optionals), *Array(parameters.keywords)].filter_map do |parameter|
+        parameter.value if parameter.respond_to?(:value)
+      end
+      defaults.each { |default| visit(default, context) }
     end
 
     def convention_ancestors(owner)
@@ -195,20 +220,22 @@ module Necropsy
     end
 
     def visit_call(node, context)
-      return if handle_unsupported_semantics(node, context)
-      return if handle_visibility(node, context)
-      return if handle_module_function(node, context)
-      return if handle_eval(node, context)
-      return if handle_define_singleton_method(node, context)
-      return if handle_define_method(node, context)
-      return if handle_attr_macro(node, context)
-      return if handle_delegate(node, context)
-      return if handle_forwardable(node, context)
-      return if handle_alias_method(node, context)
+      handlers = %i[
+        handle_unsupported_semantics handle_visibility handle_module_function handle_eval
+        handle_define_singleton_method handle_define_method handle_attr_macro handle_delegate
+        handle_forwardable handle_alias_method handle_method_removal
+      ]
+      if handlers.any? { |handler| send(handler, node, context) }
+        visit_handled_call_children(node, context)
+        return
+      end
 
       handle_module_relation(node, context)
       handle_rails_callback(node, context)
-      return if handle_generated_rails_methods(node, context)
+      if handle_generated_rails_methods(node, context)
+        visit_handled_call_children(node, context)
+        return
+      end
 
       record_instantiation(node, context)
       record_symbol_reference(node, context)
@@ -219,6 +246,33 @@ module Necropsy
       record_uncertainty_at(node, context) if sites.empty? && unresolved_dynamic_dispatch?(node)
 
       visit_children(node, context)
+    end
+
+    def visit_handled_call_children(node, context)
+      visit(node.receiver, context) if node.receiver
+      arguments(node).each { |argument| visit(argument, context) unless argument.is_a?(Prism::DefNode) }
+    end
+
+    def visit_synthetic_body(body, context, purpose)
+      return unless body
+
+      synthetic = add_definition(
+        symbol_id: "synthetic:#{purpose}:#{context.relative_file}:#{body.location.start_line}",
+        kind: :block_entry,
+        source_node: body,
+        context: context,
+        defined_via: purpose,
+        owner: context.owner,
+        name: purpose,
+        visibility: :public
+      )
+      body_context = context.dup
+      body_context.current_caller_id = synthetic.graph_id
+      body_context.current_method_name = nil
+      body_context.current_kind = :block_entry
+      body_context.static_ancestry = false
+      body_context.flow_result = nil
+      visit(body, body_context)
     end
 
     def visit_super(node, context)
@@ -243,13 +297,36 @@ module Necropsy
     end
 
     def visit_singleton_class(node, context)
-      return visit_children(node, context) unless node.expression.is_a?(Prism::SelfNode) && context.owner
+      owner = singleton_class_owner(node.expression, context)
+      unless owner
+        visit(node.expression, context)
+        record_semantic_blocker(
+          :dynamic_singleton_definition,
+          node,
+          context,
+          'singleton class receiver is not statically bounded',
+          suggested_action: :make_singleton_receiver_static,
+          force_global: true
+        )
+        return
+      end
 
       singleton_context = context.dup
+      singleton_context.namespace = owner
+      singleton_context.owner = owner
       singleton_context.singleton_scope = true
       singleton_context.visibility = :public
       singleton_context.module_function = false
       visit(node.body, singleton_context)
+    end
+
+    def singleton_class_owner(expression, context)
+      return context.owner if expression.is_a?(Prism::SelfNode)
+
+      name = constant_name(expression)
+      return unless name
+
+      resolve_candidate_group(constant_candidates(name, context.lexical_nesting))
     end
   end
 end

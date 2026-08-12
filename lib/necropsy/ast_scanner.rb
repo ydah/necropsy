@@ -49,7 +49,7 @@ module Necropsy
     VISIBILITY_MACROS = %i[public protected private public_class_method private_class_method].freeze
     SYMBOL_REFERENCE_CALLS = %i[method respond_to? try try!].freeze
     ANCESTRY_CONTROL_FLOW_TYPES = %i[
-      and_node block_node case_node else_node for_node if_node lambda_node
+      and_node block_node case_match_node case_node else_node for_node if_node in_node lambda_node
       or_node rescue_modifier_node rescue_node until_node when_node while_node
     ].freeze
     RAILS_BUILTIN_VALIDATORS = %w[
@@ -59,6 +59,7 @@ module Necropsy
 
     Context = Struct.new(
       :namespace,
+      :lexical_nesting,
       :owner,
       :current_caller_id,
       :current_method_name,

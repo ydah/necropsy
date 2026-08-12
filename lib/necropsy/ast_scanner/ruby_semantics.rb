@@ -10,14 +10,14 @@ module Necropsy
 
       constant = constant_name(receiver)
       if constant
-        candidates = constant_candidates(constant, context.namespace)
+        candidates = constant_candidates(constant, context.lexical_nesting)
         return { kind: :constant, name: resolve_candidate_group(candidates), candidates: candidates }
       end
 
       if receiver.is_a?(Prism::CallNode) && receiver.name == :new
         receiver_constant = constant_name(receiver.receiver)
         if receiver_constant
-          candidates = constant_candidates(receiver_constant, context.namespace)
+          candidates = constant_candidates(receiver_constant, context.lexical_nesting)
           return { kind: :instance, name: resolve_candidate_group(candidates), candidates: candidates }
         end
       end
@@ -35,9 +35,13 @@ module Necropsy
 
     def literal_argument(node, index:)
       argument = arguments(node)[index]
-      return unless argument.is_a?(Prism::SymbolNode) || argument.is_a?(Prism::StringNode)
+      return unless literal_name?(argument)
 
       argument.unescaped.to_s
+    end
+
+    def literal_name?(node)
+      node.is_a?(Prism::SymbolNode) || node.is_a?(Prism::StringNode)
     end
 
     def symbol_arguments(node)
@@ -154,12 +158,27 @@ module Necropsy
       data[:line] = node.location.start_line
       return unless node.respond_to?(:superclass)
 
+      unless node.superclass
+        data[:superclass_candidates] = implicit_superclass_candidates(namespace)
+        return
+      end
+
       superclass = constant_name(node.superclass)
       if superclass
-        data[:superclass_candidates] = constant_candidates(superclass, context.namespace)
-      elsif data[:superclass_candidates].empty?
-        data[:superclass_candidates] = implicit_superclass_candidates(namespace)
+        data[:superclass_candidates] = constant_candidates(superclass, context.lexical_nesting)
+        return
       end
+
+      data[:superclass_candidates] = []
+      data[:dynamic] = true
+      record_semantic_blocker(
+        :dynamic_ancestry,
+        node.superclass,
+        context,
+        "#{namespace} has a runtime-computed superclass",
+        suggested_action: :make_superclass_static,
+        scope_owner: namespace
+      )
     end
 
     def implicit_superclass_candidates(namespace)
@@ -214,18 +233,16 @@ module Necropsy
       group.find { |candidate| class_data.key?(candidate) } || group.first
     end
 
-    def constant_candidates(name, namespace)
+    def constant_candidates(name, lexical_nesting)
       return [name.delete_prefix('::')] if name.start_with?('::')
-      return [name] if namespace.nil? || namespace.empty?
+
+      nesting = Array(lexical_nesting).compact
+      return [name] if nesting.empty?
 
       head, *rest = name.split('::')
       suffix = rest.empty? ? '' : "::#{rest.join('::')}"
-      parts = namespace.split('::')
-      candidates = []
-      parts.length.downto(1) do |length|
-        candidates << "#{parts.first(length).join('::')}::#{head}#{suffix}"
-      end
-      inherited_namespaces(namespace).each do |ancestor|
+      candidates = nesting.map { |namespace| "#{namespace}::#{head}#{suffix}" }
+      inherited_namespaces(nesting.first).each do |ancestor|
         candidates << "#{ancestor}::#{head}#{suffix}"
       end
       candidates << name

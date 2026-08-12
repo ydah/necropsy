@@ -338,6 +338,7 @@ module Necropsy
 
     def method_lookup(site)
       return fallback_method_lookup(site, reason: 'dynamic_message') if site.dynamic
+      return physical_target_lookup(site) if physical_target_id(site)
       return unproven_initialize_lookup(site) if unproven_initialize_dispatch?(site)
       return callable_method_lookup(site) if flow_callable?(site)
       return flow_instance_method_lookup(site) if flow_instance_types(site)
@@ -385,6 +386,22 @@ module Necropsy
       return @flow_lookup_cache[cache_key] = result if result
 
       @flow_lookup_cache[cache_key] = merge_flow_method_lookups(results)
+    end
+
+    def physical_target_id(site)
+      hash_value(site.metadata, 'physical_target_definition_id')
+    end
+
+    def physical_target_lookup(site)
+      target = nodes.exact(physical_target_id(site).to_s)
+      return incomplete_method_lookup([], [], 'physical_target_missing') unless target
+
+      MethodLookup.new(
+        targets: [target],
+        status: :complete,
+        lookup_chain: [target.owner],
+        reason: 'physical_definition_relation'
+      )
     end
 
     def merge_flow_method_lookups(results)

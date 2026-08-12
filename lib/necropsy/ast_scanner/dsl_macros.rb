@@ -45,7 +45,7 @@ module Necropsy
       data = class_record(context.owner)
       key = module_relation_key(node.name, context)
       constants.reverse_each do |constant|
-        candidates = constant_candidates(constant, context.namespace)
+        candidates = constant_candidates(constant, context.lexical_nesting)
         data[key] << candidates
         data[:extends] << candidates if key == :singleton_includes && node.name == :extend
       end
@@ -76,13 +76,13 @@ module Necropsy
         end
       elsif node.name == :validates
         custom_validator_names(node).each do |validator|
-          constant_candidates("#{validator}Validator", context.namespace).each do |owner|
+          constant_candidates("#{validator}Validator", context.lexical_nesting).each do |owner|
             entrypoint_hints << EntryPoint.new(node_id: "#{owner}#validate_each", reason: :callback_registered)
           end
         end
       elsif node.name == :validates_with
         arguments(node).filter_map { |argument| constant_name(argument) }.each do |validator|
-          constant_candidates(validator, context.namespace).each do |owner|
+          constant_candidates(validator, context.lexical_nesting).each do |owner|
             entrypoint_hints << EntryPoint.new(node_id: "#{owner}#validate", reason: :callback_registered)
           end
         end
@@ -167,7 +167,18 @@ module Necropsy
       return false unless ATTR_MACROS.include?(node.name)
       return false unless context.owner
 
-      symbol_arguments(node).each do |name|
+      names = arguments(node).filter_map { |argument| literal_value(argument) if literal_name?(argument) }
+      if names.length != arguments(node).length
+        record_semantic_blocker(
+          :dynamic_generated_methods,
+          node,
+          context,
+          "#{node.name} has a runtime-computed method name",
+          suggested_action: :make_method_name_literal
+        )
+      end
+
+      names.each do |name|
         kind, separator = method_kind_and_separator(context)
         add_definition(
           symbol_id: "#{context.owner}#{separator}#{name}",
@@ -201,7 +212,19 @@ module Necropsy
 
       target = keyword_value(node, 'to')
       prefix = keyword_value(node, 'prefix')
-      symbol_arguments(node).each do |name|
+      positional = arguments(node).grep_v(Prism::KeywordHashNode)
+      names = positional.filter_map { |argument| literal_value(argument) if literal_name?(argument) }
+      if names.length != positional.length || target.nil?
+        record_semantic_blocker(
+          :dynamic_generated_methods,
+          node,
+          context,
+          'delegate name or target is not statically bounded',
+          suggested_action: :make_delegate_literal
+        )
+      end
+
+      names.each do |name|
         generated_name = delegated_method_name(name, target, prefix)
         kind, separator = method_kind_and_separator(context)
         id = "#{context.owner}#{separator}#{generated_name}"
@@ -226,7 +249,16 @@ module Necropsy
       return false unless context.owner
 
       symbols = symbol_arguments(node)
-      return false if symbols.length < 2
+      if symbols.length < 2 || symbols.length != arguments(node).length
+        record_semantic_blocker(
+          :dynamic_generated_methods,
+          node,
+          context,
+          "#{node.name} has runtime-computed delegation names",
+          suggested_action: :make_delegate_literal
+        )
+        return true
+      end
 
       target = symbols.shift
       definitions = if node.name == :def_delegator

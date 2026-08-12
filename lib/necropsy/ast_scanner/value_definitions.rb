@@ -14,7 +14,20 @@ module Necropsy
       data[:line] = node.location.start_line
       instantiated_classes << owner
 
-      symbol_arguments(node.value).each do |name|
+      value_arguments = arguments(node.value)
+      names = value_arguments.filter_map { |argument| literal_value(argument) if literal_name?(argument) }
+      if names.length != value_arguments.length
+        record_semantic_blocker(
+          :dynamic_generated_methods,
+          node.value,
+          context,
+          "#{node.value.name} has runtime-computed member names",
+          suggested_action: :make_member_name_literal,
+          scope_owner: owner
+        )
+      end
+
+      names.each do |name|
         add_definition(
           symbol_id: "#{owner}##{name}",
           kind: :instance_method,

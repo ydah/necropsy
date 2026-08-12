@@ -106,6 +106,52 @@ RSpec.describe Necropsy::AstScanner do
     end
   end
 
+  it 'binds an unconditional same-file alias to the physical implementation active at that point' do
+    source = <<~RUBY
+      class AliasedImplementation
+        def work
+          old_body
+        end
+        alias backup work
+        def work
+          new_body
+        end
+      end
+    RUBY
+
+    with_project(files: { 'lib/aliased_implementation.rb' => source }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      works = definitions(scan, 'AliasedImplementation#work')
+      backup = definitions(scan, 'AliasedImplementation#backup').fetch(0)
+      alias_site = scan.call_sites.find { |site| site.caller_id == backup.graph_id && site.message == 'work' }
+
+      expect(alias_site.metadata.fetch('physical_target_definition_id')).to eq(works.first.graph_id)
+      expect(graph.method_lookup(alias_site)).to have_attributes(
+        status: :complete,
+        targets: [works.first],
+        reason: 'physical_definition_relation'
+      )
+    end
+  end
+
+  it 'keeps cross-file visibility changes conservative when load order is unknown' do
+    files = {
+      'lib/a_modifier.rb' => "class VisibilityOrder\n  private :work\nend\n",
+      'lib/z_definition.rb' => "class VisibilityOrder\n  def work; end\nend\n"
+    }
+
+    with_project(files: files) do |root|
+      scan = scan_project(root)
+      work = definitions(scan, 'VisibilityOrder#work').fetch(0)
+
+      expect(work.visibility).to eq(:public)
+      expect(scan.semantic_blockers).to include(
+        have_attributes(kind: :visibility_activation, scope_kind: :message, scope_value: 'work')
+      )
+    end
+  end
+
   it 'copies calls from every reopened definition for an explicit module function' do
     files = {
       'lib/a.rb' => "module Tools\n  def work\n    from_a\n  end\nend\n",

@@ -170,11 +170,35 @@ module Necropsy
       context.singleton_scope ? [:singleton_method, '.'] : [:instance_method, '#']
     end
 
-    def update_method_visibility(context, name, visibility, singleton: false)
+    def update_method_visibility(context, name, visibility, source_node, singleton: false)
       separator = singleton ? '.' : method_kind_and_separator(context).last
       id = "#{context.owner}#{separator}#{name}"
-      index = nodes.rindex { |candidate| candidate.id == id }
+      candidates = nodes.each_index.select { |index| nodes[index].symbol_id == id }
+      local = candidates.select do |index|
+        definition = nodes[index]
+        definition.file == context.relative_file && definition.line <= source_node.location.start_line
+      end
+      index = local.max_by { |candidate| [nodes[candidate].line, nodes[candidate].ordinal] }
       nodes[index] = nodes[index].with(visibility: visibility) if index
+      return if index && candidates == [index]
+
+      semantic_blockers << Blocker.new(
+        kind: :visibility_activation,
+        scope_kind: :message,
+        scope_value: name,
+        source: 'ast_scanner',
+        reason: "visibility activation for #{id} depends on repository load order",
+        suggested_action: :review_load_order,
+        metadata: {
+          'caller_domain' => context.test ? 'test' : 'runtime',
+          'caller_id' => context.current_caller_id,
+          'owner_scope' => [context.owner],
+          'file' => context.relative_file,
+          'line' => source_node.location.start_line,
+          'message' => name,
+          'reason_code' => 'visibility_activation'
+        }
+      )
     end
 
     def defer_module_function(context, name, source_node)

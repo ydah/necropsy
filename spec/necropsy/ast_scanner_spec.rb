@@ -499,5 +499,204 @@ RSpec.describe Necropsy::AstScanner do
         expect(scan.semantic_blockers.map(&:kind)).to include(:rails_callback_condition)
       end
     end
+
+    context 'with modifier definitions and default arguments' do
+      let(:files) do
+        {
+          'lib/modifier_forms.rb' => <<~RUBY
+            module ModifierForms
+              private def hidden(client = build_client, fallback: keyword_default)
+                hidden_body
+              end
+
+              def after_private; end
+
+              module_function def utility
+                utility_body
+              end
+
+              def after_module_function; end
+            end
+          RUBY
+        }
+      end
+
+      it 'applies modifier visibility only to the nested definition and scans its defaults' do
+        hidden = nodes_by_id.fetch('ModifierForms#hidden')
+        utility = nodes_by_id.fetch('ModifierForms#utility')
+        utility_copy = nodes_by_id.fetch('ModifierForms.utility')
+
+        expect(hidden.visibility).to eq(:private)
+        expect(nodes_by_id.fetch('ModifierForms#after_private').visibility).to eq(:public)
+        expect(utility.visibility).to eq(:private)
+        expect(utility_copy.defined_via).to eq(:module_function)
+        expect(nodes_by_id.fetch('ModifierForms#after_module_function').visibility).to eq(:public)
+        expect(scan.call_sites.select { |site| site.caller_id == hidden.graph_id }.map(&:message)).to contain_exactly(
+          'build_client', 'keyword_default', 'hidden_body'
+        )
+        expect(scan.call_sites.select { |site| site.caller_id == utility_copy.graph_id }.map(&:message))
+          .to contain_exactly('utility_body')
+      end
+    end
+
+    context 'with singleton classes and executable class contexts' do
+      let(:files) do
+        {
+          'lib/singleton_contexts.rb' => <<~RUBY
+            class AttachedTarget
+            end
+
+            class LexicalHost
+              class << AttachedTarget
+                def attached
+                  attached_body
+                end
+              end
+            end
+
+            class ExecTarget
+              class_exec do
+                def generated
+                  generated_body
+                end
+              end
+            end
+
+            ExecTarget.instance_exec do
+              def singleton_generated
+                singleton_body
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'attaches definitions to the statically known singleton or class owner' do
+        expect(nodes_by_id).to include(
+          'AttachedTarget.attached', 'ExecTarget#generated', 'ExecTarget.singleton_generated'
+        )
+        expect(call_pairs).to include(
+          ['AttachedTarget.attached', 'attached_body'],
+          ['ExecTarget#generated', 'generated_body'],
+          ['ExecTarget.singleton_generated', 'singleton_body']
+        )
+      end
+    end
+
+    context 'with dynamic definition surfaces' do
+      let(:files) do
+        {
+          'lib/dynamic_definitions.rb' => <<~RUBY
+            class DynamicDefinitions
+              attr_reader computed_name
+              define_method(computed_name) { dynamic_body }
+            end
+
+            target.class_exec do
+              def generated
+                eval_body
+              end
+            end
+
+            def target.singleton_method
+              singleton_body
+            end
+          RUBY
+        }
+      end
+
+      it 'records blockers and isolates bodies from the file root' do
+        kinds = scan.semantic_blockers.map(&:kind)
+        synthetic_nodes = scan.nodes.select { |node| node.kind == :block_entry && node.defined_via != :file }
+        synthetic_callers = synthetic_nodes.map(&:graph_id)
+
+        expect(kinds).to include(
+          :dynamic_generated_methods, :dynamic_definition, :variable_eval, :dynamic_singleton_definition
+        )
+        expect(scan.call_sites.select { |site| %w[dynamic_body eval_body singleton_body].include?(site.message) })
+          .to all(satisfy { |site| synthetic_callers.include?(site.caller_id) })
+      end
+    end
+
+    context 'with dynamic superclass and pattern-conditional ancestry' do
+      let(:files) do
+        {
+          'lib/dynamic_ancestry.rb' => <<~RUBY
+            class DynamicChild < build_base
+              case config
+              in { mixin: }
+                include mixin
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'does not substitute Object and records the superclass expression call' do
+        info = scan.class_infos.find { |candidate| candidate.id == 'DynamicChild' }
+        root = nodes_by_id.fetch('file:lib/dynamic_ancestry.rb')
+
+        expect(info).to have_attributes(superclass: nil, superclass_candidates: [], dynamic: true)
+        expect(scan.call_sites).to include(have_attributes(caller_id: root.graph_id, message: 'build_base'))
+        expect(scan.semantic_blockers).to include(
+          have_attributes(kind: :dynamic_ancestry, scope_kind: :owner, scope_value: 'DynamicChild'),
+          have_attributes(kind: :dynamic_ancestry)
+        )
+      end
+    end
+
+    context 'with qualified owner lexical nesting' do
+      let(:files) do
+        {
+          'lib/lexical_nesting.rb' => <<~RUBY
+            module Lexical
+              class Service; end
+              class Nested
+                def call
+                  Service.run
+                end
+              end
+            end
+
+            class Lexical::Qualified
+              def call
+                Service.run
+              end
+            end
+          RUBY
+        }
+      end
+
+      it 'does not infer intermediate lexical scopes from a qualified owner name' do
+        nested = nodes_by_id.fetch('Lexical::Nested#call')
+        qualified = nodes_by_id.fetch('Lexical::Qualified#call')
+        nested_site = scan.call_sites.find { |site| site.caller_id == nested.graph_id && site.message == 'run' }
+        qualified_site = scan.call_sites.find { |site| site.caller_id == qualified.graph_id && site.message == 'run' }
+
+        expect(nested_site.metadata.fetch('receiver_candidates')).to include('Lexical::Service')
+        expect(qualified_site.metadata.fetch('receiver_candidates')).not_to include('Lexical::Service')
+      end
+    end
+
+    context 'with method removal' do
+      let(:files) do
+        {
+          'lib/removal.rb' => <<~RUBY
+            class Removal
+              def obsolete; end
+              remove_method :obsolete
+              undef_method computed_name
+            end
+          RUBY
+        }
+      end
+
+      it 'blocks literal and dynamic activation changes instead of trusting stale definitions' do
+        expect(scan.semantic_blockers).to include(
+          have_attributes(kind: :remove_method, scope_kind: :message, scope_value: 'obsolete'),
+          have_attributes(kind: :dynamic_method_removal, scope_kind: :global)
+        )
+      end
+    end
   end
 end
