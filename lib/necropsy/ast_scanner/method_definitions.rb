@@ -18,7 +18,7 @@ module Necropsy
           suggested_action: :make_method_name_literal
         )
         visit_synthetic_body(node.block&.body, context, :dynamic_define_method)
-        return true
+        return handled_call
       end
 
       kind, separator = method_kind_and_separator(context)
@@ -46,7 +46,7 @@ module Necropsy
         block_context.static_ancestry = false
         visit(node.block.body, block_context)
       end
-      true
+      handled_call
     end
 
     def handle_define_singleton_method(node, context)
@@ -65,7 +65,7 @@ module Necropsy
           force_global: !owner
         )
         visit_synthetic_body(node.block&.body, context, :dynamic_define_singleton_method)
-        return true
+        return handled_call
       end
 
       id = "#{owner}.#{method_name}"
@@ -91,7 +91,7 @@ module Necropsy
         block_context.static_ancestry = false
         visit(node.block.body, block_context)
       end
-      true
+      handled_call
     end
 
     def handle_eval(node, context)
@@ -110,7 +110,7 @@ module Necropsy
           force_global: node.name == :eval
         )
         visit_synthetic_body(node.block&.body, context, :dynamic_eval)
-        return true
+        return handled_call
       end
 
       block_context = context.dup
@@ -121,7 +121,7 @@ module Necropsy
       block_context.module_function = false
       block_context.static_ancestry = false
       visit(node.block.body, block_context)
-      true
+      handled_call
     end
 
     def handle_unsupported_semantics(node, context)
@@ -134,7 +134,7 @@ module Necropsy
         "#{node.name} changes lexical method lookup and is not resolved",
         suggested_action: :review_refinement_scope
       )
-      true
+      handled_call
     end
 
     def record_semantic_blocker(kind, node, context, reason, suggested_action: :review,
@@ -176,7 +176,7 @@ module Necropsy
           definition_context.visibility = visibility
           visit_def(definition, definition_context)
         end
-        return true
+        return handled_call(arguments: false)
       end
 
       modifier_calls = arguments(node).grep(Prism::CallNode)
@@ -187,7 +187,7 @@ module Necropsy
         record_unknown_visibility_result(node, context, modifier_calls, visibility) if names.empty?
         arguments(node).reject { |argument| argument.is_a?(Prism::CallNode) || argument.is_a?(Prism::DefNode) }
                        .each { |argument| visit(argument, context) }
-        return :children_visited
+        return handled_call(receiver: false, arguments: false)
       end
 
       names = symbol_arguments(node)
@@ -199,7 +199,7 @@ module Necropsy
       else
         names.each { |name| update_method_visibility(context, name, visibility, node, singleton: class_method) }
       end
-      true
+      handled_call
     end
 
     def visibility_result_names(call)
@@ -239,7 +239,7 @@ module Necropsy
           definition_context.visibility = :private
           visit_def(definition, definition_context)
         end
-        return true
+        return handled_call(arguments: false)
       end
 
       names = symbol_arguments(node)
@@ -249,7 +249,7 @@ module Necropsy
       else
         names.each { |name| defer_module_function(context, name, node) }
       end
-      true
+      handled_call
     end
 
     def record_module_function_copy(node, context, instance_node)
@@ -266,7 +266,7 @@ module Necropsy
       return false unless new_name && old_name
 
       record_alias_method(context, node, new_name, old_name)
-      true
+      handled_call
     end
 
     def handle_method_removal(node, context)
@@ -283,7 +283,7 @@ module Necropsy
           suggested_action: :make_method_name_literal,
           force_global: true
         )
-        return true
+        return handled_call
       end
 
       names.each do |name|
@@ -305,7 +305,7 @@ module Necropsy
           }
         )
       end
-      true
+      handled_call
     end
 
     def visit_alias_method_node(node, context)

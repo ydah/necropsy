@@ -219,14 +219,23 @@ module Necropsy
       ]
       handled = handlers.lazy.map { |handler| send(handler, node, context) }.find(&:itself)
       if handled
-        visit_handled_call_children(node, context) unless handled == :children_visited
+        raise TypeError, "semantic call handler must return AstScanner::CallTraversal, got #{handled.class}" unless
+          handled.is_a?(CallTraversal)
+
+        visit_call_children(
+          node,
+          context,
+          visit_receiver: handled.receiver,
+          visit_arguments: handled.arguments,
+          visit_block: handled.block
+        )
         return
       end
 
       handle_module_relation(node, context)
       callback_block_consumed = handle_rails_callback(node, context)
       if handle_generated_rails_methods(node, context)
-        visit_handled_call_children(node, context)
+        visit_call_children(node, context, visit_block: false)
         return
       end
 
@@ -241,15 +250,10 @@ module Necropsy
       visit_call_children(node, context, visit_block: !callback_block_consumed)
     end
 
-    def visit_call_children(node, context, visit_block: true)
-      visit(node.receiver, context) if node.receiver
-      arguments(node).each { |argument| visit(argument, context) }
+    def visit_call_children(node, context, visit_receiver: true, visit_arguments: true, visit_block: true)
+      visit(node.receiver, context) if visit_receiver && node.receiver
+      arguments(node).each { |argument| visit(argument, context) } if visit_arguments
       visit(node.block, context) if visit_block && node.block
-    end
-
-    def visit_handled_call_children(node, context)
-      visit(node.receiver, context) if node.receiver
-      arguments(node).each { |argument| visit(argument, context) unless argument.is_a?(Prism::DefNode) }
     end
 
     def visit_synthetic_body(body, context, purpose)

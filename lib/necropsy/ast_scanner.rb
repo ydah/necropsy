@@ -34,6 +34,7 @@ module Necropsy
   end
 
   class AstScanner
+    CallTraversal = Data.define(:receiver, :arguments, :block)
     ATTR_MACROS = %i[attr_reader attr_writer attr_accessor].freeze
     DYNAMIC_SENDS = %i[send public_send __send__].freeze
     MODULE_RELATION_MACROS = %i[include prepend extend].freeze
@@ -120,6 +121,10 @@ module Necropsy
     end
 
     private
+
+    def handled_call(receiver: true, arguments: true, block: false)
+      CallTraversal.new(receiver: receiver, arguments: arguments, block: block)
+    end
 
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,

@@ -149,7 +149,7 @@ module Necropsy
           "#{node.name} has dynamic generated method names",
           suggested_action: :review_generated_methods
         )
-        return true
+        return handled_call
       end
 
       case node.name
@@ -174,7 +174,7 @@ module Necropsy
       when :has_many
         names.each { |name| add_generated_methods(context, [name, "#{name}="], node) }
       end
-      true
+      handled_call
     end
 
     def rails_framework_enabled?
@@ -239,7 +239,7 @@ module Necropsy
           visibility: context.visibility
         )
       end
-      true
+      handled_call
     end
 
     def handle_delegate(node, context)
@@ -277,7 +277,7 @@ module Necropsy
         record_delegate_target(definition.graph_id, target, node, context) if target
         record_delegated_message(definition.graph_id, name, node, context)
       end
-      true
+      handled_call
     end
 
     def handle_forwardable(node, context)
@@ -293,7 +293,7 @@ module Necropsy
           "#{node.name} has runtime-computed delegation names",
           suggested_action: :make_delegate_literal
         )
-        return true
+        return handled_call
       end
 
       target = symbols.shift
@@ -318,7 +318,7 @@ module Necropsy
         record_delegate_target(definition.graph_id, target, node, context)
         record_delegated_message(definition.graph_id, delegated_name, node, context)
       end
-      true
+      handled_call
     end
   end
 end

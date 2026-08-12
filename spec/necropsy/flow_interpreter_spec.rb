@@ -353,6 +353,66 @@ RSpec.describe 'FLOW01 receiver integration' do
     end
   end
 
+  it 'does not invent dynamic send messages from splats, keywords, or forwarding' do
+    source = <<~RUBY
+      class Client
+        def splatted(service, parts)
+          service.send(*parts)
+        end
+
+        def keyword(service, name)
+          service.send(name, fallback: :wrong)
+        end
+
+        def forwarded(service, ...)
+          service.send(...)
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/adversarial_sends.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      callers = scan.nodes.select { |node| node.owner == 'Client' }
+
+      callers.each do |caller|
+        expect(scan.call_sites.select { |site| site.caller_id == caller.graph_id }).to be_empty
+        expect(scan.uncertainties.fetch(caller.graph_id)).to include(match(/Dynamic dispatch/))
+      end
+      expect(scan.call_sites.map(&:message)).not_to include('wrong', 'fallback')
+    end
+  end
+
+  it 'stops exact flow after break, next, and raise transfers' do
+    %w[break next raise].each do |transfer|
+      source = Prism.parse(<<~RUBY).value
+        service = OriginalService.new
+        #{transfer}
+        service = ReplacementService.new
+        service.call
+      RUBY
+      result = Necropsy::FlowInterpreter.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+      call = source.statements.body.last
+
+      expect(result.fact_for(call.receiver)).to be_nil
+    end
+  end
+
+  it 'widens assignments across rescue control flow' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      begin
+        risky_call
+      rescue StandardError
+        service = ReplacementService.new
+      end
+      service.call
+    RUBY
+    result = Necropsy::FlowInterpreter.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(kind: :unknown, exact: false)
+  end
+
   it 'does not use unrelated same-name methods for callable registry invocation' do
     source = <<~RUBY
       class Service

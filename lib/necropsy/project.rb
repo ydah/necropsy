@@ -355,7 +355,8 @@ module Necropsy
       return true if file.end_with?('.rb', '.rake', '.gemspec') || File.basename(file) == 'Rakefile'
 
       File.binread(file, 256)&.match?(/\A\#![^\r\n]*\bruby\b/n) == true
-    rescue SystemCallError
+    rescue SystemCallError => e
+      record_source_discovery_issue(safe_relative_path(file), :read_error, error: e.class.name)
       false
     end
 

@@ -305,4 +305,63 @@ RSpec.describe 'analysis safety invariants' do
     )
     expect(after).to preserve_candidate_safety_from(before).for_invariant('ambiguity limit reduction')
   end
+
+  it 'does not add candidates when unsupported control flow invalidates a receiver fact' do
+    target = 'class SafetyFlowTarget; def call = :ok; def dead = :ok; end'
+    straight = 'class SafetyFlowCaller; def run; service = SafetyFlowTarget.new; service.call; end; end'
+    looped = <<~RUBY
+      class SafetyFlowCaller
+        def run(flag)
+          service = SafetyFlowTarget.new
+          while flag
+            service = replacement
+          end
+          service.call
+        end
+      end
+    RUBY
+    config = { cache: { enabled: false }, entry_points: { extra: ['SafetyFlowCaller#run'] } }
+    before = analyze(files: { 'lib/caller.rb' => straight, 'lib/target.rb' => target }, config: config)
+    after = analyze(files: { 'lib/caller.rb' => looped, 'lib/target.rb' => target }, config: config)
+
+    expect(after).to preserve_candidate_safety_from(before).for_invariant('unsupported control flow addition')
+  end
+
+  it 'does not add candidates when a static route becomes dynamic' do
+    controller = 'class WidgetsController; def index = :ok; def dead = :ok; end'
+    config = { cache: { enabled: false }, frameworks: ['rails'] }
+    before = analyze(
+      files: { 'app/controllers/widgets_controller.rb' => controller,
+               'config/routes.rb' => "get 'widgets', to: 'widgets#index'\n" },
+      config: config
+    )
+    after = analyze(
+      files: { 'app/controllers/widgets_controller.rb' => controller,
+               'config/routes.rb' => "get route_path, to: route_target\n" },
+      config: config
+    )
+
+    expect(after).to preserve_candidate_safety_from(before).for_invariant('dynamic route addition')
+  end
+
+  it 'does not add candidates when a runtime reference becomes unreadable' do
+    files = {
+      'lib/reference_target.rb' => 'class SafetyReference; def candidate = :ok; end',
+      'config/reference.txt' => "unrelated\n"
+    }
+    config = { cache: { enabled: false }, paths: { analyze: ['lib/**'], reference: ['**/*'] } }
+
+    with_project(files: files, config: config) do |root|
+      before = Necropsy::Runner.new(root: root).analyze
+      path = File.join(root, 'config/reference.txt')
+      allow(File).to receive(:binread).and_call_original
+      allow(File).to receive(:binread).with(path, 256).and_raise(Errno::EACCES)
+      allow(File).to receive(:binread).with(path, Necropsy::ReferenceBarrier::MAX_FILE_BYTES + 1)
+                                      .and_raise(Errno::EACCES)
+      after = Necropsy::Runner.new(root: root).analyze
+
+      expect(after).to preserve_candidate_safety_from(before).for_invariant('unreadable reference addition')
+      expect(after.analysis_health).to have_attributes(status: :degraded)
+    end
+  end
 end
