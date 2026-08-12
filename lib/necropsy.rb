@@ -4,6 +4,7 @@
 require 'set' # rubocop:disable Lint/RedundantRequireStatement
 
 require_relative 'necropsy/version'
+require_relative 'necropsy/clock'
 require_relative 'necropsy/bounded_canonicalizer'
 require_relative 'necropsy/call_site_identity'
 require_relative 'necropsy/models'
@@ -59,12 +60,13 @@ require_relative 'necropsy/runner'
 module Necropsy
   class Error < StandardError; end
 
-  def self.analyze(root: '.', config_path: nil, analyzers: nil, ignored_reference_paths: [], profile: false)
+  def self.analyze(root: '.', config_path: nil, analyzers: nil, ignored_reference_paths: [], profile: false, as_of: nil)
     Runner.new(
       root: root,
       config_path: config_path,
       analyzers: analyzers,
-      ignored_reference_paths: ignored_reference_paths
+      ignored_reference_paths: ignored_reference_paths,
+      as_of: as_of
     ).analyze(profile: profile)
   end
 

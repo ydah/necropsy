@@ -49,6 +49,19 @@ RSpec.describe Necropsy::Guardrail::Baseline do
     )
   end
 
+  it 'uses the injected time for reproducible baseline metadata' do
+    target = physical_finding(symbol_id: 'Sample#dead', definition_id: 'def:v1:dead', body_digest: 'body-dead')
+    path = File.join(Dir.mktmpdir, '.necropsy_baseline.yml')
+
+    described_class.write(
+      report_with_findings([target]),
+      path: path,
+      clock: Necropsy::Clock.new(as_of: '2000-01-02')
+    )
+
+    expect(YAML.load_file(path).fetch('generated_at')).to eq('2000-01-02T00:00:00Z')
+  end
+
   it 'reads v1 logical fingerprints without rewriting them' do
     target = physical_finding(symbol_id: 'Sample#dead', definition_id: 'def:v1:new', body_digest: 'new-body')
     path = File.join(Dir.mktmpdir, '.necropsy_baseline.yml')

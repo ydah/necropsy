@@ -21,10 +21,11 @@ module Necropsy
         }
       ].freeze
 
-      def initialize(graph:, reachability:, project:)
+      def initialize(graph:, reachability:, project:, clock: Clock.new)
         @graph = graph
         @reachability = reachability
         @project = project
+        @clock = clock
         @source_lines = {}
       end
 
@@ -53,7 +54,7 @@ module Necropsy
 
       private
 
-      attr_reader :graph, :reachability, :project
+      attr_reader :graph, :reachability, :project, :clock
 
       def classification_for(node, blockers)
         return nil if graph.dynamic_alive?(node.graph_id)
@@ -254,7 +255,7 @@ module Necropsy
         since = Date.iso8601(raw_since)
         return fingerprint_status unless fingerprint_status == :matched
 
-        since <= Date.today - project.config.quarantine_days ? :review_required : :active
+        since <= clock.date - project.config.quarantine_days ? :review_required : :active
       rescue ArgumentError, TypeError
         :invalid
       rescue SystemCallError

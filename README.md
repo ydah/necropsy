@@ -305,6 +305,8 @@ forms.
 The annotation applies only to the immediately following physical definition
 when its fingerprint matches. Legacy annotations without a fingerprint require
 review and can be upgraded in place with `quarantine --write`.
+Use `--as-of YYYY-MM-DD` or `SOURCE_DATE_EPOCH` to make quarantine expiry,
+annotation dates, and baseline timestamps reproducible.
 Expiry never changes a finding's classification, score, or confidence. Instead,
 the finding receives a `quarantine_review_required` diagnostic. The `check`
 command warns by default; set `quarantine.expiry` to `fail` to make an expired

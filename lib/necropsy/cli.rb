@@ -86,6 +86,7 @@ module Necropsy
         bench_check: false,
         precision_threshold: nil,
         recall_threshold: nil,
+        as_of: nil,
         help: false,
         version: false,
         include_graph: false
@@ -128,6 +129,11 @@ module Necropsy
         parser.on('--recall-threshold N', Float, 'Bench release recall threshold') do |value|
           options[:recall_threshold] = value
         end
+        parser.on('--as-of DATE', 'Use a reproducible UTC date for time-dependent analysis') do |value|
+          options[:as_of] = Date.iso8601(value)
+        rescue Date::Error
+          raise OptionParser::InvalidArgument, 'as-of must be an ISO 8601 date'
+        end
         parser.on('-h', '--help', 'Show help') do
           options[:help] = true
         end
@@ -139,7 +145,8 @@ module Necropsy
       Necropsy.analyze(
         root: options[:root],
         config_path: options[:config],
-        ignored_reference_paths: ignored_reference_paths
+        ignored_reference_paths: ignored_reference_paths,
+        as_of: options[:as_of]
       )
     end
 
@@ -290,14 +297,18 @@ module Necropsy
           return 1
         end
       end
-      Guardrail::Baseline.write(report, path: path)
+      Guardrail::Baseline.write(report, path: path, clock: Clock.new(as_of: options[:as_of]))
       puts "#{migration ? 'Migrated' : 'Wrote'} #{path}"
       0
     end
 
     def quarantine(options)
       report = analyze(options)
-      quarantine = Guardrail::Quarantine.new(report: report, root: File.expand_path(options[:root]))
+      quarantine = Guardrail::Quarantine.new(
+        report: report,
+        root: File.expand_path(options[:root]),
+        clock: Clock.new(as_of: options[:as_of])
+      )
       if options[:write]
         quarantine.write(min_confidence: options[:min_confidence])
         puts 'Wrote quarantine annotations'

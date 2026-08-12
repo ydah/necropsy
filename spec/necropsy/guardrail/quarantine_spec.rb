@@ -18,6 +18,16 @@ RSpec.describe Necropsy::Guardrail::Quarantine do
     end
   end
 
+  it 'uses the injected date for reproducible suggestions' do
+    with_project(files: { 'sample.rb' => "def target; end\n" }) do |root|
+      target = finding(id: 'Object#target', confidence: :high, file: 'sample.rb', line: 1)
+      report = report_with_findings([target], root: root)
+      quarantine = described_class.new(report: report, root: root, clock: Necropsy::Clock.new(as_of: '2000-01-02'))
+
+      expect(quarantine.suggestions.first.fetch(:annotation)).to include('since=2000-01-02')
+    end
+  end
+
   it 'writes annotations above target methods without duplicating existing annotations' do
     source = <<~RUBY
       class Sample

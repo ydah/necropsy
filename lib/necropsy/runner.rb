@@ -12,13 +12,14 @@ module Necropsy
       reference_scan_incomplete reference_scope_incomplete source_discovery_incomplete
     ].freeze
 
-    attr_reader :root, :config, :analyzers, :ignored_reference_paths
+    attr_reader :root, :config, :analyzers, :ignored_reference_paths, :clock
 
-    def initialize(root:, config_path: nil, analyzers: nil, ignored_reference_paths: [])
+    def initialize(root:, config_path: nil, analyzers: nil, ignored_reference_paths: [], as_of: nil)
       @root = File.expand_path(root)
       @config = Configuration.load(root: @root, path: config_path)
       @analyzers = analyzers
       @ignored_reference_paths = ignored_reference_paths
+      @clock = Clock.new(as_of: as_of)
     end
 
     def analyze(rta_pruning: config.rta_pruning, profile: false)
@@ -49,7 +50,7 @@ module Necropsy
       reachability = measure_phase(profiler, 'reachability_engine') { Reachability::Engine.new(graph).call }
       LoadGraph.record_unrooted_units(graph: graph, reachability: reachability)
       findings = measure_phase(profiler, 'scoring') do
-        scorer = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project)
+        scorer = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project, clock: clock)
         scorer.findings
       end
       barrier_matches = measure_phase(profiler, 'reference_barrier') do
@@ -59,7 +60,11 @@ module Necropsy
           ignored_paths: ignored_reference_paths
         ).apply(findings)
       end
-      findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings if barrier_matches.positive?
+      if barrier_matches.positive?
+        findings = Confidence::Scorer.new(
+          graph: graph, reachability: reachability, project: project, clock: clock
+        ).findings
+      end
       final_source_snapshot = measure_phase(profiler, 'source_snapshot_verification') { project.fresh_source_snapshot }
       analysis_health = build_analysis_health(graph, source_snapshot, final_source_snapshot)
       source_snapshot = verified_source_snapshot(source_snapshot, final_source_snapshot)

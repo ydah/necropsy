@@ -9,9 +9,10 @@ module Necropsy
     class Quarantine
       ANNOTATION_PREFIX = '# necropsy:quarantine'
 
-      def initialize(report:, root:)
+      def initialize(report:, root:, clock: Clock.new)
         @report = report
         @root = root
+        @clock = clock
       end
 
       def suggestions(min_confidence: :high)
@@ -26,7 +27,7 @@ module Necropsy
           {
             finding: entries.first,
             findings: entries.freeze,
-            annotation: "#{ANNOTATION_PREFIX} since=#{Date.today.iso8601} #{fingerprint_field(fingerprints)}",
+            annotation: "#{ANNOTATION_PREFIX} since=#{clock.date.iso8601} #{fingerprint_field(fingerprints)}",
             fingerprints: fingerprints.freeze,
             source_sha256: source_digests.fetch(path),
             path: path,
@@ -62,7 +63,7 @@ module Necropsy
 
       private
 
-      attr_reader :report, :root
+      attr_reader :report, :root, :clock
 
       def source_path(relative)
         expanded_root = File.expand_path(root)

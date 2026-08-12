@@ -54,7 +54,7 @@ module Necropsy
       end
       private_class_method :normalize_schema_version
 
-      def self.write(report, path:)
+      def self.write(report, path:, clock: Clock.new)
         findings = report.actionable_candidates(min_confidence: :low).map do |finding|
           {
             'fingerprint' => finding.physical_fingerprint,
@@ -73,7 +73,7 @@ module Necropsy
           'schema_version' => SCHEMA_VERSION,
           'version' => SCHEMA_VERSION,
           'identity' => 'physical_definition',
-          'generated_at' => Time.now.utc.iso8601,
+          'generated_at' => clock.time.iso8601,
           'findings' => findings
         }
         atomic_write(path, payload.to_yaml)

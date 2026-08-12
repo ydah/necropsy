@@ -427,6 +427,25 @@ RSpec.describe Necropsy::CLI do
       end
     end
 
+    context 'with a reproducible as-of date' do
+      let(:project_root) do
+        create_project(files: { 'app/sample.rb' => 'class CliClock; def dead; end; end' })
+      end
+
+      it 'uses the date in quarantine suggestions and rejects malformed dates' do
+        result = nil
+        expect do
+          result = described_class.run(['quarantine', '--root', project_root, '--as-of', '2000-01-02'])
+        end.to output(/necropsy:quarantine since=2000-01-02/).to_stdout
+        expect(result).to eq(0)
+
+        expect do
+          result = described_class.run(['analyze', '--root', project_root, '--as-of', 'not-a-date'])
+        end.to output(/as-of must be an ISO 8601 date/).to_stderr
+        expect(result).to eq(2)
+      end
+    end
+
     context 'with diagnostic commands' do
       let(:project_root) do
         create_project(files: {
