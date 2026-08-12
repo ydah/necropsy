@@ -8,6 +8,7 @@ module Necropsy
     DEFAULT_FAIL_ON = :high
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
     RTA_PRUNING_MODES = %w[rank_only legacy].freeze
+    STATIC_ANALYZER_ORDER = %w[name_resolution cha rta].freeze
     QUARANTINE_EXPIRY_POLICIES = %w[warn fail ignore].freeze
     WORLD_MODES = %w[application library].freeze
     LOAD_ROOT_POLICIES = %w[known all].freeze
@@ -122,7 +123,7 @@ module Necropsy
     def min_observation_days
       coverage_days = fetch('analyzers', 'dynamic', 'coverage', 'min_observation_days')
       coverband_days = fetch('analyzers', 'dynamic', 'coverband', 'min_observation_days')
-      (coverage_days || coverband_days || 30).to_i
+      Integer(coverage_days || coverband_days || 30)
     end
 
     REMOTE_DYNAMIC_KEYS = %w[
@@ -132,7 +133,7 @@ module Necropsy
     DYNAMIC_LIMIT_KEYS = (REMOTE_DYNAMIC_KEYS - %w[total_timeout]).freeze
 
     def quarantine_days
-      (fetch('quarantine', 'days') || 30).to_i
+      Integer(fetch('quarantine', 'days') || 30)
     end
 
     def quarantine_expiry
@@ -144,12 +145,12 @@ module Necropsy
     end
 
     def bench_precision_threshold
-      (fetch('bench', 'precision_threshold') || 0.85).to_f
+      Float(fetch('bench', 'precision_threshold') || 0.85)
     end
 
     def bench_recall_threshold
       value = fetch('bench', 'recall_threshold')
-      value&.to_f
+      value && Float(value)
     end
 
     def cache_enabled?
@@ -304,6 +305,8 @@ module Necropsy
       rta_pruning
       ambiguity_limit
       quarantine_expiry
+      validate_numeric_ranges!
+      validate_static_analyzers!
     end
 
     def validate_hash_keys(value, allowed, location)
@@ -331,6 +334,45 @@ module Necropsy
       rescue ArgumentError, TypeError
         dynamic_limit_error!(name, key)
       end
+    end
+
+    def validate_numeric_ranges!
+      validate_unit_interval!('bench.precision_threshold', bench_precision_threshold)
+      recall = bench_recall_threshold
+      validate_unit_interval!('bench.recall_threshold', recall) if recall
+      validate_positive_integer!('quarantine.days', fetch('quarantine', 'days') || 30)
+      %w[coverage coverband trace_point].each do |name|
+        value = fetch('analyzers', 'dynamic', name, 'min_observation_days')
+        validate_positive_integer!("analyzers.dynamic.#{name}.min_observation_days", value) unless value.nil?
+      end
+    rescue ArgumentError, TypeError
+      raise Error, 'Numeric configuration values must use their documented finite ranges'
+    end
+
+    def validate_unit_interval!(name, value)
+      raise Error, "#{name} must be a finite number between 0 and 1" unless value.finite? && value.between?(0.0, 1.0)
+    end
+
+    def validate_positive_integer!(name, value)
+      valid_form = value.is_a?(Integer) || (value.is_a?(String) && value.match?(/\A\+?\d+\z/))
+      raise Error, "#{name} must be a positive integer" unless valid_form
+
+      parsed = Integer(value)
+      raise Error, "#{name} must be a positive integer" unless parsed.positive?
+    rescue ArgumentError, TypeError
+      raise Error, "#{name} must be a positive integer"
+    end
+
+    def validate_static_analyzers!
+      configured = static_analyzers
+      duplicates = configured.tally.select { |_name, count| count > 1 }.keys
+      raise Error, "Duplicate static analyzers: #{duplicates.sort.join(', ')}" if duplicates.any?
+
+      unknown = configured - STATIC_ANALYZER_ORDER
+      raise Error, "Unknown static analyzer: #{unknown.first}" if unknown.any?
+
+      positions = configured.map { |name| STATIC_ANALYZER_ORDER.index(name) }
+      raise Error, 'Static analyzers must run in name_resolution, cha, rta dependency order' unless positions == positions.sort
     end
 
     def dynamic_limit_error!(name, key)

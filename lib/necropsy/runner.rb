@@ -185,6 +185,7 @@ module Necropsy
       graph.add_profile(profile)
       result = analyzer.analyze(graph, project)
       result = Analyzers::LegacyResultAdapter.new(graph: graph, profile: profile).adapt(result)
+      validate_result_capabilities!(analyzer, result)
       graph.apply_result(result, refresh: false)
       [profile, result]
     rescue StandardError => e
@@ -210,6 +211,14 @@ module Necropsy
           'error_message' => error_message
         }
       )
+    end
+
+    def validate_result_capabilities!(analyzer, result)
+      complete = Array(result.resolutions).any? { |record| record.resolution.status == :complete }
+      return unless complete
+      return if Array(analyzer.capabilities).map(&:to_sym).include?(:complete_resolution)
+
+      raise TypeError, "#{analyzer.class} emitted complete resolution without complete_resolution capability"
     end
 
     def unsound_rta_pruning_blocker

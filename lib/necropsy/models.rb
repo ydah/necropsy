@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'digest'
+require_relative 'bounded_canonicalizer'
 
 module Necropsy
   CONFIDENCE_LEVELS = {
@@ -14,9 +15,24 @@ module Necropsy
   UNKNOWN_SCOPE_MATCHES = %i[exact glob].freeze
   RESOLUTION_STATUSES = %i[complete partial unknown].freeze
   EVIDENCE_GRADES = %i[exact conservative observed heuristic].freeze
+  ANALYZER_KINDS = %i[static dynamic type].freeze
+  ANALYZER_SOUNDNESS = %i[unsound conservative partial observational hint].freeze
+  EVIDENCE_MAX_DETAILS_BYTES = 4_096
+  EVIDENCE_MAX_METADATA_DEPTH = 32
+  EVIDENCE_MAX_METADATA_ITEMS = 10_000
+  EVIDENCE_MAX_METADATA_STRING_BYTES = 65_536
+  EVIDENCE_MAX_METADATA_BYTES = 1_048_576
+  PROFILE_MAX_DESCRIPTION_BYTES = 4_096
+  PROFILE_MAX_VERSION_BYTES = 128
+  PROFILE_MAX_ASSUMPTIONS = 64
+  PROFILE_MAX_ASSUMPTION_BYTES = 512
   ROOT_DOMAINS = %i[runtime test external].freeze
   private_constant :UNKNOWN_SCOPE_KINDS, :UNKNOWN_SCOPE_MATCHES, :RESOLUTION_STATUSES, :EVIDENCE_GRADES,
-                   :ROOT_DOMAINS
+                   :ANALYZER_KINDS, :ANALYZER_SOUNDNESS, :ROOT_DOMAINS
+  private_constant :EVIDENCE_MAX_DETAILS_BYTES, :EVIDENCE_MAX_METADATA_DEPTH, :EVIDENCE_MAX_METADATA_ITEMS,
+                   :EVIDENCE_MAX_METADATA_STRING_BYTES, :EVIDENCE_MAX_METADATA_BYTES,
+                   :PROFILE_MAX_DESCRIPTION_BYTES, :PROFILE_MAX_VERSION_BYTES, :PROFILE_MAX_ASSUMPTIONS,
+                   :PROFILE_MAX_ASSUMPTION_BYTES
 
   module ModelNormalization
     module_function
@@ -426,6 +442,16 @@ module Necropsy
 
     def initialize(analyzer:, kind:, weight:, details:, metadata:, evidence_id: nil, producer: nil,
                    producer_version: nil, grade: nil, relation: nil, source: nil, assumptions: [], scope: nil)
+      raise ArgumentError, 'evidence analyzer must not be empty' if analyzer.to_s.empty?
+      raise ArgumentError, 'evidence kind must not be empty' if kind.to_s.empty?
+
+      weight = Float(weight)
+      raise ArgumentError, 'evidence weight must be finite' unless weight.finite?
+
+      valid_details = details.is_a?(String) && details.bytesize <= EVIDENCE_MAX_DETAILS_BYTES
+      raise ArgumentError, 'evidence details must be a bounded string' unless valid_details
+      raise ArgumentError, 'evidence metadata must be a mapping' unless metadata.is_a?(Hash)
+
       grade = grade.to_sym if grade.respond_to?(:to_sym)
       raise ArgumentError, "invalid evidence grade: #{grade.inspect}" unless grade.nil? || EVIDENCE_GRADES.include?(grade)
 
@@ -437,6 +463,8 @@ module Necropsy
       if grade && [producer, producer_version, relation, source, scope].any?(&:nil?)
         raise ArgumentError, 'graded evidence requires producer, producer_version, relation, source, and scope'
       end
+
+      validate_bounded_payload!(metadata: metadata, source: source, scope: scope)
 
       super
     end
@@ -460,6 +488,16 @@ module Necropsy
     end
 
     private
+
+    def validate_bounded_payload!(value)
+      BoundedCanonicalizer.dump(
+        value,
+        max_depth: EVIDENCE_MAX_METADATA_DEPTH,
+        max_items: EVIDENCE_MAX_METADATA_ITEMS,
+        max_string_bytes: EVIDENCE_MAX_METADATA_STRING_BYTES,
+        max_total_bytes: EVIDENCE_MAX_METADATA_BYTES
+      )
+    end
 
     def provenance_present?(producer, producer_version, relation, source, assumptions, scope)
       [producer, producer_version, relation, source, scope].any? { |value| !value.nil? } || assumptions.any?
@@ -774,8 +812,24 @@ module Necropsy
     end
 
     def initialize(name:, kind:, soundness:, description:, version: nil, assumptions: [])
+      ModelNormalization.identifier(name, 'analyzer profile name')
+      kind = kind.to_sym if kind.respond_to?(:to_sym)
+      soundness = soundness.to_sym if soundness.respond_to?(:to_sym)
+      raise ArgumentError, "invalid analyzer kind: #{kind.inspect}" unless ANALYZER_KINDS.include?(kind)
+      raise ArgumentError, "invalid analyzer soundness: #{soundness.inspect}" unless ANALYZER_SOUNDNESS.include?(soundness)
+      unless description.is_a?(String) && !description.empty? && description.bytesize <= PROFILE_MAX_DESCRIPTION_BYTES
+        raise ArgumentError, 'analyzer description must be a bounded non-empty string'
+      end
+
       version = ModelNormalization.identifier(version, 'version') if version
+      raise ArgumentError, 'analyzer version is too long' if version&.bytesize.to_i > PROFILE_MAX_VERSION_BYTES
+
       assumptions = ModelNormalization.string_list(assumptions, 'assumption')
+      if assumptions.length > PROFILE_MAX_ASSUMPTIONS ||
+         assumptions.any? { |assumption| assumption.bytesize > PROFILE_MAX_ASSUMPTION_BYTES }
+        raise ArgumentError, 'analyzer assumptions must be bounded'
+      end
+
       super
     end
 

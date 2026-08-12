@@ -80,6 +80,32 @@ class SourceMutatingRunnerAnalyzer < Necropsy::Analyzer
   end
 end
 
+class UnprovenCompleteRunnerAnalyzer < Necropsy::Analyzer
+  def analyze(graph, _project)
+    site = graph.call_sites.fetch(0)
+    Necropsy::AnalyzerResult.new(
+      edge_evidences: [], alive_evidences: [], uncertainties: {}, observation: {},
+      resolutions: [
+        Necropsy::ResolutionRecord.new(
+          resolution: Necropsy::Resolution.new(
+            call_site_id: site.call_site_id, target_definition_ids: [], status: :complete
+          ),
+          producer: :unproven_complete,
+          producer_version: '1',
+          assumptions: []
+        )
+      ]
+    )
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :unproven_complete, kind: :static, soundness: :partial,
+      description: 'attempts an unproven complete resolution', version: '1'
+    )
+  end
+end
+
 RSpec.describe Necropsy::Runner do
   let(:rta_source) do
     <<~RUBY
@@ -146,6 +172,19 @@ RSpec.describe Necropsy::Runner do
       expect(report.analysis_health.reasons).to include(include('code' => 'analyzer_failure'))
       expect(report.to_h.fetch('analysis_health')).to include('status' => 'invalid')
       expect { report.to_json(include_graph: true) }.not_to raise_error
+    end
+  end
+
+  it 'rejects complete resolutions from analyzers without an explicit capability' do
+    source = 'class UnprovenCaller; def run; missing_target; end; end'
+    with_project(files: { 'app/sample.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      report = described_class.new(root: root, analyzers: [UnprovenCompleteRunnerAnalyzer.new]).analyze
+
+      expect(report.analysis_health).to have_attributes(status: :invalid)
+      expect(report.graph.blockers).to include(
+        have_attributes(kind: :analyzer_failure, reason: match(/complete_resolution capability/))
+      )
+      expect(report.findings).to all(have_attributes(classification: :blocked))
     end
   end
 

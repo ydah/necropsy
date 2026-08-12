@@ -73,6 +73,10 @@ module Necropsy
       raise NotImplementedError, "#{self.class} must implement #profile"
     end
 
+    def capabilities
+      [].freeze
+    end
+
     private
 
     def evidence(kind:, details:, analyzer: nil, weight: 1.0, metadata: {}, producer: nil, producer_version: nil,

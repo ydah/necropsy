@@ -247,6 +247,30 @@ RSpec.describe 'structured analysis models' do
           .to raise_error(ArgumentError, /requires producer/)
       end
     end
+
+    it 'rejects non-finite weights and unbounded or cyclic payloads' do
+      [Float::NAN, Float::INFINITY, 'not-a-number'].each do |weight|
+        expect do
+          described_class.new(
+            analyzer: :spec, kind: :call_edge, weight: weight, details: 'bad weight', metadata: {}
+          )
+        end.to raise_error(ArgumentError, /weight|Float/)
+      end
+
+      cyclic = {}
+      cyclic['self'] = cyclic
+      expect do
+        described_class.new(
+          analyzer: :spec, kind: :call_edge, weight: 1.0, details: 'cyclic', metadata: cyclic
+        )
+      end.to raise_error(Necropsy::BoundedCanonicalizer::CycleError)
+      expect do
+        described_class.new(
+          analyzer: :spec, kind: :call_edge, weight: 1.0,
+          details: 'x' * 4_097, metadata: {}
+        )
+      end.to raise_error(ArgumentError, /details/)
+    end
   end
 
   describe Necropsy::AnalyzerProfile do
@@ -265,6 +289,21 @@ RSpec.describe 'structured analysis models' do
         version: '1.2.0', assumptions: %w[alpha zeta]
       )
       expect(described_class[*full]).to eq(described_class.new(*full))
+    end
+
+    it 'rejects unknown enums and unbounded descriptions' do
+      expect do
+        described_class.new(name: :spec, kind: :other, soundness: :partial, description: 'invalid')
+      end.to raise_error(ArgumentError, /kind/)
+      expect do
+        described_class.new(name: :spec, kind: :static, soundness: :perfect, description: 'invalid')
+      end.to raise_error(ArgumentError, /soundness/)
+      expect do
+        described_class.new(
+          name: :spec, kind: :static, soundness: :partial,
+          description: 'x' * 4_097
+        )
+      end.to raise_error(ArgumentError, /description/)
     end
   end
 

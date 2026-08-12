@@ -103,6 +103,10 @@ module Necropsy
           )
         end
 
+        def capabilities
+          [:complete_resolution].freeze
+        end
+
         def expanded_call_sites(graph)
           graph.call_sites.flat_map do |site|
             [site, *implicit_sites(site, graph: graph)]

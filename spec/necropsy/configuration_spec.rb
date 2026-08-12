@@ -158,6 +158,32 @@ RSpec.describe Necropsy::Configuration do
       end
     end
 
+    context 'with invalid bounded numeric settings' do
+      it 'rejects thresholds outside the unit interval' do
+        [Float::INFINITY, -0.1, 1.1, 'not-a-number'].each do |value|
+          root = create_project(config: { bench: { precision_threshold: value } })
+          expect { described_class.load(root: root) }.to raise_error(Necropsy::Error, /Numeric|between 0 and 1/)
+        end
+      end
+
+      it 'rejects non-positive and fractional day counts' do
+        [0, -1, 1.5, '2.5'].each do |value|
+          root = create_project(config: { quarantine: { days: value } })
+          expect { described_class.load(root: root) }.to raise_error(Necropsy::Error, /positive integer|Numeric/)
+        end
+      end
+    end
+
+    context 'with invalid static analyzer composition' do
+      it 'rejects duplicates and dependency-order inversions' do
+        duplicate = create_project(config: { analyzers: { static: %w[name_resolution name_resolution] } })
+        inverted = create_project(config: { analyzers: { static: %w[rta name_resolution] } })
+
+        expect { described_class.load(root: duplicate) }.to raise_error(Necropsy::Error, /Duplicate static analyzers/)
+        expect { described_class.load(root: inverted) }.to raise_error(Necropsy::Error, /dependency order/)
+      end
+    end
+
     context 'with an invalid world mode' do
       let(:config_data) { { analysis: { world: 'monorepo' } } }
 

@@ -52,6 +52,10 @@ module Necropsy
           )
         end
 
+        def capabilities
+          [:complete_resolution].freeze
+        end
+
         private
 
         def edge_evidences_for(site, candidates, fallback, lookup)

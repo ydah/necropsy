@@ -60,6 +60,10 @@ module Necropsy
             assumptions: %w[closed_scanned_hierarchy loaded_ancestry]
           )
         end
+
+        def capabilities
+          [:complete_resolution].freeze
+        end
       end
     end
   end
