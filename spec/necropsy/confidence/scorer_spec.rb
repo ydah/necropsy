@@ -202,7 +202,7 @@ RSpec.describe Necropsy::Confidence::Scorer do
         {
           'app/quarantined.rb' => <<~RUBY
             class Quarantined
-              # necropsy:quarantine since=#{since} reason=cleanup owner=team issue=123
+              # necropsy:quarantine since=#{since} reason=cleanup owner=team issue=123 #{fingerprint_clause}
               def dead
               end
             end
@@ -210,6 +210,8 @@ RSpec.describe Necropsy::Confidence::Scorer do
         }
       end
       let(:since) { (Date.today - 31).iso8601 }
+      let(:fingerprint) { Digest::SHA256.hexdigest('unreachable:Quarantined#dead') }
+      let(:fingerprint_clause) { "fingerprint=#{fingerprint}" }
       let(:dead) { node('Quarantined#dead', owner: 'Quarantined', name: 'dead', file: 'app/quarantined.rb', line: 3) }
       let(:graph) { graph_with(nodes: [dead]) }
       let(:reachability) { Necropsy::Reachability::Result.new(runtime_paths: {}, test_paths: {}) }
@@ -264,6 +266,24 @@ RSpec.describe Necropsy::Confidence::Scorer do
             have_attributes(name: 'quarantine_invalid_date', value: 0.0)
           )
           expect(findings.first.reasons.grep(/invalid since date/).length).to eq(1)
+        end
+      end
+
+      context 'with a fingerprint for a different physical definition' do
+        let(:fingerprint) { '0' * 64 }
+
+        it 'marks the annotation stale instead of applying its expiry' do
+          expect(findings.first.score_components.map(&:name)).to include('quarantine_stale_fingerprint')
+          expect(findings.first.score_components.map(&:name)).not_to include('quarantine_review_required')
+        end
+      end
+
+      context 'with a legacy annotation lacking a fingerprint' do
+        let(:fingerprint_clause) { '' }
+
+        it 'requires migration instead of ambiguously applying the annotation' do
+          expect(findings.first.score_components.map(&:name)).to include('quarantine_fingerprint_required')
+          expect(findings.first.score_components.map(&:name)).not_to include('quarantine_review_required')
         end
       end
 

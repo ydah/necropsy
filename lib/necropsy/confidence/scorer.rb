@@ -105,7 +105,7 @@ module Necropsy
 
         add_runtime_unobserved_annotation(node, reasons, components)
 
-        add_quarantine_annotation(node, reasons, components)
+        add_quarantine_annotation(node, classification, reasons, components)
 
         clamped_score = score.clamp(0.0, 1.0)
         components << score_component('score_clamp', clamped_score - score, 'Clamped to the 0.0–1.0 range') if clamped_score != score
@@ -203,40 +203,71 @@ module Necropsy
         :low
       end
 
-      def add_quarantine_annotation(node, reasons, components)
-        status = quarantine_status(node)
+      def add_quarantine_annotation(node, classification, reasons, components)
+        status = quarantine_status(node, classification)
         return unless status
 
-        if status == :review_required
+        case status
+        when :review_required
           components << score_component(
             'quarantine_review_required', 0.0, 'Quarantine expired; deadness is unchanged'
           )
           reasons << 'Quarantine annotation has expired and requires review; classification and confidence are unchanged.'
-        elsif status == :invalid
+        when :invalid
           components << score_component(
             'quarantine_invalid_date', 0.0, 'Invalid quarantine date; deadness is unchanged'
           )
           reasons << 'Quarantine annotation has an invalid since date; classification and confidence are unchanged.'
+        when :fingerprint_required
+          components << score_component(
+            'quarantine_fingerprint_required', 0.0, 'Legacy quarantine requires an exact physical fingerprint'
+          )
+          reasons << 'Quarantine annotation requires a physical fingerprint before it can apply to this definition.'
+        when :stale_fingerprint
+          components << score_component(
+            'quarantine_stale_fingerprint', 0.0, 'Quarantine fingerprint does not match this physical definition'
+          )
+          reasons << 'Quarantine annotation is stale or belongs to a different physical definition.'
         end
       end
 
-      def quarantine_status(node)
+      def quarantine_status(node, classification)
         path = File.join(project.root, node.file)
         return nil unless File.exist?(path)
 
         lines = @source_lines[path] ||= File.readlines(path, chomp: true)
-        window = lines[[node.line - 4, 0].max, 4] || []
-        annotation = window.find { |line| line.include?('necropsy:quarantine') && line.match?(/\bsince=/) }
-        return nil unless annotation
+        annotation = node.line > 1 ? lines[node.line - 2] : nil
+        return nil unless annotation&.include?('necropsy:quarantine') && annotation.match?(/\bsince=/)
+
+        fingerprints = quarantine_fingerprints(annotation)
+        fingerprint_status = if fingerprints.nil?
+                               :fingerprint_required
+                             elsif fingerprints.include?(node.physical_fingerprint(classification))
+                               :matched
+                             else
+                               :stale_fingerprint
+                             end
 
         raw_since = annotation[/\bsince=([^\s]+)/, 1]
         return :invalid unless raw_since
 
         since = Date.iso8601(raw_since)
+        return fingerprint_status unless fingerprint_status == :matched
+
         since <= Date.today - project.config.quarantine_days ? :review_required : :active
       rescue ArgumentError, TypeError
         :invalid
       rescue SystemCallError
+        nil
+      end
+
+      def quarantine_fingerprints(annotation)
+        single = annotation[/\bfingerprint=([0-9a-f]{64})(?:\s|$)/, 1]
+        multiple = annotation[/\bfingerprints=([0-9a-f]{64}(?:,[0-9a-f]{64})*)(?:\s|$)/, 1]
+        return [single] if single
+        return multiple.split(',') if multiple
+        return [] if annotation.match?(/\bfingerprints?=/)
+
         nil
       end
     end

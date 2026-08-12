@@ -297,7 +297,11 @@ entry point detection covers common `resources`, `resource`, `namespace`,
 `scope`, `controller`, `concerns`, `draw`, `mount`, `root`, and verb route
 forms.
 
-`necropsy quarantine --write` adds `# necropsy:quarantine since=YYYY-MM-DD`.
+`necropsy quarantine --write` adds
+`# necropsy:quarantine since=YYYY-MM-DD fingerprint=PHYSICAL_FINGERPRINT`.
+The annotation applies only to the immediately following physical definition
+when its fingerprint matches. Legacy annotations without a fingerprint require
+review and can be upgraded in place with `quarantine --write`.
 Expiry never changes a finding's classification, score, or confidence. Instead,
 the finding receives a `quarantine_review_required` diagnostic. The `check`
 command warns by default; set `quarantine.expiry` to `fail` to make an expired

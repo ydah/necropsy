@@ -218,7 +218,10 @@ module Necropsy
       policy = config.quarantine_expiry
       return false if policy == :ignore
 
-      findings = findings_with_quarantine_component(report, 'quarantine_review_required')
+      findings = findings_with_quarantine_components(
+        report,
+        %w[quarantine_review_required quarantine_fingerprint_required quarantine_stale_fingerprint]
+      )
       return false if findings.empty?
 
       noun = findings.length == 1 ? 'annotation requires' : 'annotations require'
@@ -244,8 +247,12 @@ module Necropsy
     end
 
     def findings_with_quarantine_component(report, name)
+      findings_with_quarantine_components(report, [name])
+    end
+
+    def findings_with_quarantine_components(report, names)
       report.dead_methods(min_confidence: :low).select do |finding|
-        finding.score_components.any? { |component| component.name == name }
+        finding.score_components.any? { |component| names.include?(component.name) }
       end
     end
 
