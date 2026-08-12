@@ -37,6 +37,6 @@ adversarial_suites:
   dynamic:
     command: [bundle, exec, rspec, spec/necropsy/analyzers/dynamic/coverage_importer_spec.rb, spec/necropsy/confidence/scorer_spec.rb]
   parse:
-    command: [bundle, exec, rspec, spec/necropsy/parse_incompleteness_spec.rb]
+    command: [bundle, exec, rspec, spec/necropsy/parse_incompleteness_spec.rb, spec/necropsy/safety_mutation_spec.rb]
   remote_input:
     command: [bundle, exec, rspec, spec/necropsy/analyzers/dynamic/coverband_importer_spec.rb]
