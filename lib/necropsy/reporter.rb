@@ -2,7 +2,7 @@
 
 module Necropsy
   class Reporter
-    FORMATS = %i[human json yaml yml sarif github annotations].freeze
+    FORMATS = %i[human json ndjson yaml yml sarif github annotations].freeze
     DEFAULT_MIN_CONFIDENCE = :medium
     DEFINITION_RESOLUTION_SAMPLE_LIMIT = 5
 
@@ -47,6 +47,8 @@ module Necropsy
       case normalized_format
       when :json
         report.to_json(include_graph: include_graph)
+      when :ndjson
+        each_ndjson.to_a.join("\n")
       when :sarif
         render_sarif(min_confidence)
       when :github, :annotations
@@ -58,9 +60,43 @@ module Necropsy
       end
     end
 
+    def each_ndjson
+      return enum_for(__method__) unless block_given?
+
+      yield ndjson_record('report', report.to_h(include_graph: false))
+      graph = report.graph
+      {
+        'node' => graph.nodes.values,
+        'call_site' => graph.call_sites,
+        'edge' => graph.edges,
+        'edge_relation' => graph.edge_relations,
+        'evidence' => graph.evidence_records,
+        'entry_point' => graph.entry_points,
+        'class_info' => graph.class_infos.values,
+        'profile' => graph.profiles,
+        'resolution' => graph.resolution_records,
+        'blocker' => graph.blockers,
+        'source_error' => graph.source_errors
+      }.each do |record_type, records|
+        records.each { |record| yield ndjson_record(record_type, record.to_h) }
+      end
+      yield ndjson_record('graph_metadata', {
+                            'edge_projection' => 'conservative',
+                            'instantiated_classes' => graph.instantiated_classes.to_a.sort,
+                            'file_statuses' => graph.file_statuses.transform_values(&:to_s),
+                            'source_domains' => graph.source_domains.transform_values(&:to_s),
+                            'scope_diagnostics' => graph.scope_diagnostics,
+                            'observation' => graph.observation
+                          })
+    end
+
     private
 
     attr_reader :report
+
+    def ndjson_record(record_type, data)
+      JSON.generate('schema' => 'necropsy.graph.ndjson.v1', 'record' => record_type, 'data' => data)
+    end
 
     def render_human(min_confidence)
       findings = (report.dead_methods(min_confidence: min_confidence) + report.blocked_methods).uniq

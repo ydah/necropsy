@@ -15,7 +15,9 @@ RSpec.describe Necropsy::Project do
       'engines/payments/vendor/ignored.rb' => 'class NestedVendorIgnored; end',
       'app/node_modules/ignored.rb' => 'class NestedNodeModulesIgnored; end',
       'app/services/coverage/report.rb' => 'class CoverageReport; end',
-      'app/services/doc/render.rb' => 'class DocRender; end'
+      'app/services/doc/render.rb' => 'class DocRender; end',
+      'engines/payments/tmp/ignored.rb' => 'class NestedTmpIgnored; end',
+      'engines/payments/coverage/ignored.rb' => 'class NestedCoverageIgnored; end'
     }
 
     with_project(files: files) do |root|
@@ -25,8 +27,6 @@ RSpec.describe Necropsy::Project do
       expect(project.ruby_files.map { |file| project.relative_path(file) }).to contain_exactly(
         'Rakefile',
         'app/model.rb',
-        'app/services/coverage/report.rb',
-        'app/services/doc/render.rb',
         'bin/tool',
         'exe/tool',
         'necropsy.gemspec',

@@ -563,6 +563,19 @@ RSpec.describe Necropsy::CLI do
       end
     end
 
+    context 'with NDJSON graph export' do
+      let(:project_root) { create_project(files: { 'app/sample.rb' => 'class CliStream; def dead; end; end' }) }
+
+      it 'streams the report and graph as separate records' do
+        output = StringIO.new
+        allow($stdout).to receive(:puts) { |line| output.puts(line) }
+
+        expect(described_class.run(['analyze', '--format', 'ndjson', '--root', project_root])).to eq(0)
+        records = output.string.lines.map { |line| JSON.parse(line) }
+        expect(records.map { |record| record.fetch('record') }).to include('report', 'node', 'graph_metadata')
+      end
+    end
+
     context 'with the default confidence threshold' do
       let(:project_root) do
         create_project(files: { 'app/sample.rb' => 'class CliSample; attr_reader :maybe; end' })

@@ -190,6 +190,23 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'with streaming graph output' do
+      let(:format) { :ndjson }
+      let(:report) { report_with_findings([finding(id: 'Sample#dead')]) }
+
+      it 'emits independently parseable records without nesting the graph in the report' do
+        records = described_class.new(report).each_ndjson.map { |line| JSON.parse(line) }
+
+        expect(records).to include(
+          include('schema' => 'necropsy.graph.ndjson.v1', 'record' => 'report'),
+          include('schema' => 'necropsy.graph.ndjson.v1', 'record' => 'node'),
+          include('schema' => 'necropsy.graph.ndjson.v1', 'record' => 'graph_metadata')
+        )
+        expect(records.find { |record| record['record'] == 'report' }.fetch('data')).not_to include('graph')
+        expect(rendered.lines).to all(satisfy { |line| JSON.parse(line) })
+      end
+    end
+
     context 'with only an incomplete source diagnostic' do
       let(:source_error) do
         Necropsy::SourceError.new(

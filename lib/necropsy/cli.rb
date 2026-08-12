@@ -36,11 +36,7 @@ module Necropsy
       case command
       when 'analyze'
         report = analyze(options)
-        puts Reporter.new(report).render(
-          format: options[:format],
-          min_confidence: options[:min_confidence],
-          include_graph: options[:include_graph]
-        )
+        emit_report(report, options, min_confidence: options[:min_confidence])
         health_acceptable?(report, options, strict: false) ? 0 : HEALTH_FAILURE_STATUS
       when 'baseline'
         baseline(options, argv)
@@ -211,11 +207,7 @@ module Necropsy
       end
 
       if failures.any?
-        puts Reporter.new(report_with_findings(report, failures)).render(
-          format: options[:format],
-          min_confidence: options[:fail_on],
-          include_graph: options[:include_graph]
-        )
+        emit_report(report_with_findings(report, failures), options, min_confidence: options[:fail_on])
         return 1
       end
 
@@ -236,6 +228,19 @@ module Necropsy
         performance_profile: report.performance_profile,
         analysis_health: report.analysis_health
       )
+    end
+
+    def emit_report(report, options, min_confidence:)
+      reporter = Reporter.new(report)
+      if options[:format] == :ndjson
+        reporter.each_ndjson { |line| puts line }
+      else
+        puts reporter.render(
+          format: options[:format],
+          min_confidence: min_confidence,
+          include_graph: options[:include_graph]
+        )
+      end
     end
 
     def apply_quarantine_expiry_policy(report, config)

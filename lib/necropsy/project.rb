@@ -20,13 +20,7 @@ module Necropsy
       tmp
       vendor
     ].freeze
-    NESTED_EXCLUDED_DIRECTORIES = %w[
-      .bundle
-      .git
-      .necropsy_cache
-      node_modules
-      vendor
-    ].freeze
+    NESTED_EXCLUDED_DIRECTORIES = EXCLUDED_DIRECTORIES.freeze
 
     attr_reader :root, :config
 

@@ -66,6 +66,7 @@ module Necropsy
       @runtime_nodes_by_name = nil
       @dispatch_cache = nil
       @lookup_chain_cache = nil
+      @singleton_lookup_chain_cache = nil
       @owner_ancestor_cache = nil
       @flow_lookup_cache = nil
       @rta_instantiated_owner_cache = {}
@@ -1200,18 +1201,24 @@ module Necropsy
     end
 
     def singleton_lookup_entries(owner, seen = Set.new)
+      top_level = seen.empty?
+      @singleton_lookup_chain_cache ||= {}
+      return @singleton_lookup_chain_cache[owner] if top_level && @singleton_lookup_chain_cache.key?(owner)
       return [] unless owner && seen.add?(owner)
 
       info = class_info(owner)
-      return [[owner, '.']] unless info
-
-      prepends = info.singleton_prepends.reverse.flat_map do |extension|
-        method_lookup_chain(extension).map { |candidate| [candidate, '#'] }
-      end
-      extensions = info.singleton_includes.reverse.flat_map do |extension|
-        method_lookup_chain(extension).map { |candidate| [candidate, '#'] }
-      end
-      [*prepends, [owner, '.'], *extensions, *singleton_lookup_entries(info.superclass, seen)]
+      result = if info
+                 prepends = info.singleton_prepends.reverse.flat_map do |extension|
+                   method_lookup_chain(extension).map { |candidate| [candidate, '#'] }
+                 end
+                 extensions = info.singleton_includes.reverse.flat_map do |extension|
+                   method_lookup_chain(extension).map { |candidate| [candidate, '#'] }
+                 end
+                 [*prepends, [owner, '.'], *extensions, *singleton_lookup_entries(info.superclass, seen)]
+               else
+                 [[owner, '.']]
+               end
+      top_level ? (@singleton_lookup_chain_cache[owner] = result.freeze) : result
     end
 
     def receiver_candidates(site)

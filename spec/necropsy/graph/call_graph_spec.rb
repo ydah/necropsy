@@ -1,6 +1,17 @@
 # frozen_string_literal: true
 
 RSpec.describe Necropsy::CallGraph do
+  it 'caches singleton lookup chains and invalidates them when definitions change' do
+    graph = graph_with(
+      nodes: [node('Child.run', owner: 'Child', name: 'run', kind: :singleton_method)],
+      class_infos: [class_info('Parent'), class_info('Child', superclass: 'Parent')]
+    )
+    first = graph.send(:singleton_lookup_entries, 'Child')
+    expect(graph.send(:singleton_lookup_entries, 'Child')).to equal(first)
+    graph.add_node(node('Child.other', owner: 'Child', name: 'other', kind: :singleton_method))
+    expect(graph.send(:singleton_lookup_entries, 'Child')).not_to equal(first)
+  end
+
   it 'bounds reverse subclass traversal when invalid source ancestry is cyclic' do
     graph = graph_with(
       nodes: [],
