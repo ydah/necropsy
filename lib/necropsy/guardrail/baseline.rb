@@ -113,21 +113,26 @@ module Necropsy
 
       def compare(findings, migration: false)
         current = findings.sort_by { |finding| [finding.node.file, finding.node.line, finding.node.definition_id] }
+        current_index = build_current_index(current)
         assignments = {}
+        assignment_indexes = {}
         ambiguities = []
 
         @findings.each_with_index do |entry, index|
-          resolution = resolve_entry(entry, current, migration: migration)
+          resolution = resolve_entry(entry, current_index, migration: migration)
           if resolution[:review_required]
-            ambiguities << ambiguity(entry, index, resolution, assignments)
+            ambiguities << ambiguity(entry, index, resolution, assignment_indexes)
             next
           end
           next if resolution[:candidates].empty?
 
-          if resolution[:candidates].one? && !assignments.value?(resolution[:candidates].first)
-            assignments[index] = resolution[:candidates].first
+          candidate = resolution[:candidates].first
+          candidate_key = candidate&.physical_fingerprint
+          if resolution[:candidates].one? && !assignment_indexes.key?(candidate_key)
+            assignments[index] = candidate
+            assignment_indexes[candidate_key] = index
           else
-            ambiguities << ambiguity(entry, index, resolution, assignments)
+            ambiguities << ambiguity(entry, index, resolution, assignment_indexes)
           end
         end
 
@@ -158,44 +163,40 @@ module Necropsy
         self.class.send(:normalize_schema_version, value)
       end
 
-      def resolve_entry(entry, current, migration:)
-        return resolve_exact_entry(entry, current) unless migration
-        return resolve_v1_entry(entry, current) if schema_version == 1
+      def resolve_entry(entry, current_index, migration:)
+        return resolve_exact_entry(entry, current_index) unless migration
+        return resolve_v1_entry(entry, current_index) if schema_version == 1
 
-        candidates = current.select { |finding| same_classification?(entry, finding) }
         strategies(entry).each do |strategy, value|
           next if value.nil? || value.to_s.empty?
 
-          matches = candidates.select { |finding| strategy_match?(strategy, value, entry, finding) }
+          matches = indexed_matches(current_index, strategy, value, entry)
           return { strategy: strategy, candidates: matches } unless matches.empty?
         end
         { strategy: 'unmatched', candidates: [] }
       end
 
-      def resolve_exact_entry(entry, current)
+      def resolve_exact_entry(entry, current_index)
         if schema_version == 1
-          resolution = resolve_v1_entry(entry, current)
+          resolution = resolve_v1_entry(entry, current_index)
           return resolution.merge(review_required: true, reason: 'legacy_baseline_requires_migration')
         end
 
         value = entry['definition_id'] || entry['fingerprint']
-        candidates = current.select do |finding|
-          same_classification?(entry, finding) &&
-            (finding.node.definition_id == value || finding.physical_fingerprint == value)
-        end
+        candidates = indexed_matches(current_index, 'exact', value, entry)
         { strategy: 'exact', candidates: candidates }
       end
 
-      def resolve_v1_entry(entry, current)
+      def resolve_v1_entry(entry, current_index)
         identity_matches = if present?(symbol_hint(entry))
-                             current.select { |finding| symbol_path_match?(entry, finding) }
+                             indexed_symbol_path(current_index, entry)
                            else
                              []
                            end
         return { strategy: 'logical_identity', candidates: identity_matches } if identity_matches.length > 1
 
         if present?(entry['fingerprint'])
-          fingerprint_matches = current.select { |finding| finding.logical_fingerprint == entry['fingerprint'] }
+          fingerprint_matches = current_index.fetch(:logical_fingerprint).fetch(entry['fingerprint'], [])
           return { strategy: 'logical_fingerprint', candidates: fingerprint_matches } unless fingerprint_matches.empty?
 
           return { strategy: 'unmatched', candidates: [] }
@@ -203,6 +204,35 @@ module Necropsy
 
         matches = identity_matches.select { |finding| same_classification?(entry, finding) }
         matches.empty? ? { strategy: 'unmatched', candidates: [] } : { strategy: 'symbol_path_hint', candidates: matches }
+      end
+
+      def build_current_index(current)
+        {
+          definition_id: current.group_by { |finding| finding.node.definition_id },
+          physical_fingerprint: current.group_by(&:physical_fingerprint),
+          logical_fingerprint: current.group_by(&:logical_fingerprint),
+          body_digest: current.group_by { |finding| finding.node.body_digest },
+          symbol: current.group_by { |finding| finding.node.symbol_id },
+          symbol_path: current.group_by { |finding| symbol_path_key_for(finding) }
+        }
+      end
+
+      def indexed_matches(current_index, strategy, value, entry)
+        candidates = case strategy
+                     when 'exact'
+                       by_definition = current_index.fetch(:definition_id).fetch(value, [])
+                       by_fingerprint = current_index.fetch(:physical_fingerprint).fetch(value, [])
+                       by_definition + by_fingerprint
+                     when 'body_digest'
+                       current_index.fetch(:body_digest).fetch(value, []).select do |finding|
+                         symbol_path_match?(entry, finding)
+                       end
+                     when 'symbol_path_hint'
+                       indexed_symbol_path(current_index, entry)
+                     else
+                       []
+                     end
+        candidates.uniq.select { |finding| same_classification?(entry, finding) }
       end
 
       def strategies(entry)
@@ -215,19 +245,6 @@ module Necropsy
         ]
       end
 
-      def strategy_match?(strategy, value, entry, finding)
-        case strategy
-        when 'exact'
-          finding.node.definition_id == value || finding.physical_fingerprint == value
-        when 'body_digest'
-          finding.node.body_digest == value && symbol_path_match?(entry, finding)
-        when 'logical_fingerprint'
-          schema_version == 1 && finding.logical_fingerprint == value
-        when 'symbol_path_hint'
-          symbol_path_match?(entry, finding)
-        end
-      end
-
       def symbol_path_match?(entry, finding)
         symbol = symbol_hint(entry)
         return false unless symbol == finding.node.symbol_id
@@ -238,6 +255,20 @@ module Necropsy
 
       def symbol_hint(entry)
         entry['symbol_id'] || entry['node_id']
+      end
+
+      def symbol_path_key(entry)
+        [symbol_hint(entry), present?(entry['file']) ? entry['file'] : nil]
+      end
+
+      def indexed_symbol_path(current_index, entry)
+        return current_index.fetch(:symbol).fetch(symbol_hint(entry), []) unless present?(entry['file'])
+
+        current_index.fetch(:symbol_path).fetch(symbol_path_key(entry), [])
+      end
+
+      def symbol_path_key_for(finding)
+        [finding.node.symbol_id, finding.node.file]
       end
 
       def validate_entry!(entry)
@@ -295,9 +326,9 @@ module Necropsy
         classification.nil? || classification == finding.classification.to_s
       end
 
-      def ambiguity(entry, index, resolution, assignments)
+      def ambiguity(entry, index, resolution, assignment_indexes)
         candidates = resolution[:candidates]
-        conflicts = assignments.select { |_assigned_index, finding| candidates.include?(finding) }.keys
+        conflicts = candidates.filter_map { |finding| assignment_indexes[finding.physical_fingerprint] }.uniq.sort
         {
           'baseline_index' => index,
           'strategy' => resolution[:strategy],
