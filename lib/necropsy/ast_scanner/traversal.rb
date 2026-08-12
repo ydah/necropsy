@@ -201,14 +201,24 @@ module Necropsy
 
     def convention_ancestors(owner)
       ancestors = []
-      current_data = class_data[owner]
-      current = current_data&.fetch(:superclass_candidates, [])&.first
-      while current && !ancestors.include?(current)
+      pending = convention_parent_candidates(class_data[owner])
+      until pending.empty?
+        current = pending.shift
+        next if ancestors.include?(current)
+
         ancestors << current
-        current_data = class_data[current]
-        current = current_data&.fetch(:superclass_candidates, [])&.first
+        pending.concat(convention_parent_candidates(class_data[current]))
       end
       ancestors
+    end
+
+    def convention_parent_candidates(data)
+      return [] unless data
+
+      Array(data[:superclass_candidates]) +
+        %i[includes prepends extends singleton_includes singleton_prepends].flat_map do |relation|
+          Array(data[relation]).flatten
+        end
     end
 
     def visit_call(node, context)

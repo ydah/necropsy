@@ -42,12 +42,16 @@ module Necropsy
       before_action after_action around_action
       before_validation after_validation before_save after_save around_save
       around_validation before_touch after_touch
+      before_enqueue around_enqueue after_enqueue before_perform around_perform after_perform
       before_create after_create around_create before_update after_update around_update
       before_destroy after_destroy around_destroy after_commit after_rollback after_initialize after_find
       after_create_commit after_update_commit after_destroy_commit after_save_commit
       validate rescue_from helper_method
     ].freeze
-    RAILS_GENERATED_METHOD_MACROS = %i[enum store_accessor belongs_to has_one has_many].freeze
+    RAILS_GENERATED_METHOD_MACROS = %i[
+      enum store store_accessor attribute class_attribute mattr_reader mattr_writer mattr_accessor
+      cattr_reader cattr_writer cattr_accessor belongs_to has_one has_many scope
+    ].freeze
     VISIBILITY_MACROS = %i[public protected private public_class_method private_class_method].freeze
     SYMBOL_REFERENCE_CALLS = %i[method respond_to? try try!].freeze
     ANCESTRY_CONTROL_FLOW_TYPES = %i[

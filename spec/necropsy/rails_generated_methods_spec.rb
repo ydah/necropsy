@@ -32,4 +32,38 @@ RSpec.describe 'Rails generated method diagnostics' do
       )
     end
   end
+
+  it 'models enum forms, attribute APIs, and scope bodies without removal findings' do
+    files = {
+      'app/models/order.rb' => <<~RUBY
+        class Order < ApplicationRecord
+          enum status: { active: 0, archived: 1 }, prefix: true
+          attribute :reference
+          class_attribute :policy
+          store :settings, accessors: [:color]
+          scope :recent, -> { filtered }
+          def self.filtered; end
+        end
+      RUBY
+    }
+    config = { cache: { enabled: false }, frameworks: ['rails'] }
+
+    with_project(files: files, config: config) do |root|
+      report = Necropsy::Runner.new(root: root).analyze
+      generated = report.graph.method_nodes.select { |node| node.defined_via.to_s.start_with?('rails_') }
+      names = generated.map { |node| [node.kind, node.name] }
+      scope = generated.find { |node| node.kind == :singleton_method && node.name == 'recent' }
+
+      expect(names).to include(
+        [:instance_method, 'status'], [:instance_method, 'status_active?'],
+        [:singleton_method, 'status_active'], [:singleton_method, 'not_status_archived'],
+        [:instance_method, 'reference='], [:singleton_method, 'policy'],
+        [:instance_method, 'color='], [:singleton_method, 'recent']
+      )
+      expect(report.graph.edges_from(scope.graph_id).keys).to include(
+        report.graph.method_nodes.find { |node| node.name == 'filtered' }.graph_id
+      )
+      expect(report.findings.map { |finding| finding.node.name }).not_to include(*generated.map(&:name))
+    end
+  end
 end

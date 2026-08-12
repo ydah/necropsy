@@ -97,4 +97,43 @@ RSpec.describe Necropsy::ConventionRules do
       expect(hinted_symbols).to include('AccountsController#before_action')
     end
   end
+
+  it 'roots only owner- or ancestor-scoped framework runtime hooks' do
+    source = <<~RUBY
+      class EventsChannel
+        def subscribed; end
+      end
+      class ImportWorker
+        include Sidekiq::Job
+        def perform; end
+      end
+      class QueryResolver < GraphQL::Schema::Resolver
+        def resolve; end
+      end
+      class AccountSerializer
+        def display_name; end
+      end
+      class Unrelated
+        def subscribed; end
+        def perform; end
+        def resolve; end
+        def display_name; end
+      end
+    RUBY
+    frameworks = %w[rails sidekiq graphql active_model_serializers]
+
+    with_project(files: { 'app/framework_hooks.rb' => source },
+                 config: { frameworks: frameworks, cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      hinted_symbols = scan.entrypoint_hints.filter_map do |hint|
+        scan.nodes.find { |node| node.graph_id == hint.node_id }&.symbol_id
+      end
+
+      expect(hinted_symbols).to include(
+        'EventsChannel#subscribed', 'ImportWorker#perform', 'QueryResolver#resolve',
+        'AccountSerializer#display_name'
+      )
+      expect(hinted_symbols.grep(/Unrelated/)).to be_empty
+    end
+  end
 end

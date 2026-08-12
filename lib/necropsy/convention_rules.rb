@@ -48,6 +48,38 @@ module Necropsy
         methods: %w[after_action after_save before_action before_save validate],
         ancestor_patterns: %w[ApplicationController ApplicationJob ApplicationMailer ApplicationRecord],
         frameworks: ['rails']
+      ),
+      Rule.new(
+        id: 'rails.action_cable', family: :framework_runtime_hook,
+        methods: %w[receive subscribed unsubscribed], owner_patterns: ['*Channel'], frameworks: ['rails']
+      ),
+      Rule.new(
+        id: 'rails.active_job', family: :framework_runtime_hook,
+        methods: %w[deserialize perform serialize], owner_patterns: ['*Job'], ancestor_patterns: ['ApplicationJob'],
+        frameworks: ['rails']
+      ),
+      Rule.new(
+        id: 'sidekiq.worker', family: :framework_runtime_hook,
+        methods: ['perform'], ancestor_patterns: %w[Sidekiq::Job Sidekiq::Worker], frameworks: ['sidekiq']
+      ),
+      Rule.new(
+        id: 'graphql.runtime', family: :framework_runtime_hook,
+        methods: %w[authorized? ready? resolve subscribed update],
+        owner_patterns: %w[*Mutation *Resolver *Subscription *Type],
+        ancestor_patterns: %w[GraphQL::Schema::Mutation GraphQL::Schema::Resolver GraphQL::Schema::Subscription],
+        frameworks: ['graphql']
+      ),
+      Rule.new(
+        id: 'active_model_serializers.public_surface', family: :declarative_public_surface,
+        owner_patterns: ['*Serializer'], frameworks: ['active_model_serializers']
+      ),
+      Rule.new(
+        id: 'blueprinter.public_surface', family: :declarative_public_surface,
+        owner_patterns: ['*Blueprint'], frameworks: ['blueprinter']
+      ),
+      Rule.new(
+        id: 'view_component.runtime', family: :framework_runtime_hook,
+        methods: %w[before_render call render?], owner_patterns: ['*Component'], frameworks: ['view_component']
       )
     ].freeze
 

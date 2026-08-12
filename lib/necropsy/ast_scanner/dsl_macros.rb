@@ -140,7 +140,10 @@ module Necropsy
       return false unless RAILS_GENERATED_METHOD_MACROS.include?(node.name)
       return false unless context.owner && !context.test && rails_framework_enabled?
 
-      names = symbol_arguments(node)
+      return handle_rails_enum(node, context) if node.name == :enum
+      return handle_rails_scope(node, context) if node.name == :scope
+
+      names = literal_positional_names(node)
       if names.empty?
         record_semantic_blocker(
           :rails_generated_methods,
@@ -153,16 +156,20 @@ module Necropsy
       end
 
       case node.name
-      when :enum
-        enum_name = names.first
-        enum_values = keyword_keys(node)
-        add_generated_methods(
-          context,
-          [enum_name, "#{enum_name}=", *enum_values.flat_map { |name| ["#{name}?", "#{name}!"] }],
-          node
-        )
       when :store_accessor
         add_generated_methods(context, names.drop(1).flat_map { |name| [name, "#{name}="] }, node)
+      when :store
+        accessors = array_keyword_values(node, 'accessors')
+        add_generated_methods(context, [names.first, "#{names.first}=", *accessors.flat_map { |name| [name, "#{name}="] }], node)
+      when :attribute
+        add_generated_methods(context, [names.first, "#{names.first}="], node)
+      when :class_attribute, :mattr_reader, :mattr_writer, :mattr_accessor,
+           :cattr_reader, :cattr_writer, :cattr_accessor
+        reader = !node.name.to_s.end_with?('_writer')
+        writer = !node.name.to_s.end_with?('_reader')
+        generated = names.flat_map { |name| [reader && name, writer && "#{name}="].compact }
+        add_generated_methods(context, generated, node)
+        add_generated_methods(context, generated, node, kind: :singleton_method)
       when :belongs_to, :has_one
         names.each do |name|
           add_generated_methods(
@@ -177,18 +184,146 @@ module Necropsy
       handled_call
     end
 
+    def handle_rails_enum(node, context)
+      declarations = enum_declarations(node)
+      if declarations.empty?
+        record_semantic_blocker(
+          :rails_generated_methods,
+          node,
+          context,
+          'enum has a dynamic name or value set',
+          suggested_action: :review_generated_methods
+        )
+        return handled_call
+      end
+
+      declarations.each do |enum_name, values|
+        add_generated_methods(context, [enum_name, "#{enum_name}="], node)
+        next if keyword_value(node, 'instance_methods') == false
+
+        decorated = values.map { |value| decorate_enum_value(enum_name, value, node) }
+        add_generated_methods(context, decorated.flat_map { |value| ["#{value}?", "#{value}!"] }, node)
+        next if keyword_value(node, 'scopes') == false
+
+        scopes = decorated.flat_map { |value| [value, "not_#{value}"] }
+        add_generated_methods(context, scopes, node, kind: :singleton_method)
+      end
+      handled_call
+    end
+
+    def enum_declarations(node)
+      positional = arguments(node).grep_v(Prism::KeywordHashNode)
+      if literal_name?(positional.first)
+        values = literal_hash_keys(positional[1])
+        values = literal_array_values(positional[1]) if values.empty?
+        if values.empty?
+          options = %w[prefix suffix _prefix _suffix scopes instance_methods validate]
+          values = keyword_keys(node) - options
+        end
+        return [[literal_value(positional.first), values]] unless values.empty?
+      end
+
+      keyword_hash = arguments(node).find { |argument| argument.is_a?(Prism::KeywordHashNode) }
+      Array(keyword_hash&.elements).filter_map do |element|
+        next unless element.is_a?(Prism::AssocNode)
+
+        enum_name = literal_value(element.key)
+        values = literal_hash_keys(element.value)
+        values = literal_array_values(element.value) if values.empty?
+        [enum_name, values] if enum_name && !values.empty?
+      end
+    end
+
+    def decorate_enum_value(enum_name, value, node)
+      prefix = keyword_value(node, 'prefix') || keyword_value(node, '_prefix')
+      suffix = keyword_value(node, 'suffix') || keyword_value(node, '_suffix')
+      value = "#{prefix == true ? enum_name : prefix}_#{value}" if prefix
+      value = "#{value}_#{suffix == true ? enum_name : suffix}" if suffix
+      value
+    end
+
+    def handle_rails_scope(node, context)
+      name = literal_argument(node, index: 0)
+      unless name
+        record_semantic_blocker(
+          :rails_generated_methods,
+          node,
+          context,
+          'scope has a runtime-computed name',
+          suggested_action: :review_generated_methods
+        )
+        return handled_call
+      end
+
+      definition = add_generated_methods(context, [name], node, kind: :singleton_method).first
+      callable = arguments(node)[1]
+      body = callable.body if callable.is_a?(Prism::LambdaNode)
+      body ||= node.block&.body
+      if body
+        scope_context = context.dup
+        scope_context.current_caller_id = definition.graph_id
+        scope_context.current_method_name = name
+        scope_context.current_kind = :singleton_method
+        scope_context.static_ancestry = false
+        scope_context.flow_result = nil
+        visit(body, scope_context)
+        return handled_call(arguments: false)
+      end
+
+      record_semantic_blocker(
+        :rails_generated_methods,
+        node,
+        context,
+        'scope body is not a literal block or lambda',
+        suggested_action: :review_generated_methods
+      )
+      handled_call
+    end
+
+    def literal_positional_names(node)
+      arguments(node).grep_v(Prism::KeywordHashNode).filter_map do |argument|
+        literal_value(argument) if literal_name?(argument)
+      end
+    end
+
+    def array_keyword_values(node, key)
+      hash = arguments(node).find { |argument| argument.is_a?(Prism::KeywordHashNode) }
+      pair = Array(hash&.elements).find do |element|
+        element.is_a?(Prism::AssocNode) && literal_value(element.key).to_s == key
+      end
+      literal_array_values(pair&.value)
+    end
+
+    def literal_hash_keys(node)
+      return [] unless node.is_a?(Prism::HashNode) || node.is_a?(Prism::KeywordHashNode)
+
+      Array(node.elements).filter_map do |element|
+        literal_value(element.key) if element.is_a?(Prism::AssocNode) && literal_name?(element.key)
+      end
+    end
+
+    def literal_array_values(node)
+      return [] unless node.is_a?(Prism::ArrayNode) && !node.contains_splat?
+
+      node.elements.filter_map { |element| literal_value(element) if literal_name?(element) }
+    end
+
     def rails_framework_enabled?
       project.config.frameworks.include?('rails') || project.config.rails_enabled?(reference_files: project.reference_files)
     rescue SystemCallError, EncodingError
       project.config.frameworks.include?('rails')
     end
 
-    def add_generated_methods(context, names, source_node)
-      names.uniq.each do |name|
-        kind, separator = method_kind_and_separator(context)
+    def add_generated_methods(context, names, source_node, kind: nil)
+      names.uniq.map do |name|
+        generated_kind, separator = if kind
+                                      [kind, kind == :singleton_method ? '.' : '#']
+                                    else
+                                      method_kind_and_separator(context)
+                                    end
         add_definition(
           symbol_id: "#{context.owner}#{separator}#{name}",
-          kind: kind,
+          kind: generated_kind,
           source_node: source_node,
           context: context,
           defined_via: :"rails_#{source_node.name}",
