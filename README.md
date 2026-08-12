@@ -5,6 +5,9 @@ collects method definitions with Prism, adds call-edge evidence from static and
 optional dynamic analyzers, then runs reachability from framework and configured
 entry points.
 
+Machine-readable JSON reports use schema v2. The published contract is
+[`schema/necropsy-report-v2.schema.json`](schema/necropsy-report-v2.schema.json).
+
 Necropsy includes:
 
 - Prism-based method collection for ordinary, singleton, delegated, aliased, forwarded, and dynamically defined methods

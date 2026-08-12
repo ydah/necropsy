@@ -1,0 +1,366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ydah/necropsy/blob/main/schema/necropsy-report-v2.schema.json",
+  "title": "Necropsy report v2",
+  "description": "Stable machine-readable report emitted by Necropsy JSON and YAML reporters.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "artifact_provenance",
+    "compatibility",
+    "root",
+    "analysis_health",
+    "summary",
+    "findings"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "artifact_provenance": { "$ref": "#/$defs/artifactProvenance" },
+    "compatibility": { "$ref": "#/$defs/compatibility" },
+    "root": { "type": "string", "minLength": 1 },
+    "analysis_health": { "$ref": "#/$defs/analysisHealth" },
+    "summary": { "$ref": "#/$defs/summary" },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "diagnostics": { "type": "object" },
+    "source_snapshot": { "$ref": "#/$defs/sourceSnapshot" },
+    "graph": { "$ref": "#/$defs/graph" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "artifactProvenance": {
+      "type": "object",
+      "required": ["producer", "runtime", "identity_schemas", "inputs"],
+      "properties": {
+        "producer": {
+          "type": "object",
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "const": "necropsy" },
+            "version": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": true
+        },
+        "runtime": {
+          "type": "object",
+          "required": ["ruby_engine", "ruby_version", "prism_version"],
+          "properties": {
+            "ruby_engine": { "type": "string", "minLength": 1 },
+            "ruby_version": { "type": "string", "minLength": 1 },
+            "prism_version": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": true
+        },
+        "identity_schemas": {
+          "type": "object",
+          "required": ["definition", "call_site"],
+          "properties": {
+            "definition": { "type": "integer", "minimum": 1 },
+            "call_site": { "type": "integer", "minimum": 1 }
+          },
+          "additionalProperties": true
+        },
+        "inputs": {
+          "type": "object",
+          "required": ["configuration_sha256"],
+          "properties": {
+            "configuration_sha256": {
+              "oneOf": [
+                { "$ref": "#/$defs/sha256" },
+                { "const": "unavailable" }
+              ]
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "compatibility": {
+      "type": "object",
+      "required": ["finding_fingerprints"],
+      "properties": {
+        "finding_fingerprints": {
+          "type": "object",
+          "required": ["fingerprint", "physical_fingerprint"],
+          "properties": {
+            "fingerprint": { "type": "string", "minLength": 1 },
+            "physical_fingerprint": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "analysisHealth": {
+      "type": "object",
+      "required": ["status", "reasons"],
+      "properties": {
+        "status": { "enum": ["complete", "degraded", "invalid"] },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["severity", "code"],
+            "properties": {
+              "severity": { "enum": ["degraded", "invalid"] },
+              "code": { "type": "string", "minLength": 1 },
+              "message": { "type": "string" },
+              "file": { "type": "string" },
+              "line": { "type": "integer", "minimum": 1 }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "nodes",
+        "edges",
+        "entry_points",
+        "incomplete_files",
+        "findings",
+        "actionable",
+        "diagnostic",
+        "health_failures",
+        "unreachable",
+        "unused",
+        "blocked",
+        "test_only_reachable"
+      ],
+      "properties": {
+        "nodes": { "$ref": "#/$defs/count" },
+        "edges": { "$ref": "#/$defs/count" },
+        "entry_points": { "$ref": "#/$defs/count" },
+        "incomplete_files": { "$ref": "#/$defs/count" },
+        "findings": { "$ref": "#/$defs/count" },
+        "actionable": { "$ref": "#/$defs/count" },
+        "diagnostic": { "$ref": "#/$defs/count" },
+        "health_failures": { "$ref": "#/$defs/count" },
+        "unreachable": { "$ref": "#/$defs/count" },
+        "unused": { "$ref": "#/$defs/count" },
+        "blocked": { "$ref": "#/$defs/count" },
+        "test_only_reachable": { "$ref": "#/$defs/count" }
+      },
+      "additionalProperties": true
+    },
+    "count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "finding": {
+      "type": "object",
+      "required": [
+        "fingerprint",
+        "logical_fingerprint",
+        "physical_fingerprint",
+        "classification",
+        "confidence",
+        "score",
+        "score_components",
+        "node",
+        "reasons",
+        "evidences",
+        "blockers"
+      ],
+      "properties": {
+        "fingerprint": { "$ref": "#/$defs/sha256" },
+        "logical_fingerprint": { "$ref": "#/$defs/sha256" },
+        "physical_fingerprint": { "$ref": "#/$defs/sha256" },
+        "classification": {
+          "enum": ["unreachable", "unused", "blocked", "test_only_reachable"]
+        },
+        "confidence": { "enum": ["low", "medium", "high", "certain"] },
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "score_components": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/scoreComponent" }
+        },
+        "node": { "$ref": "#/$defs/node" },
+        "reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "evidences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/evidence" }
+        },
+        "blockers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/blocker" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "symbol_id",
+        "definition_id",
+        "body_digest",
+        "ordinal",
+        "kind",
+        "file",
+        "line",
+        "end_line",
+        "defined_via",
+        "owner",
+        "name",
+        "test",
+        "visibility"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "symbol_id": { "type": "string", "minLength": 1 },
+        "definition_id": { "type": "string", "minLength": 1 },
+        "body_digest": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "type": "null" }
+          ]
+        },
+        "ordinal": { "type": "integer", "minimum": 0 },
+        "kind": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "defined_via": { "type": "string", "minLength": 1 },
+        "owner": { "type": ["string", "null"] },
+        "name": { "type": ["string", "null"] },
+        "test": { "type": "boolean" },
+        "visibility": { "enum": ["public", "protected", "private"] }
+      },
+      "additionalProperties": true
+    },
+    "scoreComponent": {
+      "type": "object",
+      "required": ["name", "value", "details"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": "number" },
+        "details": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "analyzer",
+        "kind",
+        "weight",
+        "details",
+        "metadata",
+        "evidence_id",
+        "producer",
+        "producer_version",
+        "grade",
+        "relation",
+        "source",
+        "assumptions",
+        "scope"
+      ],
+      "properties": {
+        "analyzer": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "weight": { "type": "number" },
+        "details": { "type": "string" },
+        "metadata": { "type": "object" },
+        "evidence_id": { "type": ["string", "null"] },
+        "producer": { "type": ["string", "null"] },
+        "producer_version": { "type": ["string", "null"] },
+        "grade": {
+          "oneOf": [
+            { "enum": ["exact", "conservative", "observed", "heuristic"] },
+            { "type": "null" }
+          ]
+        },
+        "relation": { "type": ["string", "null"] },
+        "source": {},
+        "assumptions": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "scope": {}
+      },
+      "additionalProperties": true
+    },
+    "blocker": {
+      "type": "object",
+      "required": ["kind", "scope_kind", "scope_value", "source", "reason", "suggested_action", "metadata"],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "scope_kind": { "type": "string", "minLength": 1 },
+        "scope_value": {},
+        "source": {},
+        "reason": { "type": "string", "minLength": 1 },
+        "suggested_action": { "type": "string", "minLength": 1 },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "sourceSnapshot": {
+      "type": "object",
+      "required": ["status", "sha256"],
+      "properties": {
+        "status": { "enum": ["complete", "unavailable"] },
+        "sha256": {
+          "oneOf": [
+            { "$ref": "#/$defs/sha256" },
+            { "const": "unavailable" }
+          ]
+        },
+        "files": { "$ref": "#/$defs/count" },
+        "bytes": { "$ref": "#/$defs/count" },
+        "reason": { "type": "string" },
+        "verification": { "type": "object" }
+      },
+      "additionalProperties": true
+    },
+    "graph": {
+      "type": "object",
+      "required": [
+        "nodes",
+        "call_sites",
+        "edges",
+        "edge_projection",
+        "edge_relations",
+        "evidence_records",
+        "entry_points",
+        "profiles",
+        "resolutions",
+        "blockers",
+        "file_statuses",
+        "source_errors",
+        "source_domains",
+        "observation"
+      ],
+      "properties": {
+        "nodes": { "type": "array", "items": { "$ref": "#/$defs/node" } },
+        "call_sites": { "type": "array" },
+        "edges": { "type": "array" },
+        "edge_projection": { "const": "conservative" },
+        "edge_relations": { "type": "array" },
+        "evidence_records": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
+        "entry_points": { "type": "array" },
+        "profiles": { "type": "array" },
+        "resolutions": { "type": "array" },
+        "blockers": { "type": "array", "items": { "$ref": "#/$defs/blocker" } },
+        "file_statuses": { "type": "object" },
+        "source_errors": { "type": "array" },
+        "source_domains": { "type": "object" },
+        "observation": { "type": "object" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

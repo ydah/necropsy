@@ -7,6 +7,7 @@ require 'digest'
 module Necropsy
   class Report
     SCHEMA_VERSION = 2
+    SCHEMA_PATH = File.expand_path("../../schema/necropsy-report-v#{SCHEMA_VERSION}.schema.json", __dir__).freeze
     ACTIONABLE_CLASSIFICATIONS = %i[unreachable unused].freeze
     FINGERPRINT_COMPATIBILITY = {
       'fingerprint' => 'legacy logical symbol fingerprint retained for compatibility',
@@ -15,6 +16,10 @@ module Necropsy
 
     attr_reader :root, :graph, :findings, :reachability, :project, :source_snapshot, :performance_profile,
                 :analysis_health
+
+    def self.schema_path
+      SCHEMA_PATH
+    end
 
     def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [],
                    project: nil, source_snapshot: nil, performance_profile: nil, analysis_health: nil)
