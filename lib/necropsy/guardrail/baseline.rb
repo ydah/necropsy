@@ -9,6 +9,7 @@ module Necropsy
     class Baseline
       SCHEMA_VERSION = 2
       MIGRATION_SCHEMA_VERSION = 1
+      CLASSIFICATIONS = %w[unreachable unused blocked test_only_reachable].freeze
 
       Comparison = Data.define(:matched_findings, :new_findings, :ambiguities, :review_report) do
         def review_required?
@@ -103,6 +104,7 @@ module Necropsy
 
           finding.transform_keys(&:to_s).tap { |entry| validate_entry!(entry) }
         end
+        validate_duplicate_identities!
         @fingerprints = @findings.filter_map { |finding| finding['fingerprint'] }.to_set
       end
 
@@ -282,8 +284,28 @@ module Necropsy
         line = entry['line']
         raise Error, 'Baseline line must be a positive integer' unless line.nil? || (line.is_a?(Integer) && line.positive?)
 
+        classification = entry['classification']
+        raise Error, "Unknown baseline classification: #{classification}" if
+          classification && !CLASSIFICATIONS.include?(classification)
+
+        confidence = entry['confidence']
+        raise Error, "Unknown baseline confidence: #{confidence}" if
+          confidence && !CONFIDENCE_LEVELS.key?(confidence.to_sym)
+
         validate_v1_fingerprint!(entry) if schema_version == 1
         validate_v2_fingerprints!(entry) if schema_version == SCHEMA_VERSION
+      end
+
+      def validate_duplicate_identities!
+        identities = @findings.filter_map do |entry|
+          if schema_version == SCHEMA_VERSION && present?(entry['definition_id']) && present?(entry['classification'])
+            physical_fingerprint(entry['classification'], entry['definition_id'])
+          elsif present?(entry['fingerprint'])
+            entry['fingerprint']
+          end
+        end
+        duplicate = identities.tally.find { |_identity, count| count > 1 }&.first
+        raise Error, "Duplicate baseline physical identity: #{duplicate}" if duplicate
       end
 
       def validate_v1_fingerprint!(entry)

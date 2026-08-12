@@ -220,6 +220,27 @@ RSpec.describe Necropsy::Guardrail::Baseline do
     expect { described_class.load(path) }.to raise_error(Necropsy::Error, /contradicts/)
   end
 
+  it 'rejects unknown enums and duplicate physical identities' do
+    invalid_entries = [
+      { 'version' => 1, 'findings' => [{ 'classification' => 'maybe', 'confidence' => 'high' }] },
+      { 'version' => 1, 'findings' => [{ 'classification' => 'unreachable', 'confidence' => 'urgent' }] }
+    ]
+    invalid_entries.each do |payload|
+      path = File.join(Dir.mktmpdir, '.necropsy_baseline.yml')
+      File.write(path, payload.to_yaml)
+      expect { described_class.load(path) }.to raise_error(Necropsy::Error, /classification|confidence/)
+    end
+
+    target = physical_finding(symbol_id: 'Sample#dead', definition_id: 'def:v1:dead', body_digest: 'body')
+    path = File.join(Dir.mktmpdir, '.necropsy_baseline.yml')
+    described_class.write(report_with_findings([target]), path: path)
+    payload = YAML.load_file(path)
+    payload['findings'] << payload['findings'].first.dup
+    File.write(path, payload.to_yaml)
+
+    expect { described_class.load(path) }.to raise_error(Necropsy::Error, /Duplicate baseline physical identity/)
+  end
+
   it 'requires every v2 entry to encode its classification and identity' do
     malformed_entries = [
       {},
