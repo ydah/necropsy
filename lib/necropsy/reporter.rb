@@ -332,7 +332,7 @@ module Necropsy
     end
 
     def sarif_result(finding)
-      {
+      result = {
         'ruleId' => finding.classification.to_s,
         'level' => sarif_level(finding),
         'message' => { 'text' => "#{finding.node.id} is #{finding.classification} (#{finding.confidence})" },
@@ -355,6 +355,85 @@ module Necropsy
           'necropsyPhysicalDefinition' => finding.physical_fingerprint
         }
       }
+      related_locations = sarif_related_locations(finding)
+      result['relatedLocations'] = related_locations unless related_locations.empty?
+      code_flows = sarif_code_flows(finding)
+      result['codeFlows'] = code_flows unless code_flows.empty?
+      result
+    end
+
+    def sarif_related_locations(finding)
+      finding.blockers.filter_map do |blocker|
+        metadata = blocker.metadata
+        file = metadata['file'] || metadata[:file]
+        line = positive_line(metadata['line'] || metadata[:line])
+        next if file.to_s.empty? || line.nil?
+
+        {
+          'physicalLocation' => sarif_physical_location(file, line),
+          'message' => { 'text' => "#{blocker.kind}: #{blocker.reason}" },
+          'properties' => {
+            'blockerKind' => blocker.kind.to_s,
+            'blockerSource' => blocker.source.respond_to?(:to_h) ? blocker.source.to_h : blocker.source.to_s
+          }
+        }
+      end.uniq do |location|
+        [
+          location.dig('physicalLocation', 'artifactLocation', 'uri'),
+          location.dig('physicalLocation', 'region', 'startLine'),
+          location.dig('properties', 'blockerKind')
+        ]
+      end
+    end
+
+    def sarif_code_flows(finding)
+      witness = sarif_witness(finding.node.graph_id)
+      return [] unless witness
+
+      domain, path = witness
+      locations = path.each_with_index.filter_map do |definition_id, index|
+        node = report.graph.nodes[definition_id]
+        next unless node
+
+        {
+          'location' => {
+            'physicalLocation' => sarif_physical_location(node.file, node.line),
+            'message' => { 'text' => node.symbol_id }
+          },
+          'executionOrder' => index + 1
+        }
+      end
+      return [] if locations.empty?
+
+      [{
+        'message' => { 'text' => "#{domain} reachability witness" },
+        'threadFlows' => [{ 'locations' => locations }],
+        'properties' => { 'domain' => domain.to_s }
+      }]
+    end
+
+    def sarif_witness(definition_id)
+      return unless report.reachability
+
+      %i[runtime external test].each do |domain|
+        path = report.reachability.witness(definition_id, kind: domain)
+        return [domain, path] if path
+      end
+      nil
+    end
+
+    def sarif_physical_location(file, line)
+      {
+        'artifactLocation' => { 'uri' => file.to_s },
+        'region' => { 'startLine' => line }
+      }
+    end
+
+    def positive_line(value)
+      line = Integer(value)
+      line if line.positive?
+    rescue ArgumentError, TypeError
+      nil
     end
 
     def sarif_level(finding)

@@ -272,6 +272,68 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'with SARIF witness and blocker locations' do
+      let(:format) { :sarif }
+      let(:root_node) do
+        node(
+          'file:spec/sample_spec.rb',
+          kind: :block_entry, owner: nil, name: 'spec/sample_spec.rb', file: 'spec/sample_spec.rb', line: 1, test: true
+        )
+      end
+      let(:test_only) do
+        finding(id: 'Sample#test_only', classification: :test_only_reachable, confidence: :medium,
+                file: 'app/sample.rb', line: 4)
+      end
+      let(:blocker) do
+        Necropsy::Blocker.new(
+          kind: :unparsed_external_reference,
+          scope_kind: :definition,
+          scope_value: 'Sample#blocked',
+          source: :non_ruby_reference_scan,
+          reason: 'referenced by a route manifest',
+          metadata: { 'file' => 'config/routes.yml', 'line' => 7 }
+        )
+      end
+      let(:blocked) do
+        finding(id: 'Sample#blocked', classification: :blocked, confidence: :low,
+                file: 'app/sample.rb', line: 8, blockers: [blocker])
+      end
+      let(:report) do
+        graph = graph_with(nodes: [root_node, test_only.node, blocked.node])
+        reachability = Necropsy::Reachability::Result.new(
+          runtime_paths: {},
+          test_paths: { root_node.graph_id => nil, test_only.node.graph_id => root_node.graph_id }
+        )
+        Necropsy::Report.new(root: '/repo', graph: graph, findings: [test_only, blocked], reachability: reachability)
+      end
+      let(:results) { JSON.parse(rendered).dig('runs', 0, 'results') }
+
+      it 'emits only real reachability witnesses as code flows' do
+        test_result = results.find { |result| result.dig('properties', 'symbolId') == 'Sample#test_only' }
+        blocked_result = results.find { |result| result.dig('properties', 'symbolId') == 'Sample#blocked' }
+        locations = test_result.dig('codeFlows', 0, 'threadFlows', 0, 'locations')
+
+        expect(locations.map { |location| location.dig('location', 'physicalLocation', 'artifactLocation', 'uri') })
+          .to eq(['spec/sample_spec.rb', 'app/sample.rb'])
+        expect(test_result.dig('codeFlows', 0, 'properties')).to eq('domain' => 'test')
+        expect(blocked_result).not_to have_key('codeFlows')
+      end
+
+      it 'emits blocker call sites and external references as related locations' do
+        blocked_result = results.find { |result| result.dig('properties', 'symbolId') == 'Sample#blocked' }
+
+        expect(blocked_result.fetch('relatedLocations')).to contain_exactly(
+          include(
+            'physicalLocation' => {
+              'artifactLocation' => { 'uri' => 'config/routes.yml' },
+              'region' => { 'startLine' => 7 }
+            },
+            'properties' => include('blockerKind' => 'unparsed_external_reference')
+          )
+        )
+      end
+    end
+
     it 'renders an actionable baseline migration review' do
       output = described_class.render_baseline_review(
         'baseline_path' => '/repo/.necropsy_baseline.yml',
