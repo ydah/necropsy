@@ -187,9 +187,10 @@ module Necropsy
       end
 
       if failures.any?
-        puts Reporter.new(Report.new(root: report.root, graph: report.graph, findings: failures)).render(
-          format: :human,
-          min_confidence: options[:fail_on]
+        puts Reporter.new(report_with_findings(report, failures)).render(
+          format: options[:format],
+          min_confidence: options[:fail_on],
+          include_graph: options[:include_graph]
         )
         return 1
       end
@@ -198,6 +199,19 @@ module Necropsy
 
       puts 'Necropsy check passed'
       0
+    end
+
+    def report_with_findings(report, findings)
+      Report.new(
+        root: report.root,
+        graph: report.graph,
+        findings: findings,
+        reachability: report.reachability,
+        project: report.project,
+        source_snapshot: report.source_snapshot,
+        performance_profile: report.performance_profile,
+        analysis_health: report.analysis_health
+      )
     end
 
     def apply_quarantine_expiry_policy(report, config)

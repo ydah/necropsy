@@ -46,6 +46,26 @@ RSpec.describe Necropsy::CLI do
         expect(check_status).to eq(0)
       end
 
+      it 'renders check failures in the requested machine-readable format' do
+        result = nil
+        valid_failure_report = satisfy do |rendered|
+          payload = JSON.parse(rendered)
+          expect(payload.fetch('findings')).to contain_exactly(
+            include('node' => include('symbol_id' => 'CliSample#dead'))
+          )
+          expect(payload.fetch('analysis_health')).to include('status' => 'complete')
+          expect(payload).to include('source_snapshot', 'artifact_provenance', 'graph')
+        end
+
+        expect do
+          result = described_class.run([
+                                         'check', '--root', project_root, '--baseline', baseline_path,
+                                         '--fail-on', 'low', '--format', 'json', '--include-graph'
+                                       ])
+        end.to output(valid_failure_report).to_stdout
+        expect(result).to eq(1)
+      end
+
       it 'does not let a custom baseline path become a non-Ruby self-reference' do
         custom_path = File.join(project_root, 'reviewed-findings.yml')
         File.write(custom_path, "previous: CliSample#dead\n")
