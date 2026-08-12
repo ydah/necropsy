@@ -94,6 +94,19 @@ RSpec.describe Necropsy::CLI do
     end
   end
 
+  describe 'artifact run identity' do
+    it 'is injectable and deterministic under SOURCE_DATE_EPOCH' do
+      options = { root: '/project', as_of: nil }
+      injected = described_class.new(run_id_generator: -> { 'injected-run' })
+      reproducible = described_class.new(environment: { 'SOURCE_DATE_EPOCH' => '1' })
+
+      expect(injected.send(:artifact_run_id, options, '/tmp/output.yml', 'coverage')).to eq('injected-run')
+      expect(reproducible.send(:artifact_run_id, options, '/tmp/output.yml', 'coverage')).to eq(
+        reproducible.send(:artifact_run_id, options, '/tmp/output.yml', 'coverage')
+      )
+    end
+  end
+
   describe '.run' do
     subject(:status) { described_class.run(argv) }
 

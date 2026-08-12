@@ -145,11 +145,11 @@ RSpec.describe Necropsy::Analyzers::Dynamic::TracePointCollector do
     stub_const('TraceSampleA', Class.new)
     stub_const('TraceSampleB', Class.new)
     event = Struct.new(:path, :defined_class, :method_id, :event, keyword_init: true)
-    allow(SecureRandom).to receive(:random_number).and_return(0.1, 0.1)
+    samples = [0.1, 0.1]
 
     with_project do |root|
       output = File.join(root, 'sampled.yml')
-      collector = described_class.new(root: root, output: output, sample_rate: 0.5)
+      collector = described_class.new(root: root, output: output, sample_rate: 0.5, random: -> { samples.shift })
       collector.send(:capture, event.new(path: File.join(root, 'a.rb'), defined_class: TraceSampleA,
                                          method_id: :run, event: :call))
       collector.send(:capture, event.new(path: File.join(root, 'a.rb'), defined_class: TraceSampleA,
@@ -161,7 +161,27 @@ RSpec.describe Necropsy::Analyzers::Dynamic::TracePointCollector do
       payload = YAML.load_file(output)
       expect(payload.fetch('nodes')).to contain_exactly('TraceSampleA#run', 'TraceSampleB#run')
       expect(payload.fetch('edges')).to be_empty
-      expect(SecureRandom).to have_received(:random_number).twice
+      expect(samples).to be_empty
+    end
+  end
+
+  it 'injects artifact time and sampling randomness' do
+    times = [Time.utc(2026, 1, 2), Time.utc(2026, 1, 3)]
+
+    with_project do |root|
+      output = File.join(root, 'deterministic.yml')
+      described_class.record(
+        root: root,
+        output: output,
+        sample_rate: 0.5,
+        clock: -> { times.shift },
+        random: -> { 0.0 }
+      ) { nil }
+
+      expect(YAML.load_file(output).fetch('observation')).to include(
+        'started_at' => '2026-01-02T00:00:00Z',
+        'finished_at' => '2026-01-03T00:00:00Z'
+      )
     end
   end
 

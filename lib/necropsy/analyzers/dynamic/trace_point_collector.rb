@@ -4,6 +4,7 @@ require 'securerandom'
 require 'fileutils'
 require 'time'
 require 'yaml'
+require_relative '../../clock'
 require_relative 'runtime_reference'
 require_relative 'observation_policy'
 
@@ -11,15 +12,18 @@ module Necropsy
   module Analyzers
     module Dynamic
       class TracePointCollector
-        def self.record(root:, output:, sample_rate: 1.0, &)
-          new(root: root, output: output, sample_rate: sample_rate).record(&)
+        def self.record(root:, output:, sample_rate: 1.0, clock: nil, random: nil, &)
+          new(root: root, output: output, sample_rate: sample_rate, clock: clock, random: random).record(&)
         end
 
-        def self.install_at_exit(root:, output:, sample_rate: 1.0, merge: false, run_id: nil)
-          new(root: root, output: output, sample_rate: sample_rate, merge: merge, run_id: run_id).install_at_exit
+        def self.install_at_exit(root:, output:, sample_rate: 1.0, merge: false, run_id: nil, clock: nil, random: nil)
+          new(
+            root: root, output: output, sample_rate: sample_rate, merge: merge, run_id: run_id,
+            clock: clock, random: random
+          ).install_at_exit
         end
 
-        def initialize(root:, output:, sample_rate: 1.0, merge: false, run_id: nil)
+        def initialize(root:, output:, sample_rate: 1.0, merge: false, run_id: nil, clock: nil, random: nil)
           @root = File.expand_path(root)
           @output = output
           @sample_rate = sample_rate.to_f
@@ -33,25 +37,27 @@ module Necropsy
           @lock = Mutex.new
           @merge = merge
           @run_id = run_id
+          @clock = clock || -> { Clock.new.time }
+          @random = random || default_random
         end
 
         def record
-          started_at = Time.now.utc
+          started_at = current_time
           tracer = TracePoint.new(:call, :return) { |event| capture(event) }
           tracer.enable
           yield
         ensure
           tracer&.disable
-          write_payload(started_at: started_at, finished_at: Time.now.utc)
+          write_payload(started_at: started_at, finished_at: current_time)
         end
 
         def install_at_exit
-          started_at = Time.now.utc
+          started_at = current_time
           tracer = TracePoint.new(:call, :return) { |event| capture(event) }
           tracer.enable
           at_exit do
             tracer.disable
-            write_payload(started_at: started_at, finished_at: Time.now.utc)
+            write_payload(started_at: started_at, finished_at: current_time)
           rescue StandardError => e
             warn "Necropsy TracePoint collector failed: #{e.message}"
           end
@@ -60,7 +66,7 @@ module Necropsy
         private
 
         attr_reader :root, :output, :sample_rate, :nodes, :node_references, :edges, :edge_references, :stacks, :lock,
-                    :run_id
+                    :run_id, :clock, :random
 
         def merge?
           @merge
@@ -80,7 +86,7 @@ module Necropsy
               return
             end
 
-            sampled = sample_rate >= 1.0 || (sample_rate.positive? && SecureRandom.random_number < sample_rate)
+            sampled = sample_rate >= 1.0 || (sample_rate.positive? && random.call < sample_rate)
             caller_reference = stack.last&.first if stack.last&.last
             if sampled
               record_node(reference)
@@ -88,6 +94,19 @@ module Necropsy
             end
             stack << [reference, sampled]
           end
+        end
+
+        def current_time
+          clock.call.utc
+        end
+
+        def default_random
+          epoch = ENV.fetch(Clock::SOURCE_DATE_EPOCH, nil)
+          return SecureRandom.method(:random_number) if epoch.nil? || epoch.empty?
+
+          Random.new(Integer(epoch)).method(:rand)
+        rescue ArgumentError
+          SecureRandom.method(:random_number)
         end
 
         def unwind_stack(stack, reference)

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'date'
+require 'digest'
 require 'English'
 require 'fileutils'
 require 'json'
@@ -16,6 +17,11 @@ module Necropsy
 
     def self.run(argv)
       new.run(argv)
+    end
+
+    def initialize(run_id_generator: nil, environment: ENV)
+      @run_id_generator = run_id_generator
+      @environment = environment
     end
 
     def run(argv)
@@ -402,7 +408,7 @@ module Necropsy
       output = File.expand_path(options[:output] || 'tmp/necropsy_trace_point.yml', options[:root])
       FileUtils.mkdir_p(File.dirname(output))
       command = trace_command(options, command)
-      run_id = SecureRandom.hex(16)
+      run_id = artifact_run_id(options, output, 'trace_point')
       status = system(trace_runtime_env(options, output, run_id), *command)
       puts "Wrote #{output}" if output_for_run?(output, run_id)
       return 0 if status
@@ -436,7 +442,7 @@ module Necropsy
     end
 
     def run_coverage_command(options, output, script_argv)
-      run_id = SecureRandom.hex(16)
+      run_id = artifact_run_id(options, output, 'coverage')
       status = system(coverage_runtime_env(options, output, run_id), *script_argv)
       puts "Wrote #{output}" if output_for_run?(output, run_id)
       return 0 if status
@@ -505,6 +511,16 @@ module Necropsy
       return level if CONFIDENCE_LEVELS.key?(level)
 
       raise OptionParser::InvalidArgument, "unknown confidence level: #{value}"
+    end
+
+    def artifact_run_id(options, output, kind)
+      return @run_id_generator.call if @run_id_generator
+
+      epoch = @environment.fetch(Clock::SOURCE_DATE_EPOCH, nil)
+      reproducible = options[:as_of]&.iso8601 || epoch
+      return SecureRandom.hex(16) unless reproducible
+
+      Digest::SHA256.hexdigest([kind, File.expand_path(options[:root]), output, reproducible].join("\0"))[0, 32]
     end
   end
 end

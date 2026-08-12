@@ -4,6 +4,7 @@ require 'coverage'
 require 'fileutils'
 require 'time'
 require 'yaml'
+require_relative '../../clock'
 require_relative 'runtime_reference'
 require_relative 'observation_policy'
 
@@ -11,36 +12,37 @@ module Necropsy
   module Analyzers
     module Dynamic
       class CoverageCollector
-        def self.record(root:, output:, &)
-          new(root: root, output: output).record(&)
+        def self.record(root:, output:, clock: nil, &)
+          new(root: root, output: output, clock: clock).record(&)
         end
 
-        def self.install_at_exit(root:, output:, merge: false, run_id: nil)
-          new(root: root, output: output, merge: merge, run_id: run_id).install_at_exit
+        def self.install_at_exit(root:, output:, merge: false, run_id: nil, clock: nil)
+          new(root: root, output: output, merge: merge, run_id: run_id, clock: clock).install_at_exit
         end
 
-        def initialize(root:, output:, merge: false, run_id: nil)
+        def initialize(root:, output:, merge: false, run_id: nil, clock: nil)
           @root = File.expand_path(root)
           @output = output
           @merge = merge
           @run_id = run_id
+          @clock = clock || -> { Clock.new.time }
         end
 
         def record
-          started_at = Time.now.utc
+          started_at = current_time
           Coverage.start(methods: true)
           yield
-          write_payload(result: Coverage.result, started_at: started_at, finished_at: Time.now.utc)
+          write_payload(result: Coverage.result, started_at: started_at, finished_at: current_time)
         ensure
           Coverage.result(stop: true, clear: true) if Coverage.running?
         end
 
         def install_at_exit
-          started_at = Time.now.utc
+          started_at = current_time
           started = start_coverage
 
           at_exit do
-            finished_at = Time.now.utc
+            finished_at = current_time
             result = coverage_result(started: started)
             write_payload(result: result, started_at: started_at, finished_at: finished_at)
           rescue StandardError => e
@@ -50,10 +52,14 @@ module Necropsy
 
         private
 
-        attr_reader :root, :output, :run_id
+        attr_reader :root, :output, :run_id, :clock
 
         def merge?
           @merge
+        end
+
+        def current_time
+          clock.call.utc
         end
 
         def start_coverage

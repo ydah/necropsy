@@ -27,6 +27,20 @@ RSpec.describe Necropsy::Analyzers::Dynamic::CoverageCollector do
     end
   end
 
+  it 'injects artifact time' do
+    times = [Time.utc(2026, 2, 3), Time.utc(2026, 2, 4)]
+
+    with_project do |root|
+      output = File.join(root, 'deterministic.yml')
+      described_class.record(root: root, output: output, clock: -> { times.shift }) { nil }
+
+      expect(YAML.load_file(output).fetch('observation')).to include(
+        'started_at' => '2026-02-03T00:00:00Z',
+        'finished_at' => '2026-02-04T00:00:00Z'
+      )
+    end
+  end
+
   it 'warns when another collector started Coverage without method data' do
     collector = described_class.new(root: '/repo', output: '/tmp/coverage.yml')
     allow(Coverage).to receive(:running?).and_return(true)
