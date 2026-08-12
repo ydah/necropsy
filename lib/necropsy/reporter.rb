@@ -323,7 +323,7 @@ module Necropsy
         "::warning file=#{entry['file']},line=#{entry['line']},title=Necropsy incomplete source::" \
           "#{escape_annotation(message)}"
       end
-      (finding_annotations + source_annotations).join("\n")
+      (finding_annotations + source_annotations + health_annotations).join("\n")
     end
 
     def render_sarif(min_confidence)
@@ -343,7 +343,8 @@ module Necropsy
             },
             'results' => findings.map { |finding| sarif_result(finding) } + source_entries.map { |entry| sarif_source_result(entry) },
             'properties' => {
-              'necropsyFingerprintCompatibility' => Report::FINGERPRINT_COMPATIBILITY
+              'necropsyFingerprintCompatibility' => Report::FINGERPRINT_COMPATIBILITY,
+              'analysisHealth' => report.analysis_health.to_h
             }
           }
         ]
@@ -509,6 +510,20 @@ module Necropsy
         end
 
         errors.map { |error| error.merge('status' => file['status']) }
+      end
+    end
+
+    def health_annotations
+      report.analysis_health.reasons.map do |reason|
+        level = reason.fetch('severity') == 'invalid' ? 'error' : 'warning'
+        title = "Necropsy analysis #{report.analysis_health.status}"
+        message = "#{reason.fetch('code')}: #{reason['message']}"
+        location = if reason['file']
+                     " file=#{reason['file']},line=#{positive_line(reason['line']) || 1},"
+                   else
+                     ' '
+                   end
+        "::#{level}#{location}title=#{title}::#{escape_annotation(message)}"
       end
     end
 

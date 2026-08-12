@@ -297,6 +297,24 @@ RSpec.describe Necropsy::CLI do
         expect(File).not_to exist(baseline_path)
       end
 
+      it 'preserves the requested machine-readable format on a health failure' do
+        payload = nil
+        result = nil
+
+        expect do
+          result = described_class.run([
+                                         'check', '--format', 'json', '--root', project_root,
+                                         '--baseline', baseline_path
+                                       ])
+        end.to output(satisfy { |text| payload = JSON.parse(text) }).to_stdout
+
+        expect(result).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
+        expect(payload.fetch('analysis_health')).to include(
+          'status' => 'invalid',
+          'reasons' => include(include('code' => 'analyzer_failure'))
+        )
+      end
+
       it 'does not ignore strict health in diagnostics or write quarantine from invalid analysis' do
         expect do
           expect(described_class.run(['why', 'CliHealth#dead', '--strict-health', '--root', project_root])).to eq(

@@ -190,6 +190,34 @@ RSpec.describe Necropsy::Reporter do
       end
     end
 
+    context 'with invalid analysis health in machine reporters' do
+      let(:health) do
+        Necropsy::AnalysisHealth.from_reasons([
+                                                {
+                                                  severity: :invalid,
+                                                  code: 'analyzer_failure',
+                                                  message: 'fixture analyzer failed',
+                                                  file: 'lib/analyzer.rb',
+                                                  line: 7
+                                                }
+                                              ])
+      end
+      let(:report) { report_with_findings([], health: health) }
+
+      it 'emits an error annotation with the health reason' do
+        expect(described_class.new(report).render(format: :github)).to eq(
+          '::error file=lib/analyzer.rb,line=7,title=Necropsy analysis invalid::' \
+          'analyzer_failure: fixture analyzer failed'
+        )
+      end
+
+      it 'embeds structured health in SARIF run properties' do
+        payload = JSON.parse(described_class.new(report).render(format: :sarif))
+
+        expect(payload.dig('runs', 0, 'properties', 'analysisHealth')).to eq(health.to_h)
+      end
+    end
+
     context 'with streaming graph output' do
       let(:format) { :ndjson }
       let(:report) { report_with_findings([finding(id: 'Sample#dead')]) }

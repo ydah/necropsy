@@ -178,7 +178,7 @@ module Necropsy
       raise Error, "Unexpected arguments for #{command}: #{argv.join(' ')}" unless argv.empty?
 
       report = analyze(options)
-      return health_failure(report) unless health_acceptable?(report, options, strict: false)
+      return health_failure(report, options) unless health_acceptable?(report, options, strict: false)
 
       diagnostics = Diagnostics.new(report)
       payload = case command
@@ -198,7 +198,7 @@ module Necropsy
 
     def check(options)
       report = analyze(options, ignored_reference_paths: [options[:baseline]])
-      return health_failure(report) unless health_acceptable?(report, options, strict: true)
+      return health_failure(report, options) unless health_acceptable?(report, options, strict: true)
 
       report_invalid_quarantine_dates(report)
       expiry_failure = apply_quarantine_expiry_policy(report, report_config(options))
@@ -317,8 +317,12 @@ module Necropsy
       Configuration.load(root: File.expand_path(options[:root]), path: options[:config])
     end
 
-    def health_failure(report)
-      puts Reporter.render_analysis_health(report.analysis_health)
+    def health_failure(report, options)
+      if options[:format] == :human
+        puts Reporter.render_analysis_health(report.analysis_health)
+      else
+        emit_report(report, options, min_confidence: options[:fail_on] || options[:min_confidence])
+      end
       HEALTH_FAILURE_STATUS
     end
 
@@ -343,7 +347,7 @@ module Necropsy
       raise Error, "Unexpected baseline arguments: #{argv.join(' ')}" unless argv.empty?
 
       report = analyze(options, ignored_reference_paths: [options[:baseline]])
-      return health_failure(report) unless health_acceptable?(report, options, strict: true)
+      return health_failure(report, options) unless health_acceptable?(report, options, strict: true)
 
       path = File.expand_path(options[:baseline], options[:root])
       if migration
@@ -360,7 +364,7 @@ module Necropsy
 
     def quarantine(options)
       report = analyze(options)
-      return health_failure(report) unless health_acceptable?(report, options, strict: options[:write])
+      return health_failure(report, options) unless health_acceptable?(report, options, strict: options[:write])
 
       quarantine = Guardrail::Quarantine.new(
         report: report,
@@ -384,7 +388,7 @@ module Necropsy
 
       gold_standard_path = File.expand_path(options[:gold_standard])
       report = analyze(options, ignored_reference_paths: [gold_standard_path])
-      return health_failure(report) unless health_acceptable?(report, options, strict: true)
+      return health_failure(report, options) unless health_acceptable?(report, options, strict: true)
 
       config = report_config(options)
       result = Bench::Evaluator.new(

@@ -130,9 +130,9 @@ module GraphHelpers
     )
   end
 
-  def report_with_findings(findings, graph: nil, root: '/tmp/project')
+  def report_with_findings(findings, graph: nil, root: '/tmp/project', health: nil)
     graph ||= graph_with(nodes: findings.map(&:node))
-    Necropsy::Report.new(root: root, graph: graph, findings: findings)
+    Necropsy::Report.new(root: root, graph: graph, findings: findings, analysis_health: health)
   end
 end
 
