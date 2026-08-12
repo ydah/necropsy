@@ -12,12 +12,14 @@ module Necropsy
       RESTFUL_ACTIONS = %w[index show new create edit update destroy].freeze
       SINGULAR_ACTIONS = %w[show new create edit update destroy].freeze
       IRREGULAR_PLURALS = { 'person' => 'people', 'man' => 'men', 'woman' => 'women', 'child' => 'children' }.freeze
+      INFLECTION_RULES_AFFECTING_PLURALIZATION = %i[clear plural].freeze
       RouteContext = Struct.new(:modules, :resource, :controller, keyword_init: true)
 
       def apply(graph, project)
         return unless project.config.rails_enabled?(reference_files: project.reference_files)
 
         @route_blockers = []
+        load_inflections(project)
 
         referenced_view_methods = view_method_names(project)
         graph.method_nodes.each do |node|
@@ -58,6 +60,112 @@ module Necropsy
       end
 
       private
+
+      def load_inflections(project)
+        @irregular_plurals = IRREGULAR_PLURALS.dup
+        @acronyms = {}
+        @uncountables = Set.new
+        path = project.reference_files.find do |candidate|
+          project.relative_path(candidate) == 'config/initializers/inflections.rb'
+        end
+        return unless path
+
+        source = File.read(path)
+        result = Prism.parse(source)
+        unless result.success?
+          @route_blockers << route_health_blocker(
+            project.relative_path(path), result.errors.first&.location&.start_line,
+            'Rails inflections could not be parsed'
+          )
+          return
+        end
+
+        inflection_blocks(result.value).each do |block, parameter_name|
+          each_call(block.body) do |call|
+            next unless call.receiver.is_a?(Prism::LocalVariableReadNode)
+            next unless call.receiver.name == parameter_name
+
+            case call.name
+            when :irregular then register_irregular(call, project.relative_path(path))
+            when :acronym then register_acronym(call, project.relative_path(path))
+            when :uncountable then register_uncountable(call, project.relative_path(path))
+            when *INFLECTION_RULES_AFFECTING_PLURALIZATION
+              @route_blockers << route_health_blocker(
+                project.relative_path(path), call.location.start_line,
+                "Rails #{call.name} inflection cannot be evaluated statically"
+              )
+            end
+          end
+        end
+      rescue SystemCallError, EncodingError => e
+        @route_blockers << route_health_blocker(
+          'config/initializers/inflections.rb', 1, "Rails inflections could not be read: #{e.class}"
+        )
+      end
+
+      def each_call(root)
+        pending = [root]
+        until pending.empty?
+          node = pending.pop
+          yield node if node.is_a?(Prism::CallNode)
+          pending.concat(node.child_nodes.compact)
+        end
+      end
+
+      def inflection_blocks(root)
+        blocks = []
+        each_call(root) do |call|
+          next unless call.name == :inflections && constant_name(call.receiver) == 'ActiveSupport::Inflector'
+          next unless call.block
+
+          parameter = required_block_parameter(call.block)
+          unless parameter.respond_to?(:name)
+            @route_blockers << route_health_blocker(
+              'config/initializers/inflections.rb', call.location.start_line,
+              'Rails inflections block has no static block parameter'
+            )
+            next
+          end
+          blocks << [call.block, parameter.name]
+        end
+        blocks
+      end
+
+      def required_block_parameter(block)
+        block_parameters = block.parameters
+        parameters = block_parameters.parameters if block_parameters
+        Array(parameters&.requireds).first
+      end
+
+      def register_irregular(call, path)
+        singular, plural = Array(call.arguments&.arguments).first(2).map { |node| literal_route_argument(node) }
+        return @irregular_plurals[singular] = plural if singular && plural
+
+        @route_blockers << route_health_blocker(path, call.location.start_line, 'Rails irregular inflection is dynamic')
+      end
+
+      def register_acronym(call, path)
+        value = literal_route_argument(Array(call.arguments&.arguments).first)
+        return @acronyms[value.downcase] = value if value
+
+        @route_blockers << route_health_blocker(path, call.location.start_line, 'Rails acronym inflection is dynamic')
+      end
+
+      def register_uncountable(call, path)
+        words = Array(call.arguments&.arguments).flat_map do |argument|
+          if argument.is_a?(Prism::ArrayNode) && !argument.contains_splat?
+            argument.elements.map { |element| literal_route_argument(element) }
+          else
+            literal_route_argument(argument)
+          end
+        end
+        if words.any? && words.none?(&:nil?)
+          @uncountables.merge(words)
+          return
+        end
+
+        @route_blockers << route_health_blocker(path, call.location.start_line, 'Rails uncountable inflection is dynamic')
+      end
 
       def route_entry_points(project)
         routes = File.join(project.root, 'config/routes.rb')
@@ -448,9 +556,23 @@ module Necropsy
       end
 
       def pluralize(name)
-        return IRREGULAR_PLURALS.fetch(name) if IRREGULAR_PLURALS.key?(name)
-        return "#{name}es" if name.end_with?('s', 'x', 'z', 'ch', 'sh')
-        return "#{name.delete_suffix('y')}ies" if name.match?(/[^aeiou]y\z/)
+        irregular = @irregular_plurals || IRREGULAR_PLURALS
+        return irregular.fetch(name) if irregular.key?(name)
+        return name if @uncountables&.include?(name)
+        return name.sub(/(quiz)\z/i, '\\1zes') if name.match?(/quiz\z/i)
+        return name.sub(/^(ox)\z/i, '\\1en') if name.match?(/^ox\z/i)
+        return name.sub(/([ml])ouse\z/i, '\\1ice') if name.match?(/([ml])ouse\z/i)
+        return name.sub(/(matr|vert|ind)(?:ix|ex)\z/i, '\\1ices') if name.match?(/(matr|vert|ind)(?:ix|ex)\z/i)
+        return name.sub(/(x|ch|ss|sh)\z/i, '\\1es') if name.match?(/(x|ch|ss|sh)\z/i)
+        return name.sub(/([^aeiouy]|qu)y\z/i, '\\1ies') if name.match?(/([^aeiouy]|qu)y\z/i)
+        return name.sub(/(?:([^f])fe|([lr])f)\z/i, '\\1\\2ves') if name.match?(/(?:([^f])fe|([lr])f)\z/i)
+        return name.sub(/sis\z/i, 'ses') if name.match?(/sis\z/i)
+        return name.sub(/([ti])um\z/i, '\\1a') if name.match?(/([ti])um\z/i)
+        return name.sub(/(buffal|tomat)o\z/i, '\\1oes') if name.match?(/(buffal|tomat)o\z/i)
+        return name.sub(/(alias|status)\z/i, '\\1es') if name.match?(/(alias|status)\z/i)
+        return name.sub(/(octop|vir)us\z/i, '\\1i') if name.match?(/(octop|vir)us\z/i)
+        return name.sub(/^(ax|test)is\z/i, '\\1es') if name.match?(/^(ax|test)is\z/i)
+        return name if name.end_with?('s')
 
         "#{name}s"
       end
@@ -513,7 +635,10 @@ module Necropsy
       end
 
       def camelize(path)
-        path.split('/').map { |part| part.split('_').map(&:capitalize).join }.join('::')
+        acronyms = @acronyms || {}
+        path.split('/').map do |part|
+          part.split('_').map { |word| acronyms.fetch(word.downcase, word.capitalize) }.join
+        end.join('::')
       end
 
       def underscore(constant)

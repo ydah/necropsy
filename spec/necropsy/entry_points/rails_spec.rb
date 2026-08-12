@@ -150,6 +150,74 @@ RSpec.describe Necropsy::EntryPoints::Rails do
       end
     end
 
+    context 'with static custom inflections' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'config/routes.rb' => "resource :criterion\nnamespace :api do\n  get 'widgets', to: 'widgets#index'\nend\n",
+            'config/initializers/inflections.rb' => <<~RUBY
+              ActiveSupport::Inflector.inflections do |inflect|
+                inflect.irregular 'criterion', 'criteria'
+                inflect.acronym 'API'
+              end
+            RUBY
+          },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) do
+        [
+          node('CriteriaController#show', owner: 'CriteriaController', name: 'show'),
+          node('API::WidgetsController#index', owner: 'API::WidgetsController', name: 'index')
+        ]
+      end
+
+      it 'uses only literal irregular and acronym declarations' do
+        expect(entrypoints).to include(
+          'CriteriaController#show' => :rails_route,
+          'API::WidgetsController#index' => :rails_route
+        )
+      end
+    end
+
+    context 'with adversarial and unsupported custom inflections' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'config/routes.rb' => "resource :mouse\nresource :equipment\n",
+            'config/initializers/inflections.rb' => <<~RUBY
+              logger.irregular 'mouse', 'decoys'
+              ActiveSupport::Inflector.inflections do |inflect|
+                inflect.uncountable %w[equipment]
+                inflect.plural(/mouse/, 'rodents')
+              end
+            RUBY
+          },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) do
+        [
+          node('MiceController#show', owner: 'MiceController', name: 'show'),
+          node('EquipmentController#show', owner: 'EquipmentController', name: 'show'),
+          node('DecoysController#show', owner: 'DecoysController', name: 'show'),
+          node('RodentsController#show', owner: 'RodentsController', name: 'show')
+        ]
+      end
+
+      it 'ignores unrelated calls and blocks pruning when a plural rule cannot be evaluated' do
+        expect(entrypoints).to include(
+          'MiceController#show' => :rails_route,
+          'EquipmentController#show' => :rails_route
+        )
+        expect(entrypoints).not_to include('DecoysController#show')
+        expect(graph.blockers).to include(
+          have_attributes(kind: :rails_route_health, scope_kind: :global, scope_value: '*')
+        )
+        expect(graph.matching_blockers('RodentsController#show').map(&:kind)).to include(:rails_route_health)
+      end
+    end
+
     context 'when ordinary Ruby strings resemble route declarations' do
       let(:project_root) do
         create_project(

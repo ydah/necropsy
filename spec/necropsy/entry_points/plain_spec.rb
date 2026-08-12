@@ -54,6 +54,39 @@ RSpec.describe Necropsy::EntryPoints::Plain do
     expect(graph.entry_points).to eq([])
   end
 
+  it 'reads the primary require file structurally from the Gem specification block' do
+    public_api = node(
+      'Company::Gem.analyze',
+      kind: :singleton_method,
+      file: 'src/company/gem.rb',
+      owner: 'Company::Gem',
+      name: 'analyze'
+    )
+    decoy = node(
+      'Decoy.analyze', kind: :singleton_method, file: 'lib/decoy.rb', owner: 'Decoy', name: 'analyze'
+    )
+    graph = graph_with(nodes: [public_api, decoy])
+
+    with_project(
+      files: {
+        'company.gemspec' => <<~RUBY,
+          NOTICE = "spec.name = 'decoy'"
+          Gem::Specification.new do |package|
+            package.name = 'company-gem'
+            package.require_paths = ['src']
+          end
+        RUBY
+        'src/company/gem.rb' => "module Company::Gem; end\n",
+        'lib/decoy.rb' => "module Decoy; end\n"
+      }
+    ) do |root|
+      described_class.new.apply(graph, project_for(root))
+    end
+
+    expect(graph.entry_points.map(&:node_id)).to include(public_api.graph_id)
+    expect(graph.entry_points.map(&:node_id)).not_to include(decoy.graph_id)
+  end
+
   it 'does not read gemspec symlinks that resolve outside the repository' do
     Dir.mktmpdir do |outside|
       gemspec = File.join(outside, 'external.gemspec')
