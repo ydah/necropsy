@@ -194,6 +194,63 @@ RSpec.describe Necropsy::EntryPoints::Rails do
       end
     end
 
+    context 'when a dynamic route is inside a known controller scope' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'config/routes.rb' => 'get route_path, controller: "admin/widgets", action: dynamic_action'
+          },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) do
+        [
+          node('Admin::WidgetsController#index', owner: 'Admin::WidgetsController', name: 'index'),
+          node('PublicController#index', owner: 'PublicController', name: 'index')
+        ]
+      end
+      let(:graph) do
+        graph_with(
+          nodes: nodes,
+          class_infos: [class_info('Admin::WidgetsController'), class_info('PublicController')]
+        )
+      end
+
+      it 'blocks the controller surface rather than the routes file' do
+        entrypoints
+        blocker = graph.blockers.find { |candidate| candidate.kind == :rails_route_dynamic }
+
+        expect(blocker).to have_attributes(
+          scope_kind: :owner,
+          scope_value: 'Admin::WidgetsController'
+        )
+        expect(graph.matching_blockers('Admin::WidgetsController#index')).to include(blocker)
+        expect(graph.matching_blockers('PublicController#index')).not_to include(blocker)
+      end
+    end
+
+    context 'when dynamic route options resemble literal identifiers' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'config/routes.rb' =>
+              'get route_path, controller: controller_name, action: action_name'
+          },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) do
+        [node('ControllerNameController#action_name', owner: 'ControllerNameController', name: 'action_name')]
+      end
+
+      it 'keeps the blocker global and does not invent a route target' do
+        expect(entrypoints).to eq({})
+        blocker = graph.blockers.find { |candidate| candidate.kind == :rails_route_dynamic }
+
+        expect(blocker).to have_attributes(scope_kind: :global, scope_value: '*')
+      end
+    end
+
     context 'when a routed action is private' do
       let(:project_root) do
         create_project(

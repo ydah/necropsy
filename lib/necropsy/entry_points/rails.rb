@@ -72,8 +72,9 @@ module Necropsy
         source = File.read(expanded)
         result = Prism.parse(source)
         if result.failure?
-          @route_blockers << route_blocker(@current_route_path, result.errors.first&.location&.start_line,
-                                           'routes.rb could not be parsed')
+          @route_blockers << route_health_blocker(
+            @current_route_path, result.errors.first&.location&.start_line, 'routes.rb could not be parsed'
+          )
           return []
         end
 
@@ -85,7 +86,11 @@ module Necropsy
           concerns: concerns,
           context: RouteContext.new(modules: [], resource: nil)
         )
-      rescue SystemCallError, EncodingError
+      rescue SystemCallError, EncodingError => e
+        @route_blockers << route_health_blocker(
+          @current_route_path || project.relative_path(expanded), 1,
+          "route source could not be read: #{e.class}"
+        )
         []
       ensure
         @current_route_path = previous_route_path
@@ -106,9 +111,8 @@ module Necropsy
           end
         end
 
-        record_dynamic_route(statement) if dynamic_route_statement?(statement)
-
         call_source = route_call_source(statement, source)
+        record_dynamic_route(statement, context) if dynamic_route_statement?(statement)
         if statement.name == :concern && statement.block
           name = literal_route_argument(statement.arguments&.arguments&.first)
           concerns[name] = [statement.block.body, source] if name
@@ -167,26 +171,74 @@ module Necropsy
         end
       end
 
-      def record_dynamic_route(statement)
+      def record_dynamic_route(statement, context)
         arguments = Array(statement.arguments&.arguments)
         dynamic = arguments.find { |argument| !literal_route_value?(argument) }
         return unless dynamic
 
-        @route_blockers << route_blocker(@current_route_path, statement.location.start_line,
-                                         "dynamic route argument for #{statement.name}")
+        scope_kind, scope_value = dynamic_route_scope(statement, context)
+        @route_blockers << route_blocker(
+          @current_route_path,
+          statement.location.start_line,
+          "dynamic route argument for #{statement.name}",
+          scope_kind: scope_kind,
+          scope_value: scope_value
+        )
       end
 
-      def route_blocker(path, line, reason)
+      def dynamic_route_scope(statement, context)
+        controller = literal_route_option(statement, 'controller')
+        controller ||= context.controller || context.resource
+        if controller
+          owner = "#{camelize(route_controller(context, controller))}Controller"
+          return [:owner, owner]
+        end
+
+        action = literal_route_option(statement, 'action')
+        return [:message, action] if action
+        return [:namespace, camelize(context.modules.join('/'))] if context.modules.any?
+
+        [:global, '*']
+      end
+
+      def literal_route_option(statement, name)
+        hash = Array(statement.arguments&.arguments).find do |argument|
+          argument.is_a?(Prism::KeywordHashNode) || argument.is_a?(Prism::HashNode)
+        end
+        pair = Array(hash&.elements).find do |element|
+          element.is_a?(Prism::AssocNode) && literal_route_argument(element.key) == name
+        end
+        literal_route_argument(pair&.value)
+      end
+
+      def route_blocker(path, line, reason, scope_kind:, scope_value:)
         Blocker.new(
           kind: :rails_route_dynamic,
-          scope_kind: path ? :file : :global,
-          scope_value: path || '*',
+          scope_kind: scope_kind,
+          scope_value: scope_value,
           source: :rails_rule,
           reason: reason,
           suggested_action: :review_dynamic_route,
           metadata: {
             'caller_domain' => 'runtime',
             'rule_id' => 'rails.route',
+            'file' => path,
+            'line' => line
+          }.compact
+        )
+      end
+
+      def route_health_blocker(path, line, reason)
+        Blocker.new(
+          kind: :rails_route_health,
+          scope_kind: :global,
+          scope_value: '*',
+          source: :rails_rule,
+          reason: reason,
+          suggested_action: :fix_route_source,
+          metadata: {
+            'caller_domain' => 'runtime',
+            'rule_id' => 'rails.route.health',
             'file' => path,
             'line' => line
           }.compact
@@ -356,12 +408,18 @@ module Necropsy
       end
 
       def controller_action_target(line, context)
-        controller = line[%r{\bcontroller:\s+:?["']?([a-zA-Z_][\w/]*)}, 1]
-        action = line[/\baction:\s+:?["']?([a-zA-Z_]\w*)/, 1]
+        controller = literal_source_option(line, 'controller', allow_path: true)
+        action = literal_source_option(line, 'action')
         controller ||= context.controller
         return nil unless controller && action
 
         controller_action_id(route_controller(context, controller), action)
+      end
+
+      def literal_source_option(line, name, allow_path: false)
+        value_pattern = allow_path ? '[a-zA-Z_][\\w/]*' : '[a-zA-Z_]\\w*'
+        match = line.match(/\b#{Regexp.escape(name)}:\s*(?::(#{value_pattern})|["'](#{value_pattern})["'])/)
+        match && (match[1] || match[2])
       end
 
       def mounted_engine_targets(engine_name)

@@ -480,9 +480,15 @@ RSpec.describe Necropsy::AstScanner do
           'app/controllers/callbacks_controller.rb' => <<~RUBY
             class CallbacksController
               before_action :always, if: enabled?
+              before_action if: :authorized?
+              before_action unless: "skip_audit?"
+              before_action { audit! }
               before_action :never, if: false
               before_action :not_when, unless: true
               def always; end
+              def authorized?; end
+              def skip_audit?; end
+              def audit!; end
               def never; end
               def not_when; end
             end
@@ -494,9 +500,14 @@ RSpec.describe Necropsy::AstScanner do
         ids = scan.entrypoint_hints.map(&:node_id)
         symbols = ids
 
-        expect(symbols).to include('CallbacksController#always')
+        expect(symbols).to include(
+          'CallbacksController#always', 'CallbacksController#authorized?', 'CallbacksController#skip_audit?'
+        )
         expect(symbols).not_to include('CallbacksController#never', 'CallbacksController#not_when')
         expect(scan.semantic_blockers.map(&:kind)).to include(:rails_callback_condition)
+        callback_root = scan.entrypoint_hints.find { |entry| entry.evidence&.fetch('type', nil) == 'callback_block' }
+        callback_call = scan.call_sites.find { |site| site.message == 'audit!' }
+        expect(callback_root.node_id).to eq(callback_call.caller_id)
       end
     end
 

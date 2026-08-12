@@ -64,15 +64,31 @@ module Necropsy
     end
 
     def handle_rails_callback(node, context)
-      return unless context.owner
-      return if context.test
+      return false unless context.owner
+      return false if context.test
 
       if RAILS_CALLBACK_MACROS.include?(node.name)
-        return if callback_disabled?(node)
+        return false if callback_disabled?(node)
 
         record_callback_condition_blocker(node, context) if callback_condition_unknown?(node)
         callback_names(node).each do |method_name|
           entrypoint_hints << EntryPoint.new(node_id: "#{context.owner}##{method_name}", reason: :callback_registered)
+        end
+        callback_condition_names(node).each do |method_name|
+          entrypoint_hints << EntryPoint.new(
+            node_id: "#{context.owner}##{method_name}",
+            reason: :callback_registered,
+            evidence: { 'type' => 'callback_condition', 'macro' => node.name.to_s }
+          )
+        end
+        if node.block
+          synthetic = visit_synthetic_body(node.block.body, context, :callback_block)
+          entrypoint_hints << EntryPoint.new(
+            node_id: synthetic.graph_id,
+            reason: :callback_registered,
+            evidence: { 'type' => 'callback_block', 'macro' => node.name.to_s }
+          )
+          return true
         end
       elsif node.name == :validates
         custom_validator_names(node).each do |validator|
@@ -87,12 +103,19 @@ module Necropsy
           end
         end
       end
+      false
+    end
+
+    def callback_condition_names(node)
+      %w[if unless].filter_map do |key|
+        value = keyword_value(node, key)
+        value if value.is_a?(String)
+      end.uniq
     end
 
     def callback_disabled?(node)
-      condition = keyword_value(node, 'if')
-      condition = !keyword_value(node, 'unless') if keyword_keys(node).include?('unless')
-      (keyword_keys(node).include?('if') || keyword_keys(node).include?('unless')) && condition == false
+      (keyword_keys(node).include?('if') && keyword_value(node, 'if') == false) ||
+        (keyword_keys(node).include?('unless') && keyword_value(node, 'unless') == true)
     end
 
     def callback_condition_unknown?(node)

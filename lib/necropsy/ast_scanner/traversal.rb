@@ -231,7 +231,7 @@ module Necropsy
       end
 
       handle_module_relation(node, context)
-      handle_rails_callback(node, context)
+      callback_block_consumed = handle_rails_callback(node, context)
       if handle_generated_rails_methods(node, context)
         visit_handled_call_children(node, context)
         return
@@ -245,7 +245,13 @@ module Necropsy
       sites.each { |site| record_uncertainty(site) if site.dynamic }
       record_uncertainty_at(node, context) if sites.empty? && unresolved_dynamic_dispatch?(node)
 
-      visit_children(node, context)
+      visit_call_children(node, context, visit_block: !callback_block_consumed)
+    end
+
+    def visit_call_children(node, context, visit_block: true)
+      visit(node.receiver, context) if node.receiver
+      arguments(node).each { |argument| visit(argument, context) }
+      visit(node.block, context) if visit_block && node.block
     end
 
     def visit_handled_call_children(node, context)
@@ -273,6 +279,7 @@ module Necropsy
       body_context.static_ancestry = false
       body_context.flow_result = nil
       visit(body, body_context)
+      synthetic
     end
 
     def visit_super(node, context)
