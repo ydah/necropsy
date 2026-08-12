@@ -338,6 +338,7 @@ module Necropsy
 
     def method_lookup(site)
       return fallback_method_lookup(site, reason: 'dynamic_message') if site.dynamic
+      return unproven_initialize_lookup(site) if unproven_initialize_dispatch?(site)
       return callable_method_lookup(site) if flow_callable?(site)
       return flow_instance_method_lookup(site) if flow_instance_types(site)
 
@@ -411,7 +412,44 @@ module Necropsy
       return nil unless hash_value(fact, 'exact')
 
       values = Array(hash_value(fact, 'values')).map(&:to_s).reject(&:empty?).uniq.sort
-      values unless values.empty?
+      return nil if values.empty?
+      return nil unless values.all? { |owner| constructor_dispatch_exact?(owner, site) }
+
+      values
+    end
+
+    def unproven_initialize_dispatch?(site)
+      metadata = site.metadata
+      return false unless hash_value(metadata, 'implicit_from').to_s == 'new'
+
+      !constructor_dispatch_exact?(resolved_receiver_owner(site), site)
+    end
+
+    def unproven_initialize_lookup(site)
+      owner = resolved_receiver_owner(site)
+      incomplete_method_lookup([], instance_lookup_entries(owner), 'constructor_dispatch_unproven')
+    end
+
+    def constructor_dispatch_exact?(owner, site)
+      info = class_info(owner)
+      return false unless info && !info.dynamic
+      return false if global_dynamic_ancestry?(site)
+
+      entries = singleton_lookup_entries(owner)
+      return false if dynamic_lookup_chain?(entries)
+      return false if entries.any? { |candidate, separator| definitions_for("#{candidate}#{separator}new").any? }
+
+      !constructor_mutation_blocker?(owner, entries, site)
+    end
+
+    def constructor_mutation_blocker?(owner, entries, site)
+      owners = [owner, *entries.map(&:first)].to_set
+      @blockers.any? do |blocker|
+        next false unless %i[dynamic_ancestry unsupported_refinement variable_eval].include?(blocker.kind)
+        next false unless blocker.caller_domain == :runtime || site.test
+
+        blocker.scope_kind == :global || (blocker.scope_kind == :owner && owners.include?(blocker.scope_value))
+      end
     end
 
     def flow_callable?(site)

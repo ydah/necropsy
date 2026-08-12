@@ -355,4 +355,76 @@ RSpec.describe 'FLOW01 receiver integration' do
       expect(graph.method_lookup(returned_site).targets.map(&:symbol_id)).to eq(['Service#call'])
     end
   end
+
+  it 'does not trust constructor flow when singleton new is overridden' do
+    source = <<~RUBY
+      class Constructed
+        def self.new = Returned.allocate
+        def initialize = :not_called
+        def call = :wrong_target
+      end
+      class Returned
+        def call = :actual_target
+      end
+      class Client
+        def run
+          service = Constructed.new
+          service.call
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/overridden_new.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      caller = scan.nodes.find { |node| node.symbol_id == 'Client#run' }
+      call = scan.call_sites.find { |site| site.caller_id == caller.graph_id && site.message == 'call' }
+      initialize = scan.call_sites.find do |site|
+        site.caller_id == caller.graph_id && site.metadata['implicit_from'] == 'new'
+      end
+
+      expect(call.metadata.dig('receiver_value_fact', 'values')).to eq(['Constructed'])
+      expect(graph.method_lookup(call)).not_to be_complete
+      expect(graph.method_lookup(call).targets.map(&:symbol_id)).to contain_exactly(
+        'Constructed#call', 'Returned#call'
+      )
+      expect(graph.method_lookup(initialize)).to have_attributes(
+        status: :unknown,
+        targets: [],
+        reason: 'constructor_dispatch_unproven'
+      )
+    end
+  end
+
+  it 'does not trust constructor flow when an ancestor overrides new' do
+    source = <<~RUBY
+      class ParentFactory
+        def self.new = Returned.allocate
+      end
+      class Constructed < ParentFactory
+        def call = :wrong_target
+      end
+      class Returned
+        def call = :actual_target
+      end
+      class Client
+        def run
+          service = Constructed.new
+          service.call
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/inherited_new.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      caller = scan.nodes.find { |node| node.symbol_id == 'Client#run' }
+      call = scan.call_sites.find { |site| site.caller_id == caller.graph_id && site.message == 'call' }
+
+      expect(graph.method_lookup(call)).not_to be_complete
+      expect(graph.method_lookup(call).targets.map(&:symbol_id)).to contain_exactly(
+        'Constructed#call', 'Returned#call'
+      )
+    end
+  end
 end
