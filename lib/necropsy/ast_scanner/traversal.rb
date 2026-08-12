@@ -217,8 +217,9 @@ module Necropsy
         handle_define_singleton_method handle_define_method handle_attr_macro handle_delegate
         handle_forwardable handle_alias_method handle_method_removal
       ]
-      if handlers.any? { |handler| send(handler, node, context) }
-        visit_handled_call_children(node, context)
+      handled = handlers.lazy.map { |handler| send(handler, node, context) }.find(&:itself)
+      if handled
+        visit_handled_call_children(node, context) unless handled == :children_visited
         return
       end
 

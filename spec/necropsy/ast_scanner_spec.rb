@@ -522,6 +522,10 @@ RSpec.describe Necropsy::AstScanner do
 
               def after_private; end
 
+              private attr_reader :private_reader
+
+              def after_private_reader; end
+
               module_function def utility
                 utility_body
               end
@@ -539,6 +543,8 @@ RSpec.describe Necropsy::AstScanner do
 
         expect(hidden.visibility).to eq(:private)
         expect(nodes_by_id.fetch('ModifierForms#after_private').visibility).to eq(:public)
+        expect(nodes_by_id.fetch('ModifierForms#private_reader').visibility).to eq(:private)
+        expect(nodes_by_id.fetch('ModifierForms#after_private_reader').visibility).to eq(:public)
         expect(utility.visibility).to eq(:private)
         expect(utility_copy.defined_via).to eq(:module_function)
         expect(nodes_by_id.fetch('ModifierForms#after_module_function').visibility).to eq(:public)

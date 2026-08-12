@@ -179,6 +179,17 @@ module Necropsy
         return true
       end
 
+      modifier_calls = arguments(node).grep(Prism::CallNode)
+      unless modifier_calls.empty?
+        modifier_calls.each { |call| visit(call, context) }
+        names = [*symbol_arguments(node), *modifier_calls.flat_map { |call| visibility_result_names(call) }].uniq
+        names.each { |name| update_method_visibility(context, name, visibility, node, singleton: class_method) }
+        record_unknown_visibility_result(node, context, modifier_calls, visibility) if names.empty?
+        arguments(node).reject { |argument| argument.is_a?(Prism::CallNode) || argument.is_a?(Prism::DefNode) }
+                       .each { |argument| visit(argument, context) }
+        return :children_visited
+      end
+
       names = symbol_arguments(node)
       if names.empty?
         unless class_method
@@ -189,6 +200,31 @@ module Necropsy
         names.each { |name| update_method_visibility(context, name, visibility, node, singleton: class_method) }
       end
       true
+    end
+
+    def visibility_result_names(call)
+      names = symbol_arguments(call)
+      case call.name
+      when :attr_reader
+        names
+      when :attr_writer
+        names.map { |name| "#{name}=" }
+      when :attr_accessor
+        names.flat_map { |name| [name, "#{name}="] }
+      else
+        []
+      end
+    end
+
+    def record_unknown_visibility_result(node, context, modifier_calls, visibility)
+      operations = modifier_calls.map(&:name).compact.map(&:to_s).uniq.sort
+      record_semantic_blocker(
+        :visibility_activation,
+        node,
+        context,
+        "#{visibility} receives runtime-computed method names from #{operations.join(', ')}",
+        suggested_action: :review_load_order
+      )
     end
 
     def handle_module_function(node, context)
