@@ -2,6 +2,7 @@
 
 require 'pathname'
 require 'digest'
+require 'find'
 
 module Necropsy
   class Project
@@ -237,29 +238,34 @@ module Necropsy
       @repository_files ||= begin
         @ignored_symlinks = Set.new
         @source_discovery_issues = []
-        entries = Dir.glob(File.join(root, '**', '*'), File::FNM_DOTMATCH).sort
-        entries.filter_map do |file|
-          next if excluded_repository_path?(file)
-          next if cache_output_path?(file)
+        files = []
+        begin
+          Find.find(root) do |file|
+            next if file == root
 
-          if symlink_path?(file) || !real_path_within_root?(file)
-            if File.symlink?(file) || File.file?(file)
-              relative = relative_path(file)
-              @ignored_symlinks << relative
-              record_source_discovery_issue(relative, :symlink)
+            if excluded_repository_path?(file)
+              Find.prune if File.directory?(file) && !File.symlink?(file)
+              next
             end
-            next
-          end
+            next if cache_output_path?(file)
 
-          file if File.file?(file)
+            if symlink_path?(file) || !real_path_within_root?(file)
+              if File.symlink?(file) || File.file?(file)
+                relative = relative_path(file)
+                @ignored_symlinks << relative
+                record_source_discovery_issue(relative, :symlink)
+              end
+              next
+            end
+
+            files << file if File.file?(file)
+          rescue ArgumentError, SystemCallError => e
+            record_source_discovery_issue(safe_relative_path(file), :inspection_error, error: e.class.name)
+          end
         rescue ArgumentError, SystemCallError => e
-          record_source_discovery_issue(safe_relative_path(file), :inspection_error, error: e.class.name)
-          nil
+          record_source_discovery_issue('.', :enumeration_error, error: e.class.name)
         end
-      rescue ArgumentError, SystemCallError => e
-        @source_discovery_issues ||= []
-        record_source_discovery_issue('.', :enumeration_error, error: e.class.name)
-        []
+        files.sort
       end
     end
 

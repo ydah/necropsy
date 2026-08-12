@@ -21,6 +21,7 @@ RSpec.describe Necropsy::Project do
     with_project(files: files) do |root|
       project = project_for(root)
 
+      expect(Find).to receive(:prune).at_least(:twice).and_call_original
       expect(project.ruby_files.map { |file| project.relative_path(file) }).to contain_exactly(
         'Rakefile',
         'app/model.rb',
