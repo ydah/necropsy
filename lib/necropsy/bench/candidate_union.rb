@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'digest'
+require 'date'
 require 'yaml'
 
 module Necropsy
@@ -152,8 +153,46 @@ module Necropsy
           'known_positive_recall' => known_positives.empty? ? nil : ratio(recalled, known_positives.length),
           'known_positive_count' => known_positives.length,
           'reviewed_candidate_count' => reviewed.length,
-          'by_category' => category_metrics(selected, known_positives)
+          'by_category' => category_metrics(selected, known_positives),
+          'by_corpus' => corpus_metrics(selected, known_positives),
+          'macro_average' => macro_average(selected, known_positives)
         }
+      end
+
+      def corpus_metrics(selected, known_positives)
+        corpora = (selected + known_positives).map { |candidate| candidate.fetch('corpus') }.uniq.sort
+        corpora.to_h do |corpus|
+          corpus_selected = selected.select { |candidate| candidate['corpus'] == corpus }
+          corpus_reviewed = corpus_selected.select { |candidate| determinate_label?(candidate) }
+          corpus_known = known_positives.select { |candidate| candidate['corpus'] == corpus }
+          true_positives = corpus_reviewed.count { |candidate| candidate.dig('label', 'value') == 'dead' }
+          recalled = corpus_known.count { |candidate| known_positive_recalled?(candidate, corpus_selected) }
+          [corpus, {
+            'candidate_precision' => corpus_reviewed.empty? ? nil : ratio(true_positives, corpus_reviewed.length),
+            'known_positive_recall' => corpus_known.empty? ? nil : ratio(recalled, corpus_known.length),
+            'candidate_count' => corpus_selected.length,
+            'reviewed_candidate_count' => corpus_reviewed.length,
+            'known_positive_count' => corpus_known.length
+          }]
+        end
+      end
+
+      def macro_average(selected, known_positives)
+        rows = corpus_metrics(selected, known_positives).values
+        precision = rows.filter_map { |row| row['candidate_precision'] }
+        recall = rows.filter_map { |row| row['known_positive_recall'] }
+        {
+          'candidate_precision' => mean(precision),
+          'candidate_precision_corpora' => precision.length,
+          'known_positive_recall' => mean(recall),
+          'known_positive_recall_corpora' => recall.length
+        }
+      end
+
+      def mean(values)
+        return if values.empty?
+
+        ratio(values.sum, values.length)
       end
 
       def category_metrics(selected, known_positives)
@@ -397,7 +436,9 @@ module Necropsy
         raise Error, "Benchmark seed requires at least #{minimum} reviewed labels" if labels.length < minimum
 
         labels.each do |entry|
-          validate_label(entry)
+          reviewed_at = entry['reviewed_at'] || payload['reviewed_at']
+          source_revision = entry['source_revision'] || manifest.dig('corpora', entry['corpus'], 'revision')
+          validate_label(entry, reviewed_at: reviewed_at, source_revision: source_revision)
           key = [entry.fetch('corpus'), entry['definition_id'] || entry.fetch('id')]
           matches = candidates_matching(entry.fetch('corpus'), entry)
           raise Error, "Benchmark label does not match a tool candidate: #{key.join(':')}" if matches.empty?
@@ -406,8 +447,10 @@ module Necropsy
             raise Error, "Duplicate benchmark label: #{key.join(':')}" if candidate.key?('label')
 
             candidate['label'] = entry.slice('value', 'rationale', 'reviewer', 'category').merge(
+              'reviewed_at' => reviewed_at,
+              'source_revision' => source_revision,
               'identity_match' => entry['definition_id'] ? 'physical' : 'legacy_logical_fallback'
-            )
+            ).compact
           end
         end
       rescue KeyError, ArgumentError, Psych::Exception => e
@@ -439,7 +482,7 @@ module Necropsy
         raise Error, "Duplicate known positive: #{duplicate.first.join(':')}" if duplicate
       end
 
-      def validate_label(entry)
+      def validate_label(entry, reviewed_at:, source_revision:)
         validate_mapping!(entry, 'benchmark label')
         validate_identifier!(entry['corpus'], 'benchmark label corpus')
         validate_identifier!(entry['id'], 'benchmark label id')
@@ -447,6 +490,15 @@ module Necropsy
         value = entry.fetch('value')
         raise Error, "Invalid benchmark label #{value.inspect}" unless LABELS.include?(value)
         raise Error, "Benchmark label #{entry['id']} requires a rationale" if entry['rationale'].to_s.strip.empty?
+        return unless manifest['label_provenance_required'] == true
+
+        raise Error, "Benchmark label #{entry['id']} requires a reviewer" if entry['reviewer'].to_s.strip.empty?
+        raise Error, "Benchmark label #{entry['id']} requires reviewed_at" if reviewed_at.to_s.strip.empty?
+        raise Error, "Benchmark label #{entry['id']} requires source_revision" if source_revision.to_s.strip.empty?
+
+        Date.iso8601(reviewed_at.to_s)
+      rescue Date::Error
+        raise Error, "Benchmark label #{entry['id']} reviewed_at must be an ISO 8601 date"
       end
 
       def validate_mapping!(value, label)

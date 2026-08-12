@@ -3,6 +3,8 @@ repository_root: ../../..
 golden_dir: bench/golden/v1
 labels: bench/corpora/v1/labels.yml
 minimum_reviewed_labels: 30
+label_provenance_required: true
+performance_samples: 3
 
 # Roles are metadata for comparison stratification; they do not change analyzer defaults.
 corpus_roles:

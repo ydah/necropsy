@@ -95,16 +95,27 @@ module Necropsy
         revision_error = pinned_corpus_error(definition, path)
         return failed_revision(id, definition, revision_error) if revision_error
 
-        started_at = monotonic_time
-        report = analyzer.call(path, config_path(path, definition))
-        wall_time = monotonic_time - started_at
-        normalized = ReportNormalizer.new(report: report, corpus: id).call
+        samples = performance_sample_count
+        measurements = Array.new(samples) do
+          started_at = monotonic_time
+          report = analyzer.call(path, config_path(path, definition))
+          wall_time = monotonic_time - started_at
+          normalized = ReportNormalizer.new(report: report, corpus: id).call
+          {
+            report: report,
+            normalized: normalized,
+            wall_time: wall_time,
+            rss: rss_measurement(id),
+            allocated_objects: report.performance_profile&.dig('totals', 'allocated_objects'),
+            artifact_size_bytes: JSON.generate(normalized).bytesize
+          }
+        end
+        report = measurements.last.fetch(:report)
+        normalized = measurements.last.fetch(:normalized)
         reports[id] = normalized
         write_json(File.join(reports_dir, "#{id}.json"), normalized)
         io.puts "#{id}: generated"
-        performance = {
-          'wall_time_seconds' => wall_time.round(6)
-        }.merge(rss_measurement(id))
+        performance = performance_distribution(measurements)
         analysis_profile = report.performance_profile if report.respond_to?(:performance_profile)
         performance['analysis_profile'] = analysis_profile if analysis_profile
         {
@@ -119,6 +130,47 @@ module Necropsy
         diagnostics << message
         io.puts message
         { 'id' => id, 'status' => 'failed', 'diagnostic' => message }
+      end
+
+      def performance_sample_count
+        value = Integer(manifest.fetch('performance_samples', 1))
+        raise Error, 'performance_samples must be between 1 and 20' unless value.between?(1, 20)
+
+        value
+      rescue ArgumentError, TypeError
+        raise Error, 'performance_samples must be between 1 and 20'
+      end
+
+      def performance_distribution(measurements)
+        wall_times = measurements.map { |measurement| measurement.fetch(:wall_time) }
+        allocations = measurements.filter_map { |measurement| measurement[:allocated_objects] }
+        artifact_sizes = measurements.map { |measurement| measurement.fetch(:artifact_size_bytes) }
+        rss = measurements.map { |measurement| measurement.fetch(:rss) }.max_by { |value| rss_value(value) || -1 }
+        {
+          'sample_count' => measurements.length,
+          'wall_time_seconds' => mean(wall_times).round(6),
+          'wall_time_p95_seconds' => percentile(wall_times, 0.95).round(6),
+          'wall_time_max_seconds' => wall_times.max.round(6),
+          'allocated_objects_p95' => percentile(allocations, 0.95),
+          'allocated_objects_max' => allocations.max,
+          'artifact_size_p95_bytes' => percentile(artifact_sizes, 0.95),
+          'artifact_size_max_bytes' => artifact_sizes.max
+        }.compact.merge(rss)
+      end
+
+      def percentile(values, quantile)
+        return if values.empty?
+
+        sorted = values.sort
+        sorted.fetch([(sorted.length * quantile).ceil - 1, 0].max)
+      end
+
+      def mean(values)
+        values.sum.to_f / values.length
+      end
+
+      def rss_value(measurement)
+        measurement['process_hwm_kb'] || measurement['process_rss_kb']
       end
 
       def corpus_path(definition)
@@ -171,7 +223,7 @@ module Necropsy
         return measurement if measurement
 
         message = "#{id}: RSS unavailable on this platform"
-        diagnostics << message
+        diagnostics << message unless diagnostics.include?(message)
         { 'rss_status' => 'unavailable', 'rss_diagnostic' => message }
       end
 

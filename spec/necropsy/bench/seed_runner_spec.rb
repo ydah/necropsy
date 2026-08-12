@@ -205,6 +205,51 @@ RSpec.describe Necropsy::Bench::SeedRunner do
     end
   end
 
+  it 'records p95, maximum, allocation, and artifact distributions across repeated samples' do
+    with_project(files: {
+                   'labels.yml' => { 'labels' => [] }.to_yaml,
+                   'manifest.yml' => {
+                     'schema_version' => 1,
+                     'repository_root' => '.',
+                     'golden_dir' => 'golden',
+                     'labels' => 'labels.yml',
+                     'minimum_reviewed_labels' => 0,
+                     'performance_samples' => 3,
+                     'corpora' => { 'fixture' => { 'path' => '.' } },
+                     'tools' => { 'necropsy' => {} }
+                   }.to_yaml
+                 }) do |root|
+      times = [0.0, 1.0, 2.0, 4.0, 5.0, 8.0]
+      profiles = [10, 20, 30].map do |allocations|
+        report = report_with_findings([])
+        allow(report).to receive(:performance_profile).and_return(
+          { 'totals' => { 'allocated_objects' => allocations } }
+        )
+        report
+      end
+      result = described_class.new(
+        manifest_path: File.join(root, 'manifest.yml'),
+        output_dir: File.join(root, 'output'),
+        io: StringIO.new,
+        analyzer: ->(*) { profiles.shift },
+        clock: ->(*) { times.shift },
+        rss_reader: -> { { 'process_rss_kb' => 100, 'rss_kind' => 'current', 'rss_scope' => 'process' } }
+      ).call
+      performance = result.dig('corpora', 0, 'performance')
+
+      expect(performance).to include(
+        'sample_count' => 3,
+        'wall_time_seconds' => 2.0,
+        'wall_time_p95_seconds' => 3.0,
+        'wall_time_max_seconds' => 3.0,
+        'allocated_objects_p95' => 30,
+        'allocated_objects_max' => 30
+      )
+      expect(performance.fetch('artifact_size_p95_bytes')).to be_positive
+      expect(performance.fetch('artifact_size_max_bytes')).to be_positive
+    end
+  end
+
   it 'enforces precision, candidate yield, and measured default-feature improvement when configured' do
     with_project(files: {
                    'labels.yml' => {

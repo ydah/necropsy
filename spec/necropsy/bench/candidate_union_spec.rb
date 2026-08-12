@@ -15,12 +15,50 @@ RSpec.describe Necropsy::Bench::CandidateUnion do
     ).call
 
     expect(result.dig('summary', 'reviewed')).to be >= 30
+    expect(result.dig('summary', 'tool_metrics', 'necropsy', 'macro_average')).to include(
+      'candidate_precision_corpora' => be_a(Integer),
+      'known_positive_recall_corpora' => be_positive
+    )
+    expect(result.fetch('candidates').filter_map { |candidate| candidate['label'] }).to all(
+      include('reviewer', 'rationale', 'reviewed_at' => '2026-08-12', 'source_revision' => be_a(String))
+    )
     expect(result.fetch('candidates')).to all(
       satisfy { |candidate| candidate.fetch('tool_results').keys == %w[debride necropsy spoom type_aware] }
     )
     expect(result.fetch('candidates').map { |candidate| candidate.dig('label', 'value') }.uniq).to contain_exactly(
       'dead', 'alive', 'external', 'unknown'
     )
+  end
+
+  it 'macro-averages project precision instead of weighting by candidate count' do
+    reports = {
+      'large' => {
+        'findings' => 9.times.map do |index|
+          { 'id' => "Large##{index}", 'state' => 'unreachable', 'confidence' => 'high' }
+        end
+      },
+      'small' => { 'findings' => [{ 'id' => 'Small#only', 'state' => 'unreachable', 'confidence' => 'high' }] }
+    }
+    labels = {
+      'labels' => [
+        *9.times.map { |index| { 'corpus' => 'large', 'id' => "Large##{index}", 'value' => 'dead', 'rationale' => 'dead' } },
+        { 'corpus' => 'small', 'id' => 'Small#only', 'value' => 'alive', 'rationale' => 'alive' }
+      ]
+    }
+
+    with_project(files: { 'labels.yml' => labels.to_yaml }) do |root|
+      result = described_class.new(
+        manifest: { 'labels' => 'labels.yml', 'minimum_reviewed_labels' => 0, 'tools' => {} },
+        repository_root: root,
+        reports: reports,
+        diagnostics: []
+      ).call
+      metrics = result.dig('summary', 'tool_metrics', 'necropsy')
+
+      expect(metrics.fetch('candidate_precision')).to eq(0.9)
+      expect(metrics.dig('macro_average', 'candidate_precision')).to eq(0.5)
+      expect(metrics.fetch('by_corpus')).to include('large', 'small')
+    end
   end
 
   it 'rejects labels that do not exist in any tool candidate set' do

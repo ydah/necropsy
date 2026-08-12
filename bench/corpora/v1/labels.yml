@@ -1,4 +1,5 @@
 schema_version: 1
+reviewed_at: "2026-08-12"
 labels:
   - { corpus: rails, id: "Sample::Widget#dead_model", value: dead, rationale: "No production, test, route, callback, or runtime reference reaches this method.", reviewer: maintainer }
   - { corpus: rails, id: "Sample::Widget#alias_live", value: unknown, rationale: "The alias is not called by the fixture, but its compatibility intent is not documented.", reviewer: maintainer }

@@ -195,6 +195,29 @@ RSpec.describe Necropsy::Bench::ReleaseAudit do
     expect(audit.dig('gates', 'performance', 'passed')).to eq(false)
   end
 
+  it 'gates p95, maximum, allocations, and artifact size when distribution budgets are configured' do
+    inputs = audit_inputs(baseline: report, current: report)
+    inputs[:config]['performance']['max_allocated_objects'] = 1_000
+    inputs[:config]['performance']['max_artifact_size_bytes'] = 2_000
+    inputs[:current_summary]['corpora'].first['performance'].merge!(
+      'wall_time_p95_seconds' => 1.2,
+      'wall_time_max_seconds' => 1.4,
+      'allocated_objects_max' => 1_001,
+      'artifact_size_max_bytes' => 1_999
+    )
+
+    audit = described_class.new(inputs).call
+    performance = audit.dig('performance', 'sample')
+
+    expect(performance).to include(
+      'current_wall_time_p95_seconds' => 1.2,
+      'current_wall_time_max_seconds' => 1.4,
+      'passed' => false
+    )
+    expect(performance.fetch('allocation_gate')).to include('configured' => true, 'passed' => false)
+    expect(performance.fetch('artifact_size_gate')).to include('configured' => true, 'passed' => true)
+  end
+
   it 'enforces the 0.4 precision, yield, and default-feature ablation gate' do
     inputs = audit_inputs(baseline: report, current: report)
     inputs[:config]['release'] = '0.4.0'

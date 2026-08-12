@@ -46,10 +46,26 @@ module Necropsy
           budget = config.fetch('performance')
           baseline_wall = Float(baseline_result.fetch('wall_time_seconds'))
           current_wall = Float(current_result.fetch('wall_time_seconds'))
+          baseline_p95 = Float(baseline_result.fetch('wall_time_p95_seconds', baseline_wall))
+          current_p95 = Float(current_result.fetch('wall_time_p95_seconds', current_wall))
+          baseline_max = Float(baseline_result.fetch('wall_time_max_seconds', baseline_wall))
+          current_max = Float(current_result.fetch('wall_time_max_seconds', current_wall))
           baseline_rss = Integer(baseline_result.fetch('rss_kb'))
           current_rss = rss_value(current_result)
           wall_limit = relative_limit(
             baseline_wall,
+            ratio: budget.fetch('wall_time_ratio'),
+            allowance: budget.fetch('wall_time_allowance_seconds'),
+            absolute: budget.fetch('max_wall_time_seconds').fetch(corpus)
+          )
+          p95_limit = relative_limit(
+            baseline_p95,
+            ratio: budget.fetch('wall_time_ratio'),
+            allowance: budget.fetch('wall_time_allowance_seconds'),
+            absolute: budget.fetch('max_wall_time_seconds').fetch(corpus)
+          )
+          max_limit = relative_limit(
+            baseline_max,
             ratio: budget.fetch('wall_time_ratio'),
             allowance: budget.fetch('wall_time_allowance_seconds'),
             absolute: budget.fetch('max_wall_time_seconds').fetch(corpus)
@@ -60,18 +76,45 @@ module Necropsy
             allowance: budget.fetch('rss_allowance_kb'),
             absolute: budget.fetch('max_rss_kb')
           )
+          allocations = bounded_metric(
+            current_result, 'allocated_objects_max', budget['max_allocated_objects'], corpus
+          )
+          artifact = bounded_metric(
+            current_result, 'artifact_size_max_bytes', budget['max_artifact_size_bytes'], corpus
+          )
+          passed = current_wall <= wall_limit && current_p95 <= p95_limit && current_max <= max_limit &&
+                   current_rss <= rss_limit && allocations.fetch('passed') && artifact.fetch('passed')
           {
             'available' => true,
             'baseline_wall_time_seconds' => baseline_wall,
             'current_wall_time_seconds' => current_wall,
             'wall_time_limit_seconds' => wall_limit.round(6),
+            'current_wall_time_p95_seconds' => current_p95,
+            'wall_time_p95_limit_seconds' => p95_limit.round(6),
+            'current_wall_time_max_seconds' => current_max,
+            'wall_time_max_limit_seconds' => max_limit.round(6),
             'baseline_rss_kb' => baseline_rss,
             'current_rss_kb' => current_rss,
             'rss_limit_kb' => rss_limit.round,
             'rss_kind' => current_result['rss_kind'],
             'rss_scope' => current_result['rss_scope'],
-            'passed' => current_wall <= wall_limit && current_rss <= rss_limit
+            'allocation_gate' => allocations,
+            'artifact_size_gate' => artifact,
+            'passed' => passed
           }
+        end
+
+        def bounded_metric(result, key, configured_limit, corpus)
+          return { 'configured' => false, 'passed' => true } if configured_limit.nil?
+
+          limit = configured_limit.is_a?(Hash) ? configured_limit.fetch(corpus) : configured_limit
+          value = Integer(result.fetch(key))
+          limit = Integer(limit)
+          raise ArgumentError, "#{key} limit must be positive" unless limit.positive?
+
+          { 'configured' => true, 'value' => value, 'limit' => limit, 'passed' => value <= limit }
+        rescue KeyError
+          { 'configured' => true, 'passed' => false, 'diagnostic' => "current #{key} measurement unavailable" }
         end
 
         def provenance_error
