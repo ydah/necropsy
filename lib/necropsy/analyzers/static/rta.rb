@@ -16,6 +16,12 @@ module Necropsy
         CORE_ENUMERABLE_RECEIVERS = %w[Array Enumerator Hash Range Set].freeze
         CORE_COMPARISON_RECEIVERS = %w[Array].freeze
         KERNEL_OUTPUT_MESSAGES = %w[print puts warn].freeze
+        BLOCK_DEPENDENT_ENUMERABLE_MESSAGES = %w[
+          all? any? chunk collect cycle detect drop_while each_cons each_entry each_slice
+          each_with_index each_with_object filter find find_all flat_map grep group_by inject
+          map none? one? partition reduce reject reverse_each select sort_by take_while
+        ].freeze
+        BLOCK_COMPARISON_MESSAGES = %w[max min sort].freeze
 
         attr_reader :pruning, :emit_redundant_edges
 
@@ -115,10 +121,8 @@ module Necropsy
 
         def implicit_sites(site, graph: nil)
           summaries = []
-          if core_enumerable_receiver?(site) && ENUMERABLE_MESSAGES.include?(site.message) && site.message != 'each'
-            summaries << ['each', :same_receiver]
-          end
-          comparison = core_comparison_receiver?(site) && COMPARISON_MESSAGES.include?(site.message)
+          summaries << ['each', :same_receiver] if core_enumerable_receiver?(site) && enumerable_protocol?(site)
+          comparison = core_comparison_receiver?(site) && comparison_protocol?(site)
           summaries << ['<=>', :element_receiver] if comparison
           summaries << ['to_s', :first_argument] if kernel_output_call?(site, graph)
           summaries.map { |message, receiver| derived_protocol_site(site, message, receiver) }
@@ -164,6 +168,7 @@ module Necropsy
           end
 
           fact = Array(site.metadata['argument_value_facts']).first if receiver == :first_argument
+          fact = site.metadata.dig('receiver_value_fact', 'summary', 'element_fact') if receiver == :element_receiver
           return receiver_from_fact(fact) if fact
 
           [:unknown, nil, { 'receiver_candidates' => [] }]
@@ -182,6 +187,20 @@ module Necropsy
 
         def core_comparison_receiver?(site)
           receiver_owners(site).intersect?(CORE_COMPARISON_RECEIVERS)
+        end
+
+        def enumerable_protocol?(site)
+          return false unless ENUMERABLE_MESSAGES.include?(site.message) && site.message != 'each'
+          return true unless BLOCK_DEPENDENT_ENUMERABLE_MESSAGES.include?(site.message)
+
+          site.metadata['block_kind'] != 'none'
+        end
+
+        def comparison_protocol?(site)
+          return false unless COMPARISON_MESSAGES.include?(site.message)
+          return true unless BLOCK_COMPARISON_MESSAGES.include?(site.message)
+
+          !site.metadata.key?('block_kind') || site.metadata['block_kind'] == 'none'
         end
 
         def receiver_owners(site)

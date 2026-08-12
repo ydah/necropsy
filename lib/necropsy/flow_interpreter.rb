@@ -269,11 +269,20 @@ module Necropsy
       elements = node.elements
       return ValueFact.unknown(:array_splat) if node.contains_splat?
 
-      elements.each { |element| evaluate(element) }
+      element_facts = elements.map do |element|
+        fact = evaluate(element)
+        return fact if transfer?(fact)
+
+        fact
+      end
       return ValueFact.unknown(:array_budget) if elements.length > MAX_ATOMS
 
       ValueFact.new(kind: :container, exact: true, origin: :literal_array,
-                    summary: { 'type' => 'array', 'size' => elements.length })
+                    summary: {
+                      'type' => 'array',
+                      'size' => elements.length,
+                      'element_fact' => join_facts(element_facts).to_h
+                    })
     end
 
     def evaluate_hash(node)

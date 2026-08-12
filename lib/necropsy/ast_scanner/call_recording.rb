@@ -17,6 +17,7 @@ module Necropsy
       receiver = classify_receiver(node.receiver, context)
       metadata = { 'original_message' => message, 'receiver_candidates' => receiver[:candidates] }
       metadata['arguments'] = call_arguments(node, offset: DYNAMIC_SENDS.include?(node.name) ? 1 : 0)
+      metadata['block_kind'] = call_block_kind(node)
       receiver_fact = context.flow_result&.fact_for(node.receiver)
       compact_receiver_fact = compact_receiver_fact(receiver_fact)
       metadata['receiver_value_fact'] = compact_receiver_fact if compact_receiver_fact
@@ -82,9 +83,22 @@ module Necropsy
 
     def compact_receiver_fact(fact)
       return unless fact&.exact
-      return unless %i[instance_types callable_set].include?(fact.kind)
+      return unless %i[instance_types callable_set container].include?(fact.kind)
 
-      fact.to_h.merge('summary' => nil)
+      fact.to_h.merge('summary' => fact.kind == :container ? fact.summary : nil)
+    end
+
+    def call_block_kind(node)
+      case node.block
+      when nil
+        'none'
+      when Prism::BlockNode
+        'literal'
+      when Prism::BlockArgumentNode
+        node.block.expression.is_a?(Prism::SymbolNode) ? 'symbol_to_proc' : 'dynamic'
+      else
+        'dynamic'
+      end
     end
 
     def record_instantiation(node, context)

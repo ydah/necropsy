@@ -14,6 +14,34 @@ RSpec.describe Necropsy::FlowInterpreter do
     expect(result.issues).to eq([])
   end
 
+  it 'records exact literal array element types and call block presence for protocol summaries' do
+    source = <<~RUBY
+      class Item
+        def <=>(other) = 0
+      end
+      class Client
+        def run
+          items = [Item.new, Item.new]
+          items.sort
+          items.map { |item| item }
+          items.map
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/protocols.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      calls = scan.call_sites.select { |site| %w[sort map].include?(site.message) }
+      sort = calls.find { |site| site.message == 'sort' }
+      maps = calls.select { |site| site.message == 'map' }.sort_by { |site| site.metadata['block_kind'] }
+
+      expect(sort.metadata.dig('receiver_value_fact', 'summary', 'element_fact')).to include(
+        'kind' => 'instance_types', 'values' => ['Item'], 'exact' => true
+      )
+      expect(maps.map { |site| site.metadata['block_kind'] }).to contain_exactly('literal', 'none')
+    end
+  end
+
   it 'widens to unknown when its step budget is exhausted' do
     source = Prism.parse('first = A.new; second = B.new; second.call').value
     result = described_class.new(constant_resolver: ->(name) { name }, max_steps: 2).analyze(source.statements)

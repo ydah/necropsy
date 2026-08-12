@@ -156,5 +156,51 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
 
       expect(analyzer.implicit_sites(user_call)).to be_empty
     end
+
+    it 'does not iterate for blockless Enumerable calls that return an Enumerator' do
+      blockless = call_site(
+        caller_id: 'Caller#run', message: 'map', receiver_kind: :instance, receiver_name: 'Array',
+        metadata: { 'receiver_candidates' => ['Array'], 'block_kind' => 'none' }
+      )
+
+      expect(analyzer.implicit_sites(blockless)).to be_empty
+    end
+
+    it 'uses literal array element facts for comparison protocol receivers' do
+      sort = call_site(
+        caller_id: 'Caller#run', message: 'sort', receiver_kind: :instance, receiver_name: 'Array',
+        metadata: {
+          'receiver_candidates' => ['Array'],
+          'block_kind' => 'none',
+          'receiver_value_fact' => {
+            'kind' => 'container',
+            'exact' => true,
+            'summary' => {
+              'type' => 'array',
+              'element_fact' => { 'kind' => 'instance_types', 'values' => ['Item'], 'exact' => true }
+            }
+          }
+        }
+      )
+
+      comparison = analyzer.implicit_sites(sort).find { |derived| derived.message == '<=>' }
+
+      expect(comparison).to have_attributes(receiver_kind: :instance, receiver_name: 'Item')
+      expect(comparison.metadata).to include(
+        'receiver_candidates' => ['Item'],
+        'protocol_receiver' => 'element_receiver'
+      )
+    end
+
+    it 'does not use spaceship comparison when sort has any comparator block' do
+      %w[literal symbol_to_proc dynamic].each do |block_kind|
+        sort = call_site(
+          caller_id: 'Caller#run', message: 'sort', receiver_kind: :instance, receiver_name: 'Array',
+          metadata: { 'receiver_candidates' => ['Array'], 'block_kind' => block_kind }
+        )
+
+        expect(analyzer.implicit_messages(sort)).not_to include('<=>')
+      end
+    end
   end
 end
