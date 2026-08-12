@@ -47,6 +47,7 @@ module Necropsy
       after_create_commit after_update_commit after_destroy_commit after_save_commit
       validate rescue_from helper_method
     ].freeze
+    RAILS_GENERATED_METHOD_MACROS = %i[enum store_accessor belongs_to has_one has_many].freeze
     VISIBILITY_MACROS = %i[public protected private public_class_method private_class_method].freeze
     SYMBOL_REFERENCE_CALLS = %i[method respond_to? try try!].freeze
     ANCESTRY_CONTROL_FLOW_TYPES = %i[

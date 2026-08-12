@@ -80,6 +80,20 @@ class CliUnprovenResolutionAnalyzer < Necropsy::Analyzer
 end
 
 RSpec.describe Necropsy::CLI do
+  describe 'semantics' do
+    it 'emits the generated matrix without requiring a project' do
+      payload = nil
+      expect do
+        result = described_class.run(['semantics', '--format', 'json'])
+        expect(result).to eq(0)
+      end.to output(satisfy do |text|
+        payload = JSON.parse(text)
+        payload.fetch('schema_version') == Necropsy::SemanticsMatrix::SCHEMA_VERSION
+      end).to_stdout
+      expect(payload.fetch('prism_nodes')).not_to be_empty
+    end
+  end
+
   describe '.run' do
     subject(:status) { described_class.run(argv) }
 

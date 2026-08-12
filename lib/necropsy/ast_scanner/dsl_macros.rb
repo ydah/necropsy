@@ -137,7 +137,7 @@ module Necropsy
     end
 
     def handle_generated_rails_methods(node, context)
-      return false unless %i[enum store_accessor belongs_to has_one has_many].include?(node.name)
+      return false unless RAILS_GENERATED_METHOD_MACROS.include?(node.name)
       return false unless context.owner && !context.test && rails_framework_enabled?
 
       names = symbol_arguments(node)

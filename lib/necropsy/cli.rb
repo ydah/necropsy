@@ -31,7 +31,7 @@ module Necropsy
         puts Necropsy::VERSION
         return 0
       end
-      apply_config_defaults(options)
+      apply_config_defaults(options) unless command == 'semantics'
 
       case command
       when 'analyze'
@@ -50,6 +50,8 @@ module Necropsy
         record(options, argv)
       when 'coverage'
         coverage(options, argv)
+      when 'semantics'
+        semantics(options, argv)
       when 'why', 'why-not', 'explain'
         diagnose(command, options, argv)
       else
@@ -245,6 +247,13 @@ module Necropsy
           include_graph: options[:include_graph]
         )
       end
+    end
+
+    def semantics(options, argv)
+      raise Error, "Unexpected semantics arguments: #{argv.join(' ')}" unless argv.empty?
+
+      puts SemanticsMatrix.new.render(format: options[:format])
+      0
     end
 
     def apply_quarantine_expiry_policy(report, config)
