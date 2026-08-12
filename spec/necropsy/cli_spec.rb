@@ -41,6 +41,44 @@ class CliDegradedAnalyzer < Necropsy::Analyzer
   end
 end
 
+class CliInvalidResultAnalyzer < Necropsy::Analyzer
+  def analyze(graph, _project)
+    caller, callee = graph.method_nodes.first(2)
+    edge = Necropsy::EdgeEvidence.new(
+      caller_id: caller.graph_id,
+      callee_id: callee.graph_id,
+      evidence: evidence(kind: :call_edge, details: 'staged before invalid result', relation: :call_edge)
+    )
+    Necropsy::AnalyzerResult.empty.with(edge_evidences: [edge], uncertainties: 1)
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :cli_invalid_result, kind: :static, soundness: :conservative, description: 'invalid result fixture'
+    )
+  end
+end
+
+class CliUnprovenResolutionAnalyzer < Necropsy::Analyzer
+  def analyze(graph, _project)
+    site = graph.call_sites.fetch(0)
+    record = Necropsy::ResolutionRecord.new(
+      resolution: Necropsy::Resolution.new(
+        call_site_id: site.call_site_id, target_definition_ids: [], status: :complete
+      ),
+      producer: :cli_unproven,
+      producer_version: '1'
+    )
+    Necropsy::AnalyzerResult.empty.with(resolutions: [record])
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :cli_unproven, kind: :static, soundness: :partial, description: 'unproven resolution fixture'
+    )
+  end
+end
+
 RSpec.describe Necropsy::CLI do
   describe '.run' do
     subject(:status) { described_class.run(argv) }
@@ -281,6 +319,30 @@ RSpec.describe Necropsy::CLI do
                                        '--baseline', baseline_path
                                      ])).to eq(0)
         end.to output("Necropsy check passed\n").to_stdout
+      end
+    end
+
+    context 'with invalid analyzer result stages' do
+      it 'fails check for capability validation and atomic apply failures' do
+        {
+          'CliInvalidResultAnalyzer' => /NoMethodError/,
+          'CliUnprovenResolutionAnalyzer' => /complete_resolution capability/
+        }.each do |analyzer_name, reason|
+          root = create_project(
+            files: {
+              'app/sample.rb' => 'class CliAnalyzerTarget; def run = helper; def helper = :ok; end'
+            },
+            config: { analyzers: { static: [], custom: [analyzer_name] } }
+          )
+          status = nil
+
+          expect do
+            status = described_class.run(['check', '--root', root])
+          end.to output(/Analysis health: invalid.*#{reason}/m).to_stdout
+          expect(status).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
+          report = Necropsy::Runner.new(root: root).analyze
+          expect(report.graph.edges).to be_empty if analyzer_name == 'CliInvalidResultAnalyzer'
+        end
       end
     end
 
