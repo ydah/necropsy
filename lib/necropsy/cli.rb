@@ -41,7 +41,7 @@ module Necropsy
           min_confidence: options[:min_confidence],
           include_graph: options[:include_graph]
         )
-        0
+        health_acceptable?(report, options, strict: false) ? 0 : HEALTH_FAILURE_STATUS
       when 'baseline'
         baseline(options, argv)
       when 'check'
@@ -87,6 +87,8 @@ module Necropsy
         precision_threshold: nil,
         recall_threshold: nil,
         as_of: nil,
+        strict_health: false,
+        allow_degraded: [],
         help: false,
         version: false,
         include_graph: false
@@ -134,6 +136,18 @@ module Necropsy
         rescue Date::Error
           raise OptionParser::InvalidArgument, 'as-of must be an ISO 8601 date'
         end
+        parser.on('--strict-health', 'Return status 3 unless analysis health is complete') do
+          options[:strict_health] = true
+        end
+        parser.on('--allow-degraded=REASONS', 'Comma-separated degraded reason codes to allow explicitly') do |value|
+          reasons = value.split(',').map(&:strip).reject(&:empty?)
+          raise OptionParser::InvalidArgument, 'allow-degraded requires at least one reason code' if reasons.empty?
+          unless reasons.all? { |reason| reason.match?(/\A[a-z][a-z0-9_]*\z/) }
+            raise OptionParser::InvalidArgument, 'allow-degraded reason codes must use lowercase letters, numbers, and _'
+          end
+
+          options[:allow_degraded] |= reasons
+        end
         parser.on('-h', '--help', 'Show help') do
           options[:help] = true
         end
@@ -173,7 +187,7 @@ module Necropsy
 
     def check(options)
       report = analyze(options, ignored_reference_paths: [options[:baseline]])
-      return health_failure(report) unless report.analysis_health.complete?
+      return health_failure(report) unless health_acceptable?(report, options, strict: true)
 
       report_invalid_quarantine_dates(report)
       expiry_failure = apply_quarantine_expiry_policy(report, report_config(options))
@@ -281,13 +295,28 @@ module Necropsy
       HEALTH_FAILURE_STATUS
     end
 
+    def health_acceptable?(report, options, strict:)
+      health = report.analysis_health
+      return true if health.complete?
+
+      allowed = Array(options[:allow_degraded])
+      degraded_codes = health.reasons.filter_map do |reason|
+        reason['code'].to_s if reason['severity'].to_s == 'degraded'
+      end.uniq
+      explicitly_allowed = health.status == :degraded && degraded_codes.any? &&
+                           (degraded_codes - allowed).empty?
+      return true if explicitly_allowed
+
+      !(strict || options[:strict_health])
+    end
+
     def baseline(options, argv)
       migration = argv.first == 'migrate'
       argv.shift if migration
       raise Error, "Unexpected baseline arguments: #{argv.join(' ')}" unless argv.empty?
 
       report = analyze(options, ignored_reference_paths: [options[:baseline]])
-      return health_failure(report) unless report.analysis_health.complete?
+      return health_failure(report) unless health_acceptable?(report, options, strict: true)
 
       path = File.expand_path(options[:baseline], options[:root])
       if migration
@@ -326,7 +355,7 @@ module Necropsy
 
       gold_standard_path = File.expand_path(options[:gold_standard])
       report = analyze(options, ignored_reference_paths: [gold_standard_path])
-      return health_failure(report) unless report.analysis_health.complete?
+      return health_failure(report) unless health_acceptable?(report, options, strict: true)
 
       config = report_config(options)
       result = Bench::Evaluator.new(

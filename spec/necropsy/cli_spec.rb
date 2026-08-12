@@ -14,6 +14,33 @@ class CliFailingAnalyzer < Necropsy::Analyzer
   end
 end
 
+class CliDegradedAnalyzer < Necropsy::Analyzer
+  def analyze(*)
+    Necropsy::AnalyzerResult.new(
+      edge_evidences: [],
+      alive_evidences: [],
+      uncertainties: {},
+      observation: {},
+      blockers: [
+        Necropsy::Blocker.new(
+          kind: :reference_scan_incomplete,
+          scope_kind: :global,
+          scope_value: '*',
+          source: :cli_degraded,
+          reason: 'fixture reference scan is incomplete',
+          metadata: { 'caller_domain' => 'runtime' }
+        )
+      ]
+    )
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :cli_degraded, kind: :static, soundness: :conservative, description: 'degraded CLI fixture'
+    )
+  end
+end
+
 RSpec.describe Necropsy::CLI do
   describe '.run' do
     subject(:status) { described_class.run(argv) }
@@ -176,6 +203,24 @@ RSpec.describe Necropsy::CLI do
         expect(check_status).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
       end
 
+      it 'makes analyze health failure explicit in strict mode and never allows invalid reasons' do
+        strict_status = nil
+        allowed_status = nil
+
+        expect do
+          strict_status = described_class.run(['analyze', '--strict-health', '--root', project_root])
+        end.to output(/Analysis health: invalid/).to_stdout
+        expect do
+          allowed_status = described_class.run([
+                                                 'analyze', '--strict-health',
+                                                 '--allow-degraded=analyzer_failure', '--root', project_root
+                                               ])
+        end.to output(/Analysis health: invalid/).to_stdout
+
+        expect(strict_status).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
+        expect(allowed_status).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
+      end
+
       it 'does not write a baseline from incomplete analysis' do
         result = nil
 
@@ -185,6 +230,43 @@ RSpec.describe Necropsy::CLI do
 
         expect(result).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
         expect(File).not_to exist(baseline_path)
+      end
+    end
+
+    context 'with explicitly allowed degraded analysis' do
+      let(:project_root) do
+        create_project(
+          files: { 'app/sample.rb' => 'class CliDegraded; def dead; end; end' },
+          config: { analyzers: { static: [], custom: ['CliDegradedAnalyzer'] } }
+        )
+      end
+      let(:baseline_path) { File.join(project_root, '.necropsy_baseline.yml') }
+
+      it 'requires the exact degraded reason in strict analyze and check workflows' do
+        expect do
+          expect(described_class.run(['analyze', '--strict-health', '--root', project_root])).to eq(
+            Necropsy::CLI::HEALTH_FAILURE_STATUS
+          )
+        end.to output(/Analysis health: degraded/).to_stdout
+
+        allow_option = '--allow-degraded=reference_scan_incomplete'
+        expect do
+          expect(described_class.run([
+                                       'analyze', '--strict-health', allow_option, '--root', project_root
+                                     ])).to eq(0)
+        end.to output(/Analysis health: degraded/).to_stdout
+        expect do
+          expect(described_class.run([
+                                       'baseline', allow_option, '--root', project_root,
+                                       '--baseline', baseline_path
+                                     ])).to eq(0)
+        end.to output(/Wrote/).to_stdout
+        expect do
+          expect(described_class.run([
+                                       'check', allow_option, '--root', project_root,
+                                       '--baseline', baseline_path
+                                     ])).to eq(0)
+        end.to output("Necropsy check passed\n").to_stdout
       end
     end
 
