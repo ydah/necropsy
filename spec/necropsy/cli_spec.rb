@@ -576,6 +576,16 @@ RSpec.describe Necropsy::CLI do
       end
     end
 
+    context 'with graph self-check' do
+      let(:project_root) { create_project(files: { 'app/sample.rb' => 'class CliGraph; def dead; end; end' }) }
+
+      it 'validates graph invariants after analysis' do
+        expect do
+          expect(described_class.run(['analyze', '--self-check', '--root', project_root])).to eq(0)
+        end.to output(/Necropsy report/).to_stdout
+      end
+    end
+
     context 'with the default confidence threshold' do
       let(:project_root) do
         create_project(files: { 'app/sample.rb' => 'class CliSample; attr_reader :maybe; end' })

@@ -57,7 +57,7 @@ module Necropsy
         warn parser
         2
       end
-    rescue OptionParser::ParseError, Psych::Exception, Error => e
+    rescue OptionParser::ParseError, Psych::Exception, Error, GraphSelfCheck::Failure => e
       warn e.message
       2
     end
@@ -87,7 +87,8 @@ module Necropsy
         allow_degraded: [],
         help: false,
         version: false,
-        include_graph: false
+        include_graph: false,
+        self_check: false
       }
     end
 
@@ -100,6 +101,7 @@ module Necropsy
           options[:format] = value.to_sym
         end
         parser.on('--include-graph', 'Include nodes and edges in JSON/YAML output') { options[:include_graph] = true }
+        parser.on('--self-check', 'Validate graph invariants after analysis') { options[:self_check] = true }
         parser.on('--min-confidence LEVEL', 'low, medium, high, or certain') do |value|
           options[:min_confidence] = confidence_level(value)
         end
@@ -152,12 +154,14 @@ module Necropsy
     end
 
     def analyze(options, ignored_reference_paths: [])
-      Necropsy.analyze(
+      report = Necropsy.analyze(
         root: options[:root],
         config_path: options[:config],
         ignored_reference_paths: ignored_reference_paths,
         as_of: options[:as_of]
       )
+      GraphSelfCheck.new(report).validate! if options[:self_check]
+      report
     end
 
     def diagnose(command, options, argv)
