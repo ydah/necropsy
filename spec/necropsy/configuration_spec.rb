@@ -129,6 +129,28 @@ RSpec.describe Necropsy::Configuration do
       it 'detects statically supported frameworks from dependency artifacts' do
         expect(configuration.frameworks).to include('rubocop', 'sidekiq')
       end
+
+      it 'does not enable a framework from comments or arbitrary strings' do
+        root = create_project(files: {
+                                'Gemfile' => <<~RUBY,
+                                  # gem "rubocop" is intentionally absent
+                                  NOTICE = "sidekiq is not a dependency"
+                                  gem "rake"
+                                RUBY
+                                'lib/example.rb' => ''
+                              })
+
+        expect(described_class.load(root: root).frameworks).not_to include('rubocop', 'sidekiq')
+      end
+
+      it 'reads literal gem DSL calls without executing the manifest' do
+        root = create_project(files: {
+                                'Gemfile' => "gem 'rubocop'\ngem dependency_name\n",
+                                'lib/example.rb' => ''
+                              })
+
+        expect(described_class.load(root: root).frameworks).to include('rubocop')
+      end
     end
 
     it 'does not auto-detect Rails through a Gemfile.lock symlink outside the repository' do

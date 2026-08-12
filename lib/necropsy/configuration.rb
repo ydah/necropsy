@@ -2,6 +2,7 @@
 
 require 'yaml'
 require 'pathname'
+require 'prism'
 
 module Necropsy
   class Configuration
@@ -248,14 +249,43 @@ module Necropsy
         relative = relative_path_from_root(file)
         %w[Gemfile Gemfile.lock].include?(relative) || relative.end_with?('.gemspec')
       end
-      contents = dependency_files.filter_map do |file|
-        File.read(file) if File.file?(file)
-      rescue SystemCallError, EncodingError
-        nil
-      end.join("\n")
+      dependencies = dependency_files.flat_map { |file| dependency_names(file) }.to_set
       FRAMEWORK_GEMS.filter_map do |gem_name, framework|
-        framework if contents.match?(/\b#{Regexp.escape(gem_name)}\b/)
+        framework if dependencies.include?(gem_name)
       end
+    end
+
+    def dependency_names(file)
+      source = File.read(file)
+      return locked_dependency_names(source) if File.basename(file) == 'Gemfile.lock'
+
+      ruby_dependency_names(source)
+    rescue SystemCallError, EncodingError
+      []
+    end
+
+    def locked_dependency_names(source)
+      source.each_line.filter_map do |line|
+        line[/\A    ([A-Za-z0-9_.-]+) \(/, 1]
+      end
+    end
+
+    def ruby_dependency_names(source)
+      result = Prism.parse(source)
+      return [] if result.failure?
+
+      pending = [result.value]
+      names = []
+      until pending.empty?
+        node = pending.pop
+        if node.is_a?(Prism::CallNode) &&
+           %i[gem add_dependency add_runtime_dependency add_development_dependency].include?(node.name)
+          argument = Array(node.arguments&.arguments).first
+          names << argument.content if argument.is_a?(Prism::StringNode)
+        end
+        pending.concat(node.child_nodes.compact)
+      end
+      names
     end
 
     def relative_path_from_root(file)
