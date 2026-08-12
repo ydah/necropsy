@@ -150,6 +150,48 @@ RSpec.describe Necropsy::EntryPoints::Rails do
       end
     end
 
+    context 'when ordinary Ruby strings resemble route declarations' do
+      let(:project_root) do
+        create_project(
+          files: {
+            'config/routes.rb' => <<~RUBY
+              Rails.application.routes.draw do
+                logger.info(%q[get fake, to: "widgets#index"])
+              end
+            RUBY
+          },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) { [node('WidgetsController#index', owner: 'WidgetsController', name: 'index')] }
+
+      it 'does not treat data inside unrelated calls as a route' do
+        expect(entrypoints).not_to include('WidgetsController#index')
+      end
+    end
+
+    context 'when HTML text resembles a helper name' do
+      let(:project_root) do
+        create_project(
+          files: { 'app/views/widgets/index.html.erb' => '<p>display_marker</p><%= actual_helper %>' },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) do
+        [
+          node('WidgetsHelper#display_marker', file: 'app/helpers/widgets_helper.rb',
+                                               owner: 'WidgetsHelper', name: 'display_marker'),
+          node('WidgetsHelper#actual_helper', file: 'app/helpers/widgets_helper.rb',
+                                              owner: 'WidgetsHelper', name: 'actual_helper')
+        ]
+      end
+
+      it 'roots only calls from executable ERB regions' do
+        expect(entrypoints).to include('WidgetsHelper#actual_helper' => :rails_view_helper)
+        expect(entrypoints).not_to include('WidgetsHelper#display_marker')
+      end
+    end
+
     context 'when route and view files are outside the reference scope' do
       let(:project_root) do
         create_project(

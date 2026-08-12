@@ -80,6 +80,32 @@ RSpec.describe Necropsy::ReferenceBarrier do
     end
   end
 
+  it 'searches only executable Ruby regions of ERB templates' do
+    files = {
+      'lib/erb_target.rb' => <<~RUBY,
+        class ErbTarget
+          def html_display_only; end
+          def ruby_reference; end
+        end
+      RUBY
+      'app/views/widgets/show.html.erb' => <<~ERB
+        <p>html_display_only</p>
+        <%= ruby_reference %>
+      ERB
+    }
+    config = { cache: { enabled: false }, paths: { analyze: ['lib/**'], reference: ['**/*'] } }
+
+    with_project(files: files, config: config) do |root|
+      findings = Necropsy::Runner.new(root: root).analyze.findings.to_h { |finding| [finding.node.name, finding] }
+
+      expect(findings.fetch('html_display_only')).to have_attributes(classification: :unreachable)
+      expect(findings.fetch('ruby_reference')).to have_attributes(classification: :blocked)
+      expect(findings.fetch('ruby_reference').blockers.first.metadata).to include(
+        'file' => 'app/views/widgets/show.html.erb', 'line' => 2
+      )
+    end
+  end
+
   it 'ignores comments and Ruby references but blocks conclusions when generated references are skipped' do
     files = {
       'lib/ignored_target.rb' => <<~RUBY,

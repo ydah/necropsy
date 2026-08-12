@@ -118,8 +118,9 @@ module Necropsy
 
       @bytes_scanned += bytes.bytesize
       @files_scanned += 1
+      original_lines = source.lines
       searchable_source(source, relative).each_line.with_index(1) do |line, line_number|
-        scan_line(relative, line, line_number)
+        scan_line(relative, line, line_number, display_line: original_lines.fetch(line_number - 1, line))
         break if @match_budget_exceeded
       end
       record_match_budget(relative) if @match_budget_exceeded
@@ -145,7 +146,7 @@ module Necropsy
       @files_streamed += 1
       File.open(path, 'r:UTF-8') do |io|
         io.each_line.with_index(1) do |line, line_number|
-          scan_line(relative, searchable_source(line, relative), line_number)
+          scan_line(relative, searchable_source(line, relative), line_number, display_line: line)
           break if @match_budget_exceeded
         end
       end
@@ -181,14 +182,10 @@ module Necropsy
       end
       return without_block_comments unless File.extname(file).downcase == '.erb'
 
-      without_block_comments.gsub(/<%(?!#)(.*?)%>/m) do
-        body = ::Regexp.last_match(1)
-        stripped_body = body.each_line.map { |line| strip_comment(line, ['#']) }.join
-        "<%#{stripped_body}%>"
-      end
+      EmbeddedRuby.extract(without_block_comments)
     end
 
-    def scan_line(file, line, line_number)
+    def scan_line(file, line, line_number, display_line: line)
       stripped = line.lstrip
       return if inline_comment_markers(file).any? { |marker| stripped.start_with?(marker) }
 
@@ -196,7 +193,7 @@ module Necropsy
       searchable_line.scan(TOKEN_PATTERN).uniq.each do |token|
         candidate_index.fetch(token, []).each do |node|
           kind = reference_kind(searchable_line, token, node, file)
-          record_match(node, file, line_number, line, token, kind) if kind
+          record_match(node, file, line_number, display_line, token, kind) if kind
         end
       end
       return unless non_token_pattern
@@ -204,7 +201,7 @@ module Necropsy
       searchable_line.scan(non_token_pattern).uniq.each do |name|
         non_token_index.fetch(name).each do |node|
           kind = non_token_reference_kind(searchable_line, node)
-          record_match(node, file, line_number, line, node.name, kind) if kind
+          record_match(node, file, line_number, display_line, node.name, kind) if kind
         end
       end
     end

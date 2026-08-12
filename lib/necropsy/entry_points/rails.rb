@@ -6,6 +6,9 @@ module Necropsy
   module EntryPoints
     class Rails
       ROUTE_VERBS = %w[get post put patch delete match].freeze
+      ROUTE_DSL_CALLS = %i[
+        collection concern concerns constraints controller defaults draw member mount namespace resource resources root scope
+      ].to_set.merge(ROUTE_VERBS.map(&:to_sym)).freeze
       RESTFUL_ACTIONS = %w[index show new create edit update destroy].freeze
       SINGULAR_ACTIONS = %w[show new create edit update destroy].freeze
       IRREGULAR_PLURALS = { 'person' => 'people', 'man' => 'men', 'woman' => 'women', 'child' => 'children' }.freeze
@@ -110,6 +113,8 @@ module Necropsy
                                          context: context)
           end
         end
+
+        return [] unless ROUTE_DSL_CALLS.include?(statement.name)
 
         call_source = route_call_source(statement, source)
         record_dynamic_route(statement, context) if dynamic_route_statement?(statement)
@@ -481,17 +486,22 @@ module Necropsy
       end
 
       def view_source(path)
-        File.read(path)
-            .gsub(/<%#.*?%>/m, '')
-            .gsub(/<!--.*?-->/m, '')
-            .lines.reject { |line| line.strip.start_with?('-#') }.join
+        source = File.read(path)
+        return EmbeddedRuby.extract(source) if File.extname(path).downcase == '.erb'
+
+        source.gsub(/<!--.*?-->/m, '').lines.reject { |line| line.strip.start_with?('-#') }.join
       end
 
       def view_method_names(project)
         @view_method_names ||= {}
         @view_method_names[project.root] ||= view_files(project).each_with_object(Set.new) do |path, names|
-          view_source(path).scan(/(?<![A-Za-z0-9_])([a-zA-Z_]\w*[!?=]?)(?![A-Za-z0-9_])/).each do |match|
-            names << match.first
+          source = File.read(path)
+          if File.extname(path).downcase == '.erb'
+            names.merge(EmbeddedRuby.call_names(source))
+          else
+            view_source(path).scan(/(?<![A-Za-z0-9_])([a-zA-Z_]\w*[!?=]?)(?![A-Za-z0-9_])/).each do |match|
+              names << match.first
+            end
           end
         rescue SystemCallError, EncodingError
           next
