@@ -231,6 +231,20 @@ RSpec.describe Necropsy::CLI do
         expect(result).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
         expect(File).not_to exist(baseline_path)
       end
+
+      it 'does not ignore strict health in diagnostics or write quarantine from invalid analysis' do
+        expect do
+          expect(described_class.run(['why', 'CliHealth#dead', '--strict-health', '--root', project_root])).to eq(
+            Necropsy::CLI::HEALTH_FAILURE_STATUS
+          )
+        end.to output(/Analysis health: invalid.*analyzer_failure/m).to_stdout
+        expect do
+          expect(described_class.run(['quarantine', '--write', '--root', project_root])).to eq(
+            Necropsy::CLI::HEALTH_FAILURE_STATUS
+          )
+        end.to output(/Analysis health: invalid.*analyzer_failure/m).to_stdout
+        expect(File.read(File.join(project_root, 'app/sample.rb'))).not_to include('necropsy:quarantine')
+      end
     end
 
     context 'with explicitly allowed degraded analysis' do

@@ -95,7 +95,11 @@ module Necropsy
       when Prism::BlockNode
         'literal'
       when Prism::BlockArgumentNode
-        node.block.expression.is_a?(Prism::SymbolNode) ? 'symbol_to_proc' : 'dynamic'
+        case node.block.expression
+        when Prism::NilNode then 'nil'
+        when Prism::SymbolNode then 'symbol_to_proc'
+        else 'dynamic'
+        end
       else
         'dynamic'
       end

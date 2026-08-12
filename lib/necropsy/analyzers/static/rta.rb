@@ -18,8 +18,8 @@ module Necropsy
         KERNEL_OUTPUT_MESSAGES = %w[print puts warn].freeze
         BLOCK_DEPENDENT_ENUMERABLE_MESSAGES = %w[
           all? any? chunk collect cycle detect drop_while each_cons each_entry each_slice
-          each_with_index each_with_object filter find find_all flat_map grep group_by inject
-          map none? one? partition reduce reject reverse_each select sort_by take_while
+          each_with_index each_with_object filter find find_all flat_map group_by
+          map none? one? partition reject reverse_each select sort_by take_while
         ].freeze
         BLOCK_COMPARISON_MESSAGES = %w[max min sort].freeze
 
@@ -122,10 +122,11 @@ module Necropsy
         def implicit_sites(site, graph: nil)
           summaries = []
           summaries << ['each', :same_receiver] if core_enumerable_receiver?(site) && enumerable_protocol?(site)
-          comparison = core_comparison_receiver?(site) && comparison_protocol?(site)
-          summaries << ['<=>', :element_receiver] if comparison
-          summaries << ['to_s', :first_argument] if kernel_output_call?(site, graph)
-          summaries.map { |message, receiver| derived_protocol_site(site, message, receiver) }
+          summaries.concat(comparison_summaries(site)) if core_comparison_receiver?(site)
+          summaries.concat(output_summaries(site)) if kernel_output_call?(site, graph)
+          summaries.map.with_index do |(message, receiver), index|
+            derived_protocol_site(site, message, receiver, index: index)
+          end
         end
 
         def implicit_messages(site, graph: nil)
@@ -134,14 +135,16 @@ module Necropsy
 
         private
 
-        def derived_protocol_site(site, message, receiver)
+        def derived_protocol_site(site, message, receiver, index: 0)
           receiver_kind, receiver_name, receiver_metadata = protocol_receiver(site, receiver)
+          receiver_label = protocol_receiver_label(receiver)
           CallSite.new(
             call_site_id: CallSiteIdentity.derived_id(
               parent_call_site_id: site.call_site_id,
               derivation: :rta_implicit,
               caller_definition_id: site.caller_id,
-              message: message
+              message: message,
+              discriminator: index.positive? ? "#{receiver_label}:#{index}" : nil
             ),
             caller_id: site.caller_id,
             message: message,
@@ -154,7 +157,7 @@ module Necropsy
             metadata: site.metadata.except('receiver_candidates', 'receiver_value_fact').merge(
               receiver_metadata,
               'implicit_from' => site.message,
-              'protocol_receiver' => receiver.to_s,
+              'protocol_receiver' => receiver_label,
               'derived_from_call_site_id' => site.call_site_id,
               'derived_via' => 'rta_implicit'
             )
@@ -167,7 +170,8 @@ module Necropsy
             return [site.receiver_kind, site.receiver_name, metadata]
           end
 
-          fact = Array(site.metadata['argument_value_facts']).first if receiver == :first_argument
+          argument_index = receiver[1] if receiver.is_a?(Array) && receiver.first == :argument
+          fact = Array(site.metadata['argument_value_facts'])[argument_index] if argument_index
           fact = site.metadata.dig('receiver_value_fact', 'summary', 'element_fact') if receiver == :element_receiver
           return receiver_from_fact(fact) if fact
 
@@ -175,6 +179,10 @@ module Necropsy
         end
 
         def receiver_from_fact(fact)
+          return [:unknown, nil, { 'receiver_candidates' => [] }] unless fact.is_a?(Hash)
+          return [:unknown, nil, { 'receiver_candidates' => [] }] unless fact['kind'].to_s == 'instance_types'
+          return [:unknown, nil, { 'receiver_candidates' => [] }] unless fact['exact'] == true
+
           values = Array(fact['values']).map(&:to_s).reject(&:empty?).uniq.sort
           return [:unknown, nil, { 'receiver_candidates' => [] }] if values.empty?
 
@@ -200,13 +208,44 @@ module Necropsy
           return false unless COMPARISON_MESSAGES.include?(site.message)
           return true unless BLOCK_COMPARISON_MESSAGES.include?(site.message)
 
-          !site.metadata.key?('block_kind') || site.metadata['block_kind'] == 'none'
+          !site.metadata.key?('block_kind') || %w[none nil dynamic].include?(site.metadata['block_kind'])
+        end
+
+        def comparison_summaries(site)
+          if site.message == 'sort_by'
+            return [] if %w[none nil].include?(site.metadata['block_kind'])
+
+            return [['<=>', :block_result_receiver]]
+          end
+
+          comparison_protocol?(site) ? [['<=>', :element_receiver]] : []
+        end
+
+        def output_summaries(site)
+          facts = Array(site.metadata['argument_value_facts'])
+          count = [facts.length, site.metadata.dig('arguments', 'positional_count').to_i].max
+          count = 1 if count.zero? && !site.metadata.key?('arguments')
+          count.times.map { |index| ['to_s', [:argument, index]] }
+        end
+
+        def protocol_receiver_label(receiver)
+          return 'first_argument' if receiver == [:argument, 0]
+          return "argument_#{receiver[1]}" if receiver.is_a?(Array) && receiver.first == :argument
+
+          receiver.to_s
         end
 
         def receiver_owners(site)
           values = Array(site.metadata['receiver_candidates'])
+          values = [container_receiver_owner(site.metadata['receiver_value_fact'])] if values.empty?
           values = [site.receiver_name] if values.empty?
           values.compact.map(&:to_s)
+        end
+
+        def container_receiver_owner(fact)
+          return unless fact.is_a?(Hash) && fact['kind'].to_s == 'container' && fact['exact'] == true
+
+          { 'array' => 'Array', 'hash' => 'Hash' }[fact.dig('summary', 'type').to_s]
         end
 
         def kernel_output_call?(site, graph)

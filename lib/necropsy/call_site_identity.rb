@@ -27,13 +27,15 @@ module Necropsy
       )
     end
 
-    def derived_id(parent_call_site_id:, derivation:, caller_definition_id:, message:)
+    def derived_id(parent_call_site_id:, derivation:, caller_definition_id:, message:, discriminator: nil)
       derivation = derivation.to_sym
       raise ArgumentError, "invalid call site derivation: #{derivation.inspect}" unless DERIVATIONS.include?(derivation)
 
-      identifier(
+      payload = [
         'derived', derivation.to_s, parent_call_site_id.to_s, caller_definition_id.to_s, message.to_s
-      )
+      ]
+      payload << discriminator.to_s unless discriminator.nil?
+      identifier(*payload)
     end
 
     def legacy_id(caller_definition_id:, message:, receiver_kind:, receiver_name:, file:, line:, test:, dynamic:,

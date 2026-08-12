@@ -36,6 +36,7 @@ RSpec.describe Necropsy::CallSiteIdentity do
     expect(described_class.derived_id(**attributes)).to eq(identifier)
     expect(described_class.derived_id(**attributes, message: 'call')).not_to eq(identifier)
     expect(described_class.derived_id(**attributes, derivation: :rta_implicit)).not_to eq(identifier)
+    expect(described_class.derived_id(**attributes, discriminator: 'argument:1')).not_to eq(identifier)
   end
 
   it 'canonicalizes legacy metadata independently of hash insertion order' do

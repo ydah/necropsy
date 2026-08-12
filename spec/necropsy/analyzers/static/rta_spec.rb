@@ -193,7 +193,7 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
     end
 
     it 'does not use spaceship comparison when sort has any comparator block' do
-      %w[literal symbol_to_proc dynamic].each do |block_kind|
+      %w[literal symbol_to_proc].each do |block_kind|
         sort = call_site(
           caller_id: 'Caller#run', message: 'sort', receiver_kind: :instance, receiver_name: 'Array',
           metadata: { 'receiver_candidates' => ['Array'], 'block_kind' => block_kind }
@@ -201,6 +201,112 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
 
         expect(analyzer.implicit_messages(sort)).not_to include('<=>')
       end
+    end
+
+    it 'keeps spaceship comparison conservative for nil or dynamic block arguments' do
+      %w[nil dynamic].each do |block_kind|
+        sort = call_site(
+          caller_id: 'Caller#run', message: 'sort', receiver_kind: :instance, receiver_name: 'Array',
+          metadata: { 'receiver_candidates' => ['Array'], 'block_kind' => block_kind }
+        )
+
+        expect(analyzer.implicit_messages(sort)).to include('<=>')
+      end
+    end
+
+    it 'does not reinterpret literal element values as receiver type names' do
+      sort = call_site(
+        caller_id: 'Caller#run', message: 'sort', receiver_kind: :instance, receiver_name: 'Array',
+        metadata: {
+          'receiver_candidates' => ['Array'],
+          'block_kind' => 'none',
+          'receiver_value_fact' => {
+            'kind' => 'container',
+            'exact' => true,
+            'summary' => {
+              'element_fact' => { 'kind' => 'string_set', 'values' => %w[a z], 'exact' => true }
+            }
+          }
+        }
+      )
+
+      comparison = analyzer.implicit_sites(sort).find { |derived| derived.message == '<=>' }
+
+      expect(comparison).to have_attributes(receiver_kind: :unknown, receiver_name: nil)
+      expect(comparison.metadata.fetch('receiver_candidates')).to eq([])
+    end
+
+    it 'keeps blockless protocol calls whose arguments define iteration behavior' do
+      %w[grep inject reduce].each do |message|
+        site = call_site(
+          caller_id: 'Caller#run', message: message, receiver_kind: :instance, receiver_name: 'Array',
+          metadata: { 'receiver_candidates' => ['Array'], 'block_kind' => 'none' }
+        )
+
+        expect(analyzer.implicit_messages(site)).to include('each')
+      end
+    end
+
+    it 'derives a distinct string conversion receiver for every output argument' do
+      output = call_site(
+        caller_id: 'Caller#run', message: 'puts', receiver_kind: :implicit,
+        metadata: {
+          'arguments' => { 'positional_count' => 2 },
+          'argument_value_facts' => [
+            { 'kind' => 'instance_types', 'values' => ['First'], 'exact' => true },
+            { 'kind' => 'instance_types', 'values' => ['Second'], 'exact' => true }
+          ]
+        }
+      )
+
+      sites = analyzer.implicit_sites(output)
+
+      expect(sites.map(&:receiver_name)).to eq(%w[First Second])
+      expect(sites.map(&:call_site_id).uniq.length).to eq(2)
+      expect(sites.map { |derived| derived.metadata['protocol_receiver'] }).to eq(%w[first_argument argument_1])
+    end
+
+    it 'connects scanned literal container facts through the derived protocol edge' do
+      source = <<~RUBY
+        class Item
+          def <=>(other) = 0
+        end
+        class Client
+          def run
+            items = [Item.new, Item.new]
+            items.sort
+          end
+        end
+      RUBY
+
+      with_project(files: { 'app/protocol.rb' => source }, config: { cache: { enabled: false } }) do |root|
+        scan = scan_project(root)
+        graph = graph_for_scan(scan)
+        result = analyzer.analyze(graph, nil)
+        comparison = result.derived_call_sites.find { |derived| derived.message == '<=>' }
+        target = scan.nodes.find { |node| node.symbol_id == 'Item#<=>' }
+
+        expect(comparison).to have_attributes(receiver_kind: :instance, receiver_name: 'Item')
+        expect(result.edge_evidences).to include(have_attributes(callee_id: target.graph_id))
+      end
+    end
+
+    it 'keeps sort_by comparison broad only when a block may execute' do
+      %w[literal dynamic].each do |block_kind|
+        site = call_site(
+          caller_id: 'Caller#run', message: 'sort_by', receiver_kind: :instance, receiver_name: 'Array',
+          metadata: { 'receiver_candidates' => ['Array'], 'block_kind' => block_kind }
+        )
+        comparison = analyzer.implicit_sites(site).find { |derived| derived.message == '<=>' }
+
+        expect(comparison).to have_attributes(receiver_kind: :unknown, receiver_name: nil)
+      end
+
+      blockless = call_site(
+        caller_id: 'Caller#run', message: 'sort_by', receiver_kind: :instance, receiver_name: 'Array',
+        metadata: { 'receiver_candidates' => ['Array'], 'block_kind' => 'none' }
+      )
+      expect(analyzer.implicit_sites(blockless)).to be_empty
     end
   end
 end

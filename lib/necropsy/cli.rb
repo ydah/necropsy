@@ -169,7 +169,10 @@ module Necropsy
       raise Error, "#{command} requires a symbol or definition ID" unless node_id
       raise Error, "Unexpected arguments for #{command}: #{argv.join(' ')}" unless argv.empty?
 
-      diagnostics = Diagnostics.new(analyze(options))
+      report = analyze(options)
+      return health_failure(report) unless health_acceptable?(report, options, strict: false)
+
+      diagnostics = Diagnostics.new(report)
       payload = case command
                 when 'why' then diagnostics.why(node_id)
                 when 'why-not' then diagnostics.why_not(node_id)
@@ -333,6 +336,8 @@ module Necropsy
 
     def quarantine(options)
       report = analyze(options)
+      return health_failure(report) unless health_acceptable?(report, options, strict: options[:write])
+
       quarantine = Guardrail::Quarantine.new(
         report: report,
         root: File.expand_path(options[:root]),
