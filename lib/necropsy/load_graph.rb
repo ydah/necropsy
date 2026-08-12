@@ -47,8 +47,9 @@ module Necropsy
     attr_reader :graph, :project, :resolved, :unresolved, :dynamic
 
     def load_sites
-      graph.call_sites.select { |site| site.metadata['load_reference'].is_a?(Hash) }
-                      .sort_by { |site| [site.file, site.line, site.call_site_id] }
+      graph.call_sites
+           .select { |site| site.metadata['load_reference'].is_a?(Hash) }
+           .sort_by { |site| [site.file, site.line, site.call_site_id] }
     end
 
     def apply_site(site)
