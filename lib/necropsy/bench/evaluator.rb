@@ -350,7 +350,7 @@ module Necropsy
         return 0.0 if candidates.empty?
 
         expected_ids = expected_entries.filter_map { |entry| entry_identifier(entry) }.to_set
-        matches = candidates.count { |finding| finding_identifiers(finding).intersect?(expected_ids) }
+        matches = candidates.count { |finding| expected_ids.intersect?(finding_identifiers(finding)) }
         FindingFacts.ratio(matches, candidates.length)
       end
 
