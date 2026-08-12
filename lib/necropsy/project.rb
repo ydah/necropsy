@@ -13,6 +13,7 @@ module Necropsy
       .bundle
       .git
       .necropsy_cache
+      .ruby-lsp
       coverage
       doc
       node_modules
