@@ -12,6 +12,8 @@ RSpec.describe Necropsy::Project do
       'necropsy.gemspec' => 'Gem::Specification.new',
       'tmp/ignored.rb' => 'class Ignored; end',
       'vendor/ignored.rb' => 'class VendorIgnored; end',
+      'engines/payments/vendor/ignored.rb' => 'class NestedVendorIgnored; end',
+      'app/node_modules/ignored.rb' => 'class NestedNodeModulesIgnored; end',
       'app/services/coverage/report.rb' => 'class CoverageReport; end',
       'app/services/doc/render.rb' => 'class DocRender; end'
     }
