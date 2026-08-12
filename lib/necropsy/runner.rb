@@ -5,6 +5,12 @@ require 'json'
 module Necropsy
   class Runner
     ANALYZER_ERROR_MESSAGE_BYTES = 500
+    INVALID_BLOCKER_KINDS = %i[
+      analyzer_failure blocker_invalid evidence_collision rails_route_health resolution_invalid
+    ].freeze
+    DEGRADED_BLOCKER_KINDS = %i[
+      reference_scan_incomplete reference_scope_incomplete source_discovery_incomplete
+    ].freeze
 
     attr_reader :root, :config, :analyzers, :ignored_reference_paths
 
@@ -52,6 +58,9 @@ module Necropsy
         ).apply(findings)
       end
       findings = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project).findings if barrier_matches.positive?
+      final_source_snapshot = measure_phase(profiler, 'source_snapshot_verification') { project.fresh_source_snapshot }
+      analysis_health = build_analysis_health(graph, source_snapshot, final_source_snapshot)
+      source_snapshot = verified_source_snapshot(source_snapshot, final_source_snapshot)
       performance = profiler&.report(
         counts: graph.performance_counts,
         report_index_size_bytes: report_index_size_bytes(graph)
@@ -63,6 +72,7 @@ module Necropsy
         reachability: reachability,
         project: project,
         source_snapshot: source_snapshot,
+        analysis_health: analysis_health,
         report_include_paths: config.report_include_paths,
         report_exclude_paths: config.report_exclude_paths,
         performance_profile: performance
@@ -70,6 +80,71 @@ module Necropsy
     end
 
     private
+
+    def build_analysis_health(graph, initial_snapshot, final_snapshot)
+      reasons = snapshot_health_reasons(initial_snapshot, final_snapshot)
+      graph.blockers.each do |blocker|
+        severity = blocker_health_severity(blocker)
+        next unless severity
+
+        reasons << blocker_health_reason(blocker, severity)
+      end
+      AnalysisHealth.from_reasons(reasons.uniq { |reason| BoundedCanonicalizer.dump(reason) })
+    end
+
+    def snapshot_health_reasons(initial_snapshot, final_snapshot)
+      snapshots = { 'initial' => initial_snapshot, 'final' => final_snapshot }
+      unavailable = snapshots.filter_map do |phase, snapshot|
+        next if snapshot['status'] == 'complete'
+
+        { 'phase' => phase, 'reason' => snapshot['reason'], 'details' => snapshot.except('sha256') }
+      end
+      return [{ 'severity' => 'invalid', 'code' => 'source_snapshot_unavailable', 'snapshots' => unavailable }] if unavailable.any?
+      return [] if initial_snapshot['sha256'] == final_snapshot['sha256']
+
+      [{
+        'severity' => 'invalid',
+        'code' => 'source_changed_during_analysis',
+        'initial_sha256' => initial_snapshot['sha256'],
+        'final_sha256' => final_snapshot['sha256']
+      }]
+    end
+
+    def blocker_health_severity(blocker)
+      return :invalid if blocker.kind == :parse_incomplete && blocker.caller_domain == :runtime
+      return :invalid if INVALID_BLOCKER_KINDS.include?(blocker.kind)
+
+      :degraded if DEGRADED_BLOCKER_KINDS.include?(blocker.kind)
+    end
+
+    def blocker_health_reason(blocker, severity)
+      metadata = blocker.metadata
+      {
+        'severity' => severity.to_s,
+        'code' => blocker.kind.to_s,
+        'message' => blocker.reason,
+        'source' => blocker.source.respond_to?(:to_h) ? blocker.source.to_h : blocker.source.to_s,
+        'file' => metadata['file'] || metadata[:file],
+        'line' => metadata['line'] || metadata[:line]
+      }.compact
+    end
+
+    def verified_source_snapshot(initial_snapshot, final_snapshot)
+      status = if initial_snapshot['status'] != 'complete' || final_snapshot['status'] != 'complete'
+                 'unavailable'
+               elsif initial_snapshot['sha256'] == final_snapshot['sha256']
+                 'match'
+               else
+                 'mismatch'
+               end
+      initial_snapshot.merge(
+        'verification' => {
+          'status' => status,
+          'final_status' => final_snapshot['status'],
+          'final_sha256' => final_snapshot['sha256']
+        }
+      )
+    end
 
     def measure_phase(profiler, name, &block)
       return block.call unless profiler

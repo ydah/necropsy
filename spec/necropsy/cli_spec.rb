@@ -2,6 +2,18 @@
 
 require 'necropsy/cli'
 
+class CliFailingAnalyzer < Necropsy::Analyzer
+  def analyze(*)
+    raise 'intentional analyzer failure'
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :cli_failing, kind: :static, soundness: :partial, description: 'fails for CLI health specs'
+    )
+  end
+end
+
 RSpec.describe Necropsy::CLI do
   describe '.run' do
     subject(:status) { described_class.run(argv) }
@@ -83,9 +95,7 @@ RSpec.describe Necropsy::CLI do
                                          'check', '--root', repeated_root, '--baseline', repeated_baseline,
                                          '--fail-on', 'low'
                                        ])
-        end.to output(
-          /Baseline migration requires review.*CliRepeated#dead.*def:v1:.*def:v1:.*Regenerate the baseline/m
-        ).to_stdout
+        end.to output(/Baseline migration requires review.*CliRepeated#dead.*legacy_baseline_requires_migration/m).to_stdout
         expect(result).to eq(1)
 
         expect do
@@ -95,6 +105,66 @@ RSpec.describe Necropsy::CLI do
                                        ])
         end.to output(/Baseline migration requires review.*Ambiguous mappings: 1/m).to_stdout
         expect(result).to eq(1)
+      end
+
+      it 'migrates a uniquely matched legacy baseline only through the explicit command' do
+        target_report = Necropsy.analyze(root: project_root)
+        target = target_report.actionable_candidates.first
+        File.write(baseline_path, {
+          'version' => 1,
+          'findings' => [{
+            'fingerprint' => target.logical_fingerprint,
+            'classification' => target.classification.to_s,
+            'node_id' => target.node.symbol_id,
+            'file' => target.node.file
+          }]
+        }.to_yaml)
+
+        expect do
+          result = described_class.run(['check', '--root', project_root, '--baseline', baseline_path])
+          expect(result).to eq(1)
+        end.to output(/legacy_baseline_requires_migration/).to_stdout
+        expect do
+          result = described_class.run(['baseline', 'migrate', '--root', project_root, '--baseline', baseline_path])
+          expect(result).to eq(0)
+        end.to output(/Migrated #{Regexp.escape(baseline_path)}/).to_stdout
+        expect(YAML.load_file(baseline_path)).to include('schema_version' => 2)
+      end
+    end
+
+    context 'with an unhealthy analysis' do
+      let(:project_root) do
+        create_project(
+          files: { 'app/sample.rb' => 'class CliHealth; def dead; end; end' },
+          config: { analyzers: { static: [], custom: ['CliFailingAnalyzer'] } }
+        )
+      end
+      let(:baseline_path) { File.join(project_root, '.necropsy_baseline.yml') }
+
+      it 'continues analyze but fails check on analyzer failure' do
+        analyze_status = nil
+        check_status = nil
+
+        expect do
+          analyze_status = described_class.run(['analyze', '--root', project_root])
+        end.to output(/Analysis health: invalid/).to_stdout
+        expect do
+          check_status = described_class.run(['check', '--root', project_root, '--baseline', baseline_path])
+        end.to output(/Analysis health: invalid.*analyzer_failure/m).to_stdout
+
+        expect(analyze_status).to eq(0)
+        expect(check_status).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
+      end
+
+      it 'does not write a baseline from incomplete analysis' do
+        result = nil
+
+        expect do
+          result = described_class.run(['baseline', '--root', project_root, '--baseline', baseline_path])
+        end.to output(/Analysis health: invalid.*analyzer_failure/m).to_stdout
+
+        expect(result).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
+        expect(File).not_to exist(baseline_path)
       end
     end
 
@@ -122,6 +192,29 @@ RSpec.describe Necropsy::CLI do
           end
         end.to output(/"recall": 1\.0/).to_stdout
         expect(status).to eq(0)
+      end
+
+      it 'returns nonzero for failed release criteria only when --check is requested' do
+        failed_gold = File.join(project_root, 'failed-gold.yml')
+        File.write(failed_gold, "dead_methods:\n  - Missing#candidate\n")
+
+        unchecked = nil
+        checked = nil
+        expect do
+          unchecked = described_class.run([
+                                            'bench', '--root', project_root, '--gold-standard', failed_gold,
+                                            '--min-confidence', 'low'
+                                          ])
+        end.to output(/"passed": false/).to_stdout
+        expect do
+          checked = described_class.run([
+                                          'bench', '--check', '--root', project_root, '--gold-standard', failed_gold,
+                                          '--min-confidence', 'low'
+                                        ])
+        end.to output(/"passed": false/).to_stdout
+
+        expect(unchecked).to eq(0)
+        expect(checked).to eq(1)
       end
     end
 

@@ -12,10 +12,11 @@ module Necropsy
       'physical_fingerprint' => 'physical definition fingerprint for baselines and definition-level matching'
     }.freeze
 
-    attr_reader :root, :graph, :findings, :reachability, :project, :source_snapshot, :performance_profile
+    attr_reader :root, :graph, :findings, :reachability, :project, :source_snapshot, :performance_profile,
+                :analysis_health
 
     def initialize(root:, graph:, findings:, reachability: nil, report_include_paths: [], report_exclude_paths: [],
-                   project: nil, source_snapshot: nil, performance_profile: nil)
+                   project: nil, source_snapshot: nil, performance_profile: nil, analysis_health: nil)
       @root = root
       @graph = graph
       @findings = findings.sort_by do |finding|
@@ -25,6 +26,7 @@ module Necropsy
       @project = project
       @source_snapshot = source_snapshot
       @performance_profile = performance_profile
+      @analysis_health = analysis_health || AnalysisHealth.complete
       @report_include_paths = report_include_paths
       @report_exclude_paths = report_exclude_paths
     end
@@ -64,10 +66,12 @@ module Necropsy
         'schema_version' => SCHEMA_VERSION,
         'compatibility' => { 'finding_fingerprints' => FINGERPRINT_COMPATIBILITY },
         'root' => root,
+        'analysis_health' => analysis_health.to_h,
         'summary' => summary,
         'findings' => reported_findings.map(&:to_h)
       }
       payload['diagnostics'] = diagnostics unless diagnostics.empty?
+      payload['source_snapshot'] = source_snapshot if source_snapshot
       payload['graph'] = graph.to_h if include_graph
       payload
     end
@@ -85,15 +89,20 @@ module Necropsy
 
     def summary
       grouped = reported_findings.group_by(&:classification)
+      actionable = reported_findings.count { |finding| ACTIONABLE_CLASSIFICATIONS.include?(finding.classification) }
+      blocked = grouped.fetch(:blocked, []).length
       {
         'nodes' => graph.nodes.length,
         'edges' => graph.edges.length,
         'entry_points' => graph.entry_points.length,
         'incomplete_files' => graph.incomplete_files.length,
         'findings' => reported_findings.length,
+        'actionable' => actionable,
+        'diagnostic' => reported_findings.length - actionable - blocked,
+        'health_failures' => analysis_health.reasons.length,
         'unreachable' => grouped.fetch(:unreachable, []).length,
         'unused' => grouped.fetch(:unused, []).length,
-        'blocked' => grouped.fetch(:blocked, []).length,
+        'blocked' => blocked,
         'test_only_reachable' => grouped.fetch(:test_only_reachable, []).length
       }
     end

@@ -16,21 +16,27 @@ module Necropsy
       def fetch(files)
         return yield unless project.config.cache_enabled?
 
-        metadata = cache_metadata(files)
+        metadata = safe_cache_metadata(files)
+        return yield unless metadata
+
         cached = read(metadata)
         return cached if cached
 
         result = yield
         write(metadata, result)
         result
-      rescue SystemCallError, JSON::ParserError => e
-        warn_cache("Cache unavailable: #{e.message}")
-        yield
       end
 
       private
 
       attr_reader :project
+
+      def safe_cache_metadata(files)
+        cache_metadata(files)
+      rescue SystemCallError, JSON::ParserError => e
+        warn_cache("Cache unavailable: #{e.message}")
+        nil
+      end
 
       def read(metadata)
         payload = load_payload

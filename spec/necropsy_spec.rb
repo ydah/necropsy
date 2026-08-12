@@ -41,7 +41,8 @@ RSpec.describe Necropsy do
     Necropsy::Guardrail::Baseline.write(report, path: path)
     baseline = Necropsy::Guardrail::Baseline.load(path)
 
-    expect(report.findings.all? { |finding| baseline.include?(finding) }).to eq(true)
+    expect(report.actionable_candidates.all? { |finding| baseline.include?(finding) }).to eq(true)
+    expect(report.diagnostic_findings.select { |finding| baseline.include?(finding) }).to be_empty
   end
 
   it 'evaluates precision and recall against a gold standard' do

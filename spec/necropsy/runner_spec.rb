@@ -67,6 +67,19 @@ class InvalidMessageRunnerAnalyzer < Necropsy::Analyzer
   end
 end
 
+class SourceMutatingRunnerAnalyzer < Necropsy::Analyzer
+  def analyze(_graph, project)
+    File.write(File.join(project.root, 'app/sample.rb'), 'class ChangedDuringAnalysis; def newer; end; end')
+    Necropsy::AnalyzerResult.empty
+  end
+
+  def profile
+    Necropsy::AnalyzerProfile.new(
+      name: :source_mutating, kind: :static, soundness: :partial, description: 'mutates the source under analysis'
+    )
+  end
+end
+
 RSpec.describe Necropsy::Runner do
   let(:rta_source) do
     <<~RUBY
@@ -129,7 +142,31 @@ RSpec.describe Necropsy::Runner do
 
       expect(blocker).to have_attributes(source: 'cyclic_metadata')
       expect(blocker.metadata.fetch('error_class')).to eq('Necropsy::BoundedCanonicalizer::CycleError')
+      expect(report.analysis_health).to have_attributes(status: :invalid)
+      expect(report.analysis_health.reasons).to include(include('code' => 'analyzer_failure'))
+      expect(report.to_h.fetch('analysis_health')).to include('status' => 'invalid')
       expect { report.to_json(include_graph: true) }.not_to raise_error
+    end
+  end
+
+  it 'verifies that the source snapshot still matches after analysis' do
+    with_project(files: { 'app/sample.rb' => 'class StableSource; def dead; end; end' }) do |root|
+      report = described_class.new(root: root, analyzers: [RunnerSpecAnalyzer.new]).analyze
+
+      expect(report.analysis_health).to have_attributes(status: :complete, reasons: [])
+      expect(report.source_snapshot.fetch('verification')).to include('status' => 'match')
+    end
+  end
+
+  it 'invalidates analysis when source changes after scanning' do
+    with_project(files: { 'app/sample.rb' => 'class InitialSource; def older; end; end' }) do |root|
+      report = described_class.new(root: root, analyzers: [SourceMutatingRunnerAnalyzer.new]).analyze
+
+      expect(report.analysis_health).to have_attributes(status: :invalid)
+      expect(report.analysis_health.reasons).to include(include('code' => 'source_changed_during_analysis'))
+      expect(report.source_snapshot.fetch('verification')).to include('status' => 'mismatch')
+      expect(report.graph.method_nodes.map(&:symbol_id)).to include('InitialSource#older')
+      expect(report.graph.method_nodes.map(&:symbol_id)).not_to include('ChangedDuringAnalysis#newer')
     end
   end
 

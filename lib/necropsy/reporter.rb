@@ -30,6 +30,16 @@ module Necropsy
       lines.join("\n")
     end
 
+    def self.render_analysis_health(analysis_health)
+      lines = ["Analysis health: #{analysis_health.status}"]
+      analysis_health.reasons.each do |reason|
+        location = [reason['file'], reason['line']].compact.join(':')
+        suffix = location.empty? ? '' : " at #{location}"
+        lines << "  [#{reason.fetch('severity')}] #{reason.fetch('code')}#{suffix}: #{reason['message']}"
+      end
+      lines.join("\n")
+    end
+
     def render(format: :human, min_confidence: DEFAULT_MIN_CONFIDENCE, include_graph: false)
       normalized_format = format.to_sym
       raise Error, "Unknown report format: #{format}" unless FORMATS.include?(normalized_format)
@@ -59,8 +69,12 @@ module Necropsy
         "Root: #{report.root}",
         "Nodes: #{report.summary['nodes']}, Edges: #{report.summary['edges']}, Entry points: #{report.summary['entry_points']}",
         "Incomplete source files: #{report.summary['incomplete_files']}",
+        "Analysis health: #{report.analysis_health.status} (#{report.analysis_health.reasons.length} issues)",
         "Findings: #{findings.length}"
       ]
+      report.analysis_health.reasons.each do |reason|
+        lines << "  health #{reason.fetch('severity')}: #{reason.fetch('code')}"
+      end
       append_dynamic_diagnostic(lines)
       append_definition_resolution_diagnostic(lines)
       append_source_diagnostic(lines)

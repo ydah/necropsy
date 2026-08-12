@@ -1,6 +1,8 @@
 analyzers:
   static: [name_resolution, cha, rta]
 frameworks: [rails]
+ci:
+  baseline: gold.yml
 entry_points:
   extra:
     - "Sample::WidgetsController#index"

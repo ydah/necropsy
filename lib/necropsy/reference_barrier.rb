@@ -13,6 +13,7 @@ module Necropsy
     GENERATED_PATH_PARTS = %w[generated dist].freeze
     TOOL_METADATA_BASENAMES = %w[.necropsy.yml .necropsy_baseline.yml].freeze
     GENERATED_MARKER = /(?:@generated|automatically generated|generated file|do not edit)/i
+    UNSAFE_SKIP_REASONS = %i[generated oversized unreadable].freeze
     TOKEN_PATTERN = /[A-Za-z_][A-Za-z0-9_]*(?:[!?=](?![A-Za-z0-9_]))?/
 
     def initialize(graph:, project:, ignored_paths: [])
@@ -29,20 +30,22 @@ module Necropsy
       @matches = Hash.new { |hash, key| hash[key] = [] }
       @skipped_counts = Hash.new(0)
       @skipped_samples = []
+      @unsafe_runtime_skips = []
       @files_scanned = 0
       @truncated_matches = 0
       files = project.non_ruby_reference_files
       files.each { |file| scan_file(file) } unless candidates.empty?
       add_blockers
+      unsafe_blockers = add_unsafe_skip_blocker
       record_diagnostic(files)
-      matches.values.sum(&:length)
+      matches.values.sum(&:length) + unsafe_blockers
     end
 
     private
 
     attr_reader :graph, :project, :candidates, :candidate_index, :non_token_index, :non_token_pattern, :matches,
                 :skipped_counts,
-                :skipped_samples, :ignored_paths
+                :skipped_samples, :ignored_paths, :unsafe_runtime_skips
 
     def build_candidate_index
       Hash.new { |hash, key| hash[key] = [] }.tap do |index|
@@ -270,11 +273,40 @@ module Necropsy
 
     def skip(file, reason, error: nil)
       skipped_counts[reason.to_s] += 1
-      return if skipped_samples.length >= SKIPPED_SAMPLE_LIMIT
-
       sample = { 'file' => file, 'reason' => reason.to_s }
       sample['error'] = error if error
+      unsafe_runtime_skips << sample if unsafe_skip?(file, reason)
+      return if skipped_samples.length >= SKIPPED_SAMPLE_LIMIT
+
       skipped_samples << sample
+    end
+
+    def unsafe_skip?(file, reason)
+      UNSAFE_SKIP_REASONS.include?(reason.to_sym) && reference_domain(file) == 'runtime'
+    end
+
+    def add_unsafe_skip_blocker
+      return 0 if unsafe_runtime_skips.empty?
+
+      graph.add_blocker(Blocker.new(
+                          kind: :reference_scan_incomplete,
+                          scope_kind: :global,
+                          scope_value: '*',
+                          source: :non_ruby_reference_barrier,
+                          reason: "#{unsafe_runtime_skips.length} runtime reference files could not be searched safely",
+                          suggested_action: :review_reference_scope,
+                          metadata: {
+                            'caller_domain' => 'runtime',
+                            'skipped_file_count' => unsafe_runtime_skips.length,
+                            'skipped_counts' => unsafe_skip_counts,
+                            'files' => unsafe_runtime_skips.first(SKIPPED_SAMPLE_LIMIT)
+                          }
+                        ))
+      1
+    end
+
+    def unsafe_skip_counts
+      unsafe_runtime_skips.group_by { |sample| sample.fetch('reason') }.transform_values(&:length)
     end
 
     def add_blockers

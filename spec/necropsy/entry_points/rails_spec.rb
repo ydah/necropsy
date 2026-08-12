@@ -229,6 +229,21 @@ RSpec.describe Necropsy::EntryPoints::Rails do
       end
     end
 
+    context 'when a mounted engine has a static constant target' do
+      let(:project_root) do
+        create_project(
+          files: { 'config/routes.rb' => "mount Admin::Engine, at: '/admin'\n" },
+          config: { frameworks: ['rails'] }
+        )
+      end
+      let(:nodes) { [node('Admin::Engine.call', owner: 'Admin::Engine', name: 'call', kind: :singleton_method)] }
+
+      it 'roots the engine without adding a dynamic route blocker' do
+        expect(entrypoints).to include('Admin::Engine.call' => :rails_route)
+        expect(graph.blockers.map(&:kind)).not_to include(:rails_route_dynamic)
+      end
+    end
+
     context 'when dynamic route options resemble literal identifiers' do
       let(:project_root) do
         create_project(

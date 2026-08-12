@@ -243,7 +243,8 @@ RSpec.describe 'parse incompleteness' do
       uncached = Necropsy.analyze(root: root).to_h(include_graph: true)
 
       expect(warm).to eq(cold)
-      expect(uncached).to eq(cold)
+      expect(uncached.except('source_snapshot')).to eq(cold.except('source_snapshot'))
+      expect(uncached.dig('source_snapshot', 'verification', 'status')).to eq('match')
     end
   end
 end

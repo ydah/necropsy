@@ -152,7 +152,23 @@ module Necropsy
         return false unless ROUTE_VERBS.include?(node.name.to_s) ||
                             %i[root resources resource mount namespace scope controller].include?(node.name)
 
-        Array(node.arguments&.arguments).any? { |argument| !literal_route_value?(argument) }
+        Array(node.arguments&.arguments).each_with_index.any? do |argument, index|
+          !literal_route_value?(argument) && !static_mount_target?(node, argument, index)
+        end
+      end
+
+      def static_mount_target?(statement, argument, index)
+        statement.name == :mount && index.zero? && !constant_name(argument).nil?
+      end
+
+      def constant_name(node)
+        case node
+        when Prism::ConstantReadNode
+          node.name.to_s
+        when Prism::ConstantPathNode
+          parent = node.parent ? constant_name(node.parent) : nil
+          [parent, node.name.to_s].compact.join('::')
+        end
       end
 
       def literal_route_value?(node)

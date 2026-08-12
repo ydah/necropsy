@@ -81,7 +81,7 @@ RSpec.describe Necropsy::ReferenceBarrier do
     end
   end
 
-  it 'ignores comments, generated files, and already parsed Ruby references' do
+  it 'ignores comments and Ruby references but blocks conclusions when generated references are skipped' do
     files = {
       'lib/ignored_target.rb' => <<~RUBY,
         class IgnoredTarget
@@ -104,21 +104,9 @@ RSpec.describe Necropsy::ReferenceBarrier do
       report = Necropsy::Runner.new(root: root).analyze
       findings = report.findings.select { |finding| finding.node.owner == 'IgnoredTarget' }
 
-      expect(findings.find { |finding| finding.node.name == 'comment_only' }).to have_attributes(
-        classification: :unreachable
-      )
-      expect(findings.find { |finding| finding.node.name == 'erb_comment_only' }).to have_attributes(
-        classification: :unreachable
-      )
-      expect(findings.find { |finding| finding.node.name == 'erb_multiline_comment_only' }).to have_attributes(
-        classification: :unreachable
-      )
-      expect(findings.find { |finding| finding.node.name == 'ruby_literal_only' }).to have_attributes(
-        classification: :unreachable
-      )
-      expect(findings.find { |finding| finding.node.name == 'generated_only' }).to have_attributes(
-        classification: :blocked
-      )
+      expect(findings.map(&:classification)).to all(eq(:blocked))
+      expect(report.analysis_health).to have_attributes(status: :degraded)
+      expect(report.analysis_health.reasons).to include(include('code' => 'reference_scan_incomplete'))
       expect(report.diagnostics.dig('non_ruby_reference_barrier', 'skipped_counts')).to include(
         'generated' => 1
       )
@@ -143,7 +131,14 @@ RSpec.describe Necropsy::ReferenceBarrier do
       report = Necropsy::Runner.new(root: root).analyze
       findings = report.findings.select { |finding| finding.node.owner == 'LimitTarget' }
 
-      expect(findings.map(&:classification)).to all(eq(:unreachable))
+      expect(findings.find { |finding| finding.node.name == 'binary_marker' }).to have_attributes(
+        classification: :blocked
+      )
+      expect(findings.find { |finding| finding.node.name == 'huge_marker' }).to have_attributes(
+        classification: :blocked
+      )
+      expect(report.analysis_health).to have_attributes(status: :degraded)
+      expect(report.analysis_health.reasons).to include(include('code' => 'reference_scan_incomplete'))
       expect(report.diagnostics.dig('non_ruby_reference_barrier', 'skipped_counts')).to include(
         'binary' => 1,
         'oversized' => 1

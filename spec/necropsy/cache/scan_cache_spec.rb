@@ -69,6 +69,21 @@ RSpec.describe Necropsy::Cache::ScanCache do
     end
   end
 
+  it 'does not retry the scan block when the scan itself raises a system error' do
+    with_project(files: { 'app/sample.rb' => 'class SingleScan; end' }) do |root|
+      project = project_for(root)
+      calls = 0
+
+      expect do
+        described_class.new(project: project).fetch(project.ruby_files) do
+          calls += 1
+          raise Errno::EIO, 'scan failed'
+        end
+      end.to raise_error(Errno::EIO, /scan failed/)
+      expect(calls).to eq(1)
+    end
+  end
+
   it 'invalidates the project scan when a non-Ruby reference file changes' do
     config = { paths: { analyze: ['lib/**'], reference: ['**/*'] } }
     with_project(

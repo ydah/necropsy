@@ -12,6 +12,8 @@ require 'necropsy'
 
 module Necropsy
   class CLI
+    HEALTH_FAILURE_STATUS = 3
+
     def self.run(argv)
       new.run(argv)
     end
@@ -41,11 +43,7 @@ module Necropsy
         )
         0
       when 'baseline'
-        report = analyze(options, ignored_reference_paths: [options[:baseline]])
-        path = File.expand_path(options[:baseline], options[:root])
-        Guardrail::Baseline.write(report, path: path)
-        puts "Wrote #{path}"
-        0
+        baseline(options, argv)
       when 'check'
         check(options)
       when 'quarantine'
@@ -85,6 +83,7 @@ module Necropsy
         output: nil,
         sample_rate: 1.0,
         ablation: false,
+        bench_check: false,
         precision_threshold: nil,
         recall_threshold: nil,
         help: false,
@@ -122,6 +121,7 @@ module Necropsy
           options[:sample_rate] = value
         end
         parser.on('--ablation', 'Run bench across analyzer combinations') { options[:ablation] = true }
+        parser.on('--check', 'Fail bench when release criteria do not pass') { options[:bench_check] = true }
         parser.on('--precision-threshold N', Float, 'Bench release precision threshold') do |value|
           options[:precision_threshold] = value
         end
@@ -166,12 +166,14 @@ module Necropsy
 
     def check(options)
       report = analyze(options, ignored_reference_paths: [options[:baseline]])
+      return health_failure(report) unless report.analysis_health.complete?
+
       report_invalid_quarantine_dates(report)
       expiry_failure = apply_quarantine_expiry_policy(report, report_config(options))
       findings = filtered_findings(report, options)
       baseline_path = File.expand_path(options[:baseline], options[:root])
       baseline = Guardrail::Baseline.load(baseline_path)
-      comparison = baseline.compare(report.dead_methods(min_confidence: :low))
+      comparison = baseline.compare(report.actionable_candidates(min_confidence: :low))
       if comparison.review_required?
         puts Reporter.render_baseline_review(comparison.review_report)
         return 1
@@ -234,7 +236,7 @@ module Necropsy
     end
 
     def filtered_findings(report, options)
-      findings = report.dead_methods(min_confidence: options[:fail_on])
+      findings = report.actionable_candidates(min_confidence: options[:fail_on])
       return findings unless options[:diff_base]
 
       project = Project.new(root: File.expand_path(options[:root]), config: report_config(options))
@@ -244,6 +246,32 @@ module Necropsy
 
     def report_config(options)
       Configuration.load(root: File.expand_path(options[:root]), path: options[:config])
+    end
+
+    def health_failure(report)
+      puts Reporter.render_analysis_health(report.analysis_health)
+      HEALTH_FAILURE_STATUS
+    end
+
+    def baseline(options, argv)
+      migration = argv.first == 'migrate'
+      argv.shift if migration
+      raise Error, "Unexpected baseline arguments: #{argv.join(' ')}" unless argv.empty?
+
+      report = analyze(options, ignored_reference_paths: [options[:baseline]])
+      return health_failure(report) unless report.analysis_health.complete?
+
+      path = File.expand_path(options[:baseline], options[:root])
+      if migration
+        comparison = Guardrail::Baseline.load(path).migrate(report.actionable_candidates(min_confidence: :low))
+        if comparison.review_required?
+          puts Reporter.render_baseline_review(comparison.review_report)
+          return 1
+        end
+      end
+      Guardrail::Baseline.write(report, path: path)
+      puts "#{migration ? 'Migrated' : 'Wrote'} #{path}"
+      0
     end
 
     def quarantine(options)
@@ -266,6 +294,8 @@ module Necropsy
 
       gold_standard_path = File.expand_path(options[:gold_standard])
       report = analyze(options, ignored_reference_paths: [gold_standard_path])
+      return health_failure(report) unless report.analysis_health.complete?
+
       config = report_config(options)
       result = Bench::Evaluator.new(
         report: report,
@@ -278,7 +308,7 @@ module Necropsy
         recall_threshold: options[:recall_threshold] || config.bench_recall_threshold
       ).call
       puts JSON.pretty_generate(result)
-      0
+      options[:bench_check] && !result.dig('release_criteria', 'passed') ? 1 : 0
     end
 
     def record(options, argv)

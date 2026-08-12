@@ -58,17 +58,19 @@ RSpec.describe Necropsy::Guardrail::Baseline do
     }.to_yaml)
 
     baseline = described_class.load(path)
-    comparison = baseline.compare([target])
+    comparison = baseline.migrate([target])
 
     expect(baseline.schema_version).to eq(1)
     expect(baseline).to include(target)
     expect(comparison.matched_findings).to eq([target])
     expect(comparison).not_to be_review_required
+    expect(baseline.compare([target])).to be_review_required
   end
 
   it 'migrates in exact, body digest, then symbol and path hint order' do
     exact = physical_finding(symbol_id: 'Sample#exact', definition_id: 'def:v1:exact', body_digest: 'same-body')
-    moved = physical_finding(symbol_id: 'Renamed#call', definition_id: 'def:v1:moved', body_digest: 'moved-body')
+    moved = physical_finding(symbol_id: 'BeforeMove#call', definition_id: 'def:v1:moved', body_digest: 'moved-body',
+                             file: 'lib/before_move.rb')
     hinted = physical_finding(symbol_id: 'Sample#hinted', definition_id: 'def:v1:hinted-new', body_digest: 'new-body')
     path = File.join(Dir.mktmpdir, '.necropsy_baseline.yml')
     File.write(path, {
@@ -83,7 +85,7 @@ RSpec.describe Necropsy::Guardrail::Baseline do
       ]
     }.to_yaml)
 
-    comparison = described_class.load(path).compare([exact, moved, hinted])
+    comparison = described_class.load(path).migrate([exact, moved, hinted])
 
     expect(comparison.matched_findings).to contain_exactly(exact, moved, hinted)
     expect(comparison.new_findings).to be_empty
@@ -101,7 +103,7 @@ RSpec.describe Necropsy::Guardrail::Baseline do
       'findings' => [{ 'fingerprint' => first.logical_fingerprint, 'classification' => 'unreachable' }]
     }.to_yaml)
 
-    comparison = described_class.load(path).compare([first, second])
+    comparison = described_class.load(path).migrate([first, second])
 
     expect(comparison).to be_review_required
     expect(comparison.new_findings).to contain_exactly(first, second)
@@ -134,9 +136,9 @@ RSpec.describe Necropsy::Guardrail::Baseline do
   end
 
   it 'requires review when a body digest migration is not unique' do
-    first = physical_finding(symbol_id: 'First#dead', definition_id: 'def:v1:first', body_digest: 'shared-body')
+    first = physical_finding(symbol_id: 'Sample#dead', definition_id: 'def:v1:first', body_digest: 'shared-body')
     second = physical_finding(
-      symbol_id: 'Second#dead', definition_id: 'def:v1:second', body_digest: 'shared-body', line: 8
+      symbol_id: 'Sample#dead', definition_id: 'def:v1:second', body_digest: 'shared-body', line: 8
     )
     path = File.join(Dir.mktmpdir, '.necropsy_baseline.yml')
     File.write(path, {
@@ -144,11 +146,13 @@ RSpec.describe Necropsy::Guardrail::Baseline do
       'findings' => [{
         'definition_id' => 'def:v1:old',
         'body_digest' => 'shared-body',
+        'symbol_id' => 'Sample#dead',
+        'file' => 'lib/sample.rb',
         'classification' => 'unreachable'
       }]
     }.to_yaml)
 
-    comparison = described_class.load(path).compare([first, second])
+    comparison = described_class.load(path).migrate([first, second])
 
     expect(comparison).to be_review_required
     expect(comparison.ambiguities.first).to include(
@@ -257,5 +261,20 @@ RSpec.describe Necropsy::Guardrail::Baseline do
     expect(YAML.load_file(path).fetch('findings').map { |entry| entry.fetch('node_id') }).to eq(
       ['Included#dead']
     )
+  end
+
+  it 'writes only actionable findings and leaves no temporary files behind' do
+    actionable = finding(id: 'Actionable#dead', classification: :unreachable)
+    blocked = finding(id: 'Blocked#dead', classification: :blocked)
+    test_only = finding(id: 'TestOnly#dead', classification: :test_only_reachable)
+    directory = Dir.mktmpdir
+    path = File.join(directory, '.necropsy_baseline.yml')
+
+    described_class.write(report_with_findings([actionable, blocked, test_only]), path: path)
+
+    expect(YAML.load_file(path).fetch('findings').map { |entry| entry.fetch('node_id') }).to eq(
+      ['Actionable#dead']
+    )
+    expect(Dir.glob(File.join(directory, '*necropsy_baseline*.tmp*'))).to be_empty
   end
 end

@@ -2,6 +2,7 @@
 
 require 'yaml'
 require 'time'
+require 'tempfile'
 
 module Necropsy
   module Guardrail
@@ -53,7 +54,7 @@ module Necropsy
       private_class_method :normalize_schema_version
 
       def self.write(report, path:)
-        findings = report.dead_methods(min_confidence: :low).map do |finding|
+        findings = report.actionable_candidates(min_confidence: :low).map do |finding|
           {
             'fingerprint' => finding.physical_fingerprint,
             'logical_fingerprint' => finding.logical_fingerprint,
@@ -74,8 +75,23 @@ module Necropsy
           'generated_at' => Time.now.utc.iso8601,
           'findings' => findings
         }
-        File.write(path, payload.to_yaml)
+        atomic_write(path, payload.to_yaml)
       end
+
+      def self.atomic_write(path, contents)
+        directory = File.dirname(path)
+        Tempfile.create([".#{File.basename(path)}", '.tmp'], directory) do |file|
+          file.write(contents)
+          file.flush
+          file.fsync
+          file.close
+          File.rename(file.path, path)
+        end
+        File.open(directory, 'rb', &:fsync)
+      rescue Errno::EINVAL, Errno::EISDIR
+        nil
+      end
+      private_class_method :atomic_write
 
       def initialize(path:, findings:, schema_version: 1)
         @path = path
@@ -95,13 +111,17 @@ module Necropsy
         fingerprints.include?(fingerprint)
       end
 
-      def compare(findings)
+      def compare(findings, migration: false)
         current = findings.sort_by { |finding| [finding.node.file, finding.node.line, finding.node.definition_id] }
         assignments = {}
         ambiguities = []
 
         @findings.each_with_index do |entry, index|
-          resolution = resolve_entry(entry, current)
+          resolution = resolve_entry(entry, current, migration: migration)
+          if resolution[:review_required]
+            ambiguities << ambiguity(entry, index, resolution, assignments)
+            next
+          end
           next if resolution[:candidates].empty?
 
           if resolution[:candidates].one? && !assignments.value?(resolution[:candidates].first)
@@ -120,6 +140,10 @@ module Necropsy
         )
       end
 
+      def migrate(findings)
+        compare(findings, migration: true)
+      end
+
       def count_at_least(confidence)
         threshold = CONFIDENCE_LEVELS.fetch(confidence)
         @findings.count do |finding|
@@ -134,7 +158,8 @@ module Necropsy
         self.class.send(:normalize_schema_version, value)
       end
 
-      def resolve_entry(entry, current)
+      def resolve_entry(entry, current, migration:)
+        return resolve_exact_entry(entry, current) unless migration
         return resolve_v1_entry(entry, current) if schema_version == 1
 
         candidates = current.select { |finding| same_classification?(entry, finding) }
@@ -145,6 +170,20 @@ module Necropsy
           return { strategy: strategy, candidates: matches } unless matches.empty?
         end
         { strategy: 'unmatched', candidates: [] }
+      end
+
+      def resolve_exact_entry(entry, current)
+        if schema_version == 1
+          resolution = resolve_v1_entry(entry, current)
+          return resolution.merge(review_required: true, reason: 'legacy_baseline_requires_migration')
+        end
+
+        value = entry['definition_id'] || entry['fingerprint']
+        candidates = current.select do |finding|
+          same_classification?(entry, finding) &&
+            (finding.node.definition_id == value || finding.physical_fingerprint == value)
+        end
+        { strategy: 'exact', candidates: candidates }
       end
 
       def resolve_v1_entry(entry, current)
@@ -172,7 +211,6 @@ module Necropsy
         [
           ['exact', exact],
           ['body_digest', entry['body_digest']],
-          ['logical_fingerprint', entry['fingerprint']],
           ['symbol_path_hint', symbol_hint(entry)]
         ]
       end
@@ -182,7 +220,7 @@ module Necropsy
         when 'exact'
           finding.node.definition_id == value || finding.physical_fingerprint == value
         when 'body_digest'
-          finding.node.body_digest == value
+          finding.node.body_digest == value && symbol_path_match?(entry, finding)
         when 'logical_fingerprint'
           schema_version == 1 && finding.logical_fingerprint == value
         when 'symbol_path_hint'
@@ -263,7 +301,8 @@ module Necropsy
         {
           'baseline_index' => index,
           'strategy' => resolution[:strategy],
-          'reason' => conflicts.empty? ? 'multiple_current_definitions' : 'current_definition_already_matched',
+          'reason' => resolution[:reason] ||
+            (conflicts.empty? ? 'multiple_current_definitions' : 'current_definition_already_matched'),
           'conflicting_baseline_indexes' => conflicts,
           'baseline' => baseline_identity(entry),
           'candidates' => candidates.map { |finding| finding_identity(finding) }

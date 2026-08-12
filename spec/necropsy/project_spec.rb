@@ -145,6 +145,12 @@ RSpec.describe Necropsy::Project do
           'linked/outside.rb'
         )
         expect(project.scope_diagnostics.fetch('ignored_symlinks')).to include('linked/outside.rb')
+        expect(project.scope_diagnostics.fetch('source_discovery_issues')).to include(
+          include('file' => 'linked/outside.rb', 'reason' => 'symlink', 'domain' => 'runtime')
+        )
+        expect(project.scope_blockers).to include(
+          have_attributes(kind: :source_discovery_incomplete, scope_kind: :global)
+        )
       end
     end
   end

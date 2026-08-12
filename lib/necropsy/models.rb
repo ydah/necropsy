@@ -805,6 +805,44 @@ module Necropsy
     end
   end
 
+  AnalysisHealth = Data.define(:status, :reasons) do
+    def self.from_reasons(reasons)
+      normalized = Array(reasons).map { |reason| normalize_reason(reason) }
+      status = normalized.any? { |reason| reason.fetch('severity') == 'invalid' } ? :invalid : :degraded
+      status = :complete if normalized.empty?
+      new(status: status || :complete, reasons: normalized)
+    end
+
+    def self.complete
+      new(status: :complete, reasons: [])
+    end
+
+    def self.normalize_reason(reason)
+      normalized = reason.to_h.transform_keys(&:to_s)
+      severity = normalized.fetch('severity').to_sym
+      raise ArgumentError, "invalid analysis health severity: #{severity}" unless %i[degraded invalid].include?(severity)
+      raise ArgumentError, 'analysis health reason requires a code' if normalized.fetch('code', '').to_s.empty?
+
+      normalized.merge('severity' => severity.to_s)
+    end
+    private_class_method :normalize_reason
+
+    def initialize(status:, reasons: [])
+      normalized_status = status.to_sym
+      raise ArgumentError, "invalid analysis health status: #{status}" unless %i[complete degraded invalid].include?(normalized_status)
+
+      super(status: normalized_status, reasons: reasons.freeze)
+    end
+
+    def complete?
+      status == :complete
+    end
+
+    def to_h
+      { 'status' => status.to_s, 'reasons' => reasons }
+    end
+  end
+
   Blocker = Data.define(:kind, :scope_kind, :scope_value, :source, :reason, :suggested_action, :metadata) do
     def initialize(kind:, scope_kind:, scope_value:, source:, reason:, suggested_action: :review, metadata: {})
       super

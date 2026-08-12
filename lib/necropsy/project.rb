@@ -83,12 +83,17 @@ module Necropsy
     def scan_inventory_key
       {
         'ignored_symlinks' => ignored_symlinks.sort,
+        'source_discovery_issues' => source_discovery_issues,
         'ruby_files_outside_scopes' => ruby_files_outside_scopes.map { |file| relative_path(file) }
       }
     end
 
     def source_snapshot
       @source_snapshot ||= build_source_snapshot
+    end
+
+    def fresh_source_snapshot
+      self.class.new(root: root, config: config).source_snapshot
     end
 
     def source_domains
@@ -126,29 +131,49 @@ module Necropsy
             'samples' => excluded_callers.first(20)
           },
           'potential_entry_points_outside_analyze' => potential,
-          'ignored_symlinks' => ignored_symlinks.sort
+          'ignored_symlinks' => ignored_symlinks.sort,
+          'source_discovery_issues' => source_discovery_issues
         }.tap { warn_excluded_callers(runtime_excluded_callers) }
       end
     end
 
     def scope_blockers
       excluded = scope_diagnostics.fetch('potential_callers_outside_reference')
-      return [] unless excluded.fetch('runtime_count').positive?
+      blockers = []
+      if excluded.fetch('runtime_count').positive?
+        blockers << Blocker.new(
+          kind: :reference_scope_incomplete,
+          scope_kind: :global,
+          scope_value: '*',
+          source: :source_discovery,
+          reason: "paths.reference excludes #{excluded.fetch('runtime_count')} non-test Ruby caller candidates",
+          suggested_action: :expand_reference_scope,
+          metadata: {
+            'caller_domain' => 'runtime',
+            'excluded_file_count' => excluded.fetch('count'),
+            'excluded_runtime_file_count' => excluded.fetch('runtime_count'),
+            'files' => excluded.fetch('samples')
+          }
+        )
+      end
 
-      [Blocker.new(
-        kind: :reference_scope_incomplete,
-        scope_kind: :global,
-        scope_value: '*',
-        source: :source_discovery,
-        reason: "paths.reference excludes #{excluded.fetch('runtime_count')} non-test Ruby caller candidates",
-        suggested_action: :expand_reference_scope,
-        metadata: {
-          'caller_domain' => 'runtime',
-          'excluded_file_count' => excluded.fetch('count'),
-          'excluded_runtime_file_count' => excluded.fetch('runtime_count'),
-          'files' => excluded.fetch('samples')
-        }
-      )]
+      runtime_issues = source_discovery_issues.reject { |issue| issue.fetch('domain') == 'test' }
+      if runtime_issues.any?
+        blockers << Blocker.new(
+          kind: :source_discovery_incomplete,
+          scope_kind: :global,
+          scope_value: '*',
+          source: :source_discovery,
+          reason: "#{runtime_issues.length} runtime source paths could not be inspected safely",
+          suggested_action: :review_source_discovery,
+          metadata: {
+            'caller_domain' => 'runtime',
+            'issue_count' => runtime_issues.length,
+            'files' => runtime_issues.first(50)
+          }
+        )
+      end
+      blockers
     end
 
     def test_file?(file)
@@ -204,20 +229,30 @@ module Necropsy
     def repository_files
       @repository_files ||= begin
         @ignored_symlinks = Set.new
+        @source_discovery_issues = []
         entries = Dir.glob(File.join(root, '**', '*'), File::FNM_DOTMATCH).sort
         entries.filter_map do |file|
           next if excluded_repository_path?(file)
           next if cache_output_path?(file)
 
           if symlink_path?(file) || !real_path_within_root?(file)
-            @ignored_symlinks << relative_path(file) if File.symlink?(file) || File.file?(file)
+            if File.symlink?(file) || File.file?(file)
+              relative = relative_path(file)
+              @ignored_symlinks << relative
+              record_source_discovery_issue(relative, :symlink)
+            end
             next
           end
 
           file if File.file?(file)
-        rescue ArgumentError, SystemCallError
+        rescue ArgumentError, SystemCallError => e
+          record_source_discovery_issue(safe_relative_path(file), :inspection_error, error: e.class.name)
           nil
         end
+      rescue ArgumentError, SystemCallError => e
+        @source_discovery_issues ||= []
+        record_source_discovery_issue('.', :enumeration_error, error: e.class.name)
+        []
       end
     end
 
@@ -246,6 +281,28 @@ module Necropsy
     def ignored_symlinks
       repository_files unless defined?(@ignored_symlinks)
       @ignored_symlinks
+    end
+
+    def source_discovery_issues
+      repository_files unless defined?(@source_discovery_issues)
+      @source_discovery_issues.sort_by { |issue| [issue.fetch('file'), issue.fetch('reason')] }
+    end
+
+    def record_source_discovery_issue(file, reason, error: nil)
+      @source_discovery_issues ||= []
+      issue = {
+        'file' => file,
+        'reason' => reason.to_s,
+        'domain' => test_source_path?(file) ? 'test' : 'runtime'
+      }
+      issue['error'] = error if error
+      @source_discovery_issues << issue unless @source_discovery_issues.include?(issue)
+    end
+
+    def safe_relative_path(file)
+      relative_path(file)
+    rescue ArgumentError, SystemCallError
+      file.to_s
     end
 
     def excluded_repository_path?(file)
