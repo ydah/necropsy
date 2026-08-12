@@ -33,6 +33,13 @@ module Necropsy
       arguments(node).find { |argument| argument.is_a?(Prism::StringNode) }&.unescaped
     end
 
+    def literal_argument(node, index:)
+      argument = arguments(node)[index]
+      return unless argument.is_a?(Prism::SymbolNode) || argument.is_a?(Prism::StringNode)
+
+      argument.unescaped.to_s
+    end
+
     def symbol_arguments(node)
       arguments(node).filter_map do |arg|
         next unless arg.is_a?(Prism::SymbolNode)

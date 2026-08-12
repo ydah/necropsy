@@ -41,6 +41,117 @@ RSpec.describe Necropsy::FlowInterpreter do
     )
   end
 
+  it 'preserves the implicit else path when a branch may not run' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      service = ReplacementService.new if enabled
+      service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(
+      kind: :instance_types,
+      values: %w[OriginalService ReplacementService],
+      exact: true
+    )
+  end
+
+  it 'preserves the unmatched path of a case without an else clause' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      case mode
+      when :replacement
+        service = ReplacementService.new
+      end
+      service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(
+      kind: :instance_types,
+      values: %w[OriginalService ReplacementService],
+      exact: true
+    )
+  end
+
+  it 'joins the short-circuited and right-hand execution paths' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      enabled && (service = ReplacementService.new)
+      service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(
+      kind: :instance_types,
+      values: %w[OriginalService ReplacementService],
+      exact: true
+    )
+  end
+
+  it 'does not apply lambda body assignments when creating the lambda' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      callback = -> { service = ReplacementService.new }
+      service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(
+      kind: :instance_types,
+      values: ['OriginalService'],
+      exact: true
+    )
+  end
+
+  it 'does not evaluate statements after an unconditional return' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      return service
+      service = ReplacementService.new
+      service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to be_nil
+    expect(result.return_fact).to have_attributes(
+      kind: :instance_types,
+      values: ['OriginalService'],
+      exact: true
+    )
+  end
+
+  it 'widens locals assigned by an unsupported loop before later use' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      while enabled
+        service = ReplacementService.new
+      end
+      service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(kind: :unknown, exact: false)
+  end
+
+  it 'widens locals changed by unsupported operator assignments' do
+    source = Prism.parse(<<~RUBY).value
+      service = OriginalService.new
+      service ||= ReplacementService.new
+      service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(kind: :unknown, exact: false)
+  end
+
   it 'keeps transparent wrappers and safe-navigation receiver facts' do
     source = Prism.parse('service = T.let(Service.new, T.type); service&.call').value
     result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
@@ -82,6 +193,53 @@ RSpec.describe Necropsy::FlowInterpreter do
       values: ['Service'],
       exact: true
     )
+  end
+
+  it 'distinguishes symbol and string hash keys' do
+    source = Prism.parse(<<~RUBY).value
+      registry = { fast: SymbolService.new, "fast" => StringService.new }
+      symbol_service = registry[:fast]
+      string_service = registry["fast"]
+      symbol_service.call
+      string_service.call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    symbol_call, string_call = source.statements.body.last(2)
+
+    expect(result.fact_for(symbol_call.receiver).values).to eq(['SymbolService'])
+    expect(result.fact_for(string_call.receiver).values).to eq(['StringService'])
+  end
+
+  it 'joins every finite hash key candidate' do
+    source = Prism.parse(<<~RUBY).value
+      registry = { fast: FastService.new, safe: SafeService.new }
+      key = if enabled then :fast else :safe end
+      registry[key].call
+    RUBY
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(
+      kind: :instance_types,
+      values: %w[FastService SafeService],
+      exact: true
+    )
+  end
+
+  it 'does not resolve through a hash with a splat that may overwrite the key' do
+    source = Prism.parse('registry = { fast: Service.new, **extras }; registry[:fast].call').value
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(kind: :unknown, exact: false)
+  end
+
+  it 'does not mark a hash with a dynamic key as exact' do
+    source = Prism.parse('registry = { key => Service.new }; registry[key].call').value
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(kind: :unknown, exact: false)
   end
 end
 
@@ -142,6 +300,28 @@ RSpec.describe 'FLOW01 receiver integration' do
       expect(site.dynamic).to be(false)
       expect(site.metadata.fetch('finite_dynamic_dispatch')).to be(true)
       expect(graph.method_lookup(site).targets.map(&:symbol_id)).to eq(['Service#call'])
+    end
+  end
+
+  it 'does not use a later literal argument as a dynamic send message' do
+    source = <<~RUBY
+      class Service
+        def fallback = :live
+      end
+      class Client
+        def run(service, name)
+          service.send(name, :fallback)
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/adversarial_send.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      caller = scan.nodes.find { |node| node.symbol_id == 'Client#run' }
+      sites = scan.call_sites.select { |candidate| candidate.caller_id == caller.graph_id }
+
+      expect(sites).to be_empty
+      expect(scan.uncertainties.fetch(caller.graph_id)).to include(match(/Dynamic dispatch/))
     end
   end
 

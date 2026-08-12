@@ -22,7 +22,7 @@ module Necropsy
       metadata['receiver_value_fact'] = compact_receiver_fact if compact_receiver_fact
 
       if DYNAMIC_SENDS.include?(node.name)
-        literal = first_symbol_argument(node) || first_string_argument(node)
+        literal = literal_argument(node, index: 0)
         message = message_override || literal
         dynamic = message.nil?
         metadata['dynamic_dispatch'] = true
@@ -45,7 +45,7 @@ module Necropsy
 
     def finite_dynamic_messages(node, context)
       return [] unless DYNAMIC_SENDS.include?(node.name)
-      return [] if first_symbol_argument(node) || first_string_argument(node)
+      return [] if literal_argument(node, index: 0)
 
       argument = Array(node.arguments&.arguments).first
       fact = context.flow_result&.fact_for(argument)
@@ -119,7 +119,7 @@ module Necropsy
     end
 
     def unresolved_dynamic_dispatch?(node)
-      DYNAMIC_SENDS.include?(node.name) && first_symbol_argument(node).nil? && first_string_argument(node).nil?
+      DYNAMIC_SENDS.include?(node.name) && literal_argument(node, index: 0).nil?
     end
 
     def record_parse_errors(root_id, relative, result)
