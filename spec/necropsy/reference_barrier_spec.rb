@@ -52,7 +52,7 @@ RSpec.describe Necropsy::ReferenceBarrier do
     end
   end
 
-  it 'conservatively blocks bare common method names as well as explicit forms' do
+  it 'requires strong context for common short method names' do
     files = {
       'lib/common_target.rb' => <<~RUBY,
         class CommonTarget
@@ -73,11 +73,10 @@ RSpec.describe Necropsy::ReferenceBarrier do
 
       expect(findings.fetch('call')).to have_attributes(classification: :blocked)
       expect(findings.fetch('call').blockers.map(&:metadata)).to include(
-        include('match_kind' => 'method_name'),
         include('match_kind' => 'symbol_or_string')
       )
-      expect(findings.fetch('run')).to have_attributes(classification: :blocked)
-      expect(findings.fetch('run').blockers.first.metadata).to include('match_kind' => 'method_name')
+      expect(findings.fetch('call').blockers.map(&:metadata)).not_to include(include('file' => 'README.txt'))
+      expect(findings.fetch('run')).to have_attributes(classification: :unreachable)
     end
   end
 
@@ -113,7 +112,7 @@ RSpec.describe Necropsy::ReferenceBarrier do
     end
   end
 
-  it 'bounds binary and oversized file processing without treating their bytes as references' do
+  it 'streams large text files while bounding binary processing' do
     huge = "huge_marker\n#{'x' * (described_class::MAX_FILE_BYTES + 1)}"
     files = {
       'lib/limit_target.rb' => <<~RUBY,
@@ -132,21 +131,41 @@ RSpec.describe Necropsy::ReferenceBarrier do
       findings = report.findings.select { |finding| finding.node.owner == 'LimitTarget' }
 
       expect(findings.find { |finding| finding.node.name == 'binary_marker' }).to have_attributes(
-        classification: :blocked
+        classification: :unreachable
       )
       expect(findings.find { |finding| finding.node.name == 'huge_marker' }).to have_attributes(
         classification: :blocked
       )
-      expect(report.analysis_health).to have_attributes(status: :degraded)
-      expect(report.analysis_health.reasons).to include(include('code' => 'reference_scan_incomplete'))
+      expect(report.analysis_health).to have_attributes(status: :complete)
       expect(report.diagnostics.dig('non_ruby_reference_barrier', 'skipped_counts')).to include(
-        'binary' => 1,
-        'oversized' => 1
+        'binary' => 1
       )
       expect(report.diagnostics.dig('non_ruby_reference_barrier', 'skipped_samples')).to include(
-        { 'file' => 'data/huge.txt', 'reason' => 'oversized' },
         { 'file' => 'data/payload.dat', 'reason' => 'binary' }
       )
+      expect(report.diagnostics.dig('non_ruby_reference_barrier', 'files_streamed')).to eq(1)
+      expect(findings.find { |finding| finding.node.name == 'huge_marker' }.blockers).to include(
+        have_attributes(kind: :unparsed_external_reference)
+      )
+    end
+  end
+
+  it 'fails closed when the aggregate reference scan byte budget is exhausted' do
+    stub_const('Necropsy::ReferenceBarrier::MAX_TOTAL_SCAN_BYTES', 8)
+    files = {
+      'lib/budget_target.rb' => 'class BudgetTarget; def hidden_reference; end; end',
+      'config/reference.txt' => "hidden_reference\n"
+    }
+    config = { cache: { enabled: false }, paths: { analyze: ['lib/**'], reference: ['**/*'] } }
+
+    with_project(files: files, config: config) do |root|
+      report = Necropsy::Runner.new(root: root).analyze
+      finding = report.findings.find { |candidate| candidate.node.name == 'hidden_reference' }
+
+      expect(finding).to have_attributes(classification: :blocked)
+      expect(report.analysis_health).to have_attributes(status: :degraded)
+      expect(report.analysis_health.reasons).to include(include('code' => 'reference_scan_incomplete'))
+      expect(report.diagnostics.dig('non_ruby_reference_barrier', 'skipped_counts')).to include('scan_budget' => 1)
     end
   end
 

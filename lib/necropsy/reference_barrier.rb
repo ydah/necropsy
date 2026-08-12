@@ -3,6 +3,9 @@
 module Necropsy
   class ReferenceBarrier
     MAX_FILE_BYTES = 1_048_576
+    MAX_STREAM_FILE_BYTES = 16_777_216
+    MAX_TOTAL_SCAN_BYTES = 67_108_864
+    MAX_TOTAL_MATCHES = 10_000
     MAX_MATCHES_PER_DEFINITION = 5
     MAX_SNIPPET_BYTES = 240
     SKIPPED_SAMPLE_LIMIT = 50
@@ -13,7 +16,9 @@ module Necropsy
     GENERATED_PATH_PARTS = %w[generated dist].freeze
     TOOL_METADATA_BASENAMES = %w[.necropsy.yml .necropsy_baseline.yml].freeze
     GENERATED_MARKER = /(?:@generated|automatically generated|generated file|do not edit)/i
-    UNSAFE_SKIP_REASONS = %i[generated oversized unreadable].freeze
+    UNSAFE_SKIP_REASONS = %i[generated oversized unreadable scan_budget match_budget].freeze
+    COMMON_SHORT_NAMES = %w[call create destroy edit index new run show update].freeze
+    REFERENCE_DSL_KEYS = %w[action callback command function handler method perform task].freeze
     TOKEN_PATTERN = /[A-Za-z_][A-Za-z0-9_]*(?:[!?=](?![A-Za-z0-9_]))?/
 
     def initialize(graph:, project:, ignored_paths: [])
@@ -32,9 +37,20 @@ module Necropsy
       @skipped_samples = []
       @unsafe_runtime_skips = []
       @files_scanned = 0
+      @files_streamed = 0
+      @bytes_scanned = 0
+      @total_matches = 0
       @truncated_matches = 0
       files = project.non_ruby_reference_files
-      files.each { |file| scan_file(file) } unless candidates.empty?
+      unless candidates.empty?
+        files.each do |file|
+          if @match_budget_exceeded
+            record_match_budget(project.relative_path(file))
+          else
+            scan_file(file)
+          end
+        end
+      end
       add_blockers
       unsafe_blockers = add_unsafe_skip_blocker
       record_diagnostic(files)
@@ -86,7 +102,11 @@ module Necropsy
       return skip(relative, :tool_metadata) if tool_metadata?(relative)
       return skip(relative, :generated) if generated_path?(relative)
       return skip(relative, :binary) if BINARY_EXTENSIONS.include?(File.extname(relative).downcase)
-      return skip(relative, :oversized) if File.size(path) > MAX_FILE_BYTES
+
+      size = File.size(path)
+      return skip(relative, :oversized) if size > MAX_STREAM_FILE_BYTES
+      return skip(relative, :scan_budget) if @bytes_scanned + size > MAX_TOTAL_SCAN_BYTES
+      return scan_large_file(path, relative, size) if size > MAX_FILE_BYTES
 
       bytes = File.binread(path, MAX_FILE_BYTES + 1)
       return skip(relative, :oversized) if bytes.bytesize > MAX_FILE_BYTES
@@ -96,12 +116,40 @@ module Necropsy
       return skip(relative, :binary) unless source.valid_encoding?
       return skip(relative, :generated) if generated_header?(source)
 
+      @bytes_scanned += bytes.bytesize
       @files_scanned += 1
       searchable_source(source, relative).each_line.with_index(1) do |line, line_number|
         scan_line(relative, line, line_number)
+        break if @match_budget_exceeded
       end
+      record_match_budget(relative) if @match_budget_exceeded
     rescue SystemCallError => e
       skip(relative || path.to_s, :unreadable, error: e.class.name)
+    end
+
+    def scan_large_file(path, relative, size)
+      header = []
+      valid = true
+      File.open(path, 'rb') do |io|
+        io.each_line.with_index(1) do |bytes, line_number|
+          source = bytes.force_encoding(Encoding::UTF_8)
+          valid &&= !bytes.include?("\0") && source.valid_encoding?
+          header << source.dup if line_number <= 20
+        end
+      end
+      return skip(relative, :binary) unless valid
+      return skip(relative, :generated) if generated_header?(header.join)
+
+      @bytes_scanned += size
+      @files_scanned += 1
+      @files_streamed += 1
+      File.open(path, 'r:UTF-8') do |io|
+        io.each_line.with_index(1) do |line, line_number|
+          scan_line(relative, searchable_source(line, relative), line_number)
+          break if @match_budget_exceeded
+        end
+      end
+      record_match_budget(relative) if @match_budget_exceeded
     end
 
     def generated_path?(relative)
@@ -147,7 +195,7 @@ module Necropsy
       searchable_line = strip_inline_comment(line, file)
       searchable_line.scan(TOKEN_PATTERN).uniq.each do |token|
         candidate_index.fetch(token, []).each do |node|
-          kind = reference_kind(searchable_line, token, node)
+          kind = reference_kind(searchable_line, token, node, file)
           record_match(node, file, line_number, line, token, kind) if kind
         end
       end
@@ -205,13 +253,26 @@ module Necropsy
       markers
     end
 
-    def reference_kind(line, token, node)
+    def reference_kind(line, token, node, file)
       qualified_kind, remaining, qualified = qualified_reference(line, token, node)
       return qualified_kind if qualified_kind
       return if qualified && !direct_name_reference?(remaining, token)
       return 'symbol_or_string' if symbolic_or_string_reference?(remaining, token)
+      return 'structured_reference' if common_name?(node.name) && structured_reference?(remaining, token, file)
+      return if common_name?(node.name)
 
       token == node.name ? 'method_name' : 'method_name_camelized'
+    end
+
+    def common_name?(name)
+      COMMON_SHORT_NAMES.include?(name)
+    end
+
+    def structured_reference?(line, token, file)
+      return true if File.extname(file).downcase == '.erb' && line.include?('<%')
+
+      keys = REFERENCE_DSL_KEYS.join('|')
+      line.match?(/(?:\A|[,{\s])(?:#{keys})\s*[:=]\s*#{Regexp.escape(token)}(?![A-Za-z0-9_])/i)
     end
 
     def qualified_reference(line, token, node)
@@ -249,6 +310,11 @@ module Necropsy
     end
 
     def record_match(node, file, line_number, line, token, kind)
+      if @total_matches >= MAX_TOTAL_MATCHES
+        @match_budget_exceeded = true
+        return
+      end
+
       node_matches = matches[node.graph_id]
       if node_matches.length >= MAX_MATCHES_PER_DEFINITION
         @truncated_matches += 1
@@ -262,6 +328,7 @@ module Necropsy
         'match_kind' => kind,
         'matched_text' => token
       }
+      @total_matches += 1
     end
 
     def bounded_snippet(line)
@@ -279,6 +346,13 @@ module Necropsy
       return if skipped_samples.length >= SKIPPED_SAMPLE_LIMIT
 
       skipped_samples << sample
+    end
+
+    def record_match_budget(file)
+      return if @match_budget_recorded
+
+      @match_budget_recorded = true
+      skip(file, :match_budget)
     end
 
     def unsafe_skip?(file, reason)
@@ -344,6 +418,8 @@ module Necropsy
         'candidate_definitions' => candidates.length,
         'files_considered' => files.length,
         'files_scanned' => @files_scanned,
+        'files_streamed' => @files_streamed,
+        'bytes_scanned' => @bytes_scanned,
         'matched_definitions' => matches.count { |_definition_id, entries| entries.any? },
         'matches' => matches.values.sum(&:length),
         'truncated_matches' => @truncated_matches,
