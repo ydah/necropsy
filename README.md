@@ -33,9 +33,9 @@ bundle exec necropsy baseline --root .
 ```
 
 New baselines use schema v2 and identify each physical method definition. Existing
-schema v1 baselines remain readable. `necropsy check` migrates matches in exact ID,
-body digest, then symbol/path-hint order; if any mapping has multiple candidates it
-fails closed with a review report instead of silently accepting one definition.
+schema v1 baselines remain readable, but `necropsy check` accepts only exact physical
+matches. Run `necropsy baseline migrate` to use body/symbol/path hints and produce a
+review report; ambiguous or legacy matches never pass an ordinary check silently.
 
 Run a report:
 
@@ -89,6 +89,12 @@ Fail CI only for new high-confidence findings:
 ```bash
 bundle exec necropsy check --root . --fail-on high
 ```
+
+`check`, baseline writes, quarantine writes, and release benchmarks fail with status
+3 when analysis health is incomplete. Use `--strict-health` to apply the same policy
+to informational analysis/diagnostic commands. A known degraded reason can be
+temporarily admitted by exact code, for example
+`--allow-degraded=reference_scan_incomplete`; invalid health is never admitted.
 
 Record dynamic evidence from a Ruby script:
 
@@ -172,7 +178,7 @@ analyzers:
       require: "config/necropsy/graphql_entry_analyzer"
       trusted: true # executes Ruby in the Necropsy process
 rta:
-  pruning: rank_only # use legacy only for temporary compatibility with pre-0.2.1 edge pruning
+  pruning: rank_only # legacy pruning marks analysis invalid and cannot pass check
 cache:
   enabled: true
   path: .necropsy_cache/scan.json
@@ -254,8 +260,9 @@ matching file, line, and snippet. Common names such as `call` or `run` require a
 review more often because safety takes precedence over yield; benchmark results
 identify formats that merit a dedicated parser. The scanner is a portable Ruby
 fallback with no `rg` dependency. It ignores comments, generated/tool metadata,
-binary formats, and files larger than 1 MiB; bounded skip counts and samples
-remain visible in report diagnostics.
+and binary formats. Files from 1–16 MiB are streamed. Generated, unreadable,
+larger, or budget-truncated runtime inputs are never treated as negative evidence:
+they add a global blocker, degraded health, and bounded provenance diagnostics.
 
 Dynamic inputs may provide `executed` or `nodes` entries with method IDs,
 `edges` with `caller_id`/`callee_id`, and an `observation` hash. SARIF and
@@ -266,6 +273,10 @@ Reports retain logical method names while the graph distinguishes repeated or
 reopened definitions with physical `definition_id` values. Graph consumers and
 custom analyzer authors upgrading to the structured resolution model should
 follow the [0.3.0 migration guide](docs/migrations/0.3.0.md).
+
+The adversarial disposition of every item in the implementation review is recorded
+in the [148-item implementation matrix](docs/impv_implementation_matrix.md). Explicit
+no-go decisions include measurable reconsideration gates rather than hidden backlog.
 
 The graph keeps one interned evidence store and derives `exact`, `conservative`,
 and scope-filtered `observed` edge views on demand. Normal analysis and the
