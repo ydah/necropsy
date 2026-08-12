@@ -151,6 +151,11 @@ RSpec.describe Necropsy::ConventionRules do
         field :decoy, String
         def decoy; end
       end
+      class StaticQueryType < GraphQL::Schema::Object
+        field :viewer, String
+        def viewer; end
+        def ordinary_dead; end
+      end
     RUBY
 
     with_project(files: { 'app/graphql/query_type.rb' => source },
@@ -160,11 +165,18 @@ RSpec.describe Necropsy::ConventionRules do
         scan.nodes.find { |node| node.graph_id == hint.node_id }&.symbol_id || hint.node_id
       end
 
-      expect(hinted_symbols).to include('QueryType#account', 'QueryType#display_profile')
+      expect(hinted_symbols).to include('QueryType#account', 'QueryType#display_profile', 'StaticQueryType#viewer')
       expect(hinted_symbols).not_to include('QueryType#unrelated', 'Unrelated#decoy')
       expect(scan.semantic_blockers).to include(
         have_attributes(kind: :graphql_field, scope_kind: :owner, scope_value: 'QueryType')
       )
+      report = Necropsy::Runner.new(root: root).analyze
+      expect(report.graph.entry_points.map(&:node_id)).to include(
+        scan.nodes.find { |node| node.symbol_id == 'StaticQueryType#viewer' }.graph_id
+      )
+      candidates = report.actionable_candidates.map { |finding| finding.node.symbol_id }
+      expect(candidates).to include('StaticQueryType#ordinary_dead')
+      expect(candidates).not_to include('StaticQueryType#viewer')
     end
   end
 
