@@ -39,7 +39,7 @@ RSpec.describe Necropsy::Configuration do
           analyzers: {
             static: %i[name_resolution],
             dynamic: { coverage: { source: 'coverage.yml', min_observation_days: 14 } },
-            custom: ['Company::Analyzer']
+            custom: [{ class: 'Company::Analyzer', trusted: true }]
           },
           analysis: { world: :library, load_roots: :all },
           entry_points: { extra: ['Company::*'] },
@@ -63,7 +63,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration).to be_library_world
         expect(configuration.load_roots).to eq(:all)
         expect(configuration.dynamic_config(:coverage)).to include('source' => 'coverage.yml')
-        expect(configuration.custom_analyzers).to eq(['Company::Analyzer'])
+        expect(configuration.custom_analyzers).to eq([{ 'class' => 'Company::Analyzer', 'trusted' => true }])
         expect(configuration.entry_point_patterns).to eq(['Company::*'])
         expect(configuration.fail_on).to eq(:medium)
         expect(configuration.baseline_path).to eq('tmp/baseline.yml')
@@ -308,6 +308,14 @@ RSpec.describe Necropsy::Configuration do
 
       it 'rejects the pattern' do
         expect { configuration }.to raise_error(Necropsy::Error, /Invalid implicit caller name_pattern/)
+      end
+    end
+
+    context 'with a custom analyzer lacking an explicit trust declaration' do
+      let(:config_data) { { analyzers: { custom: [{ class: 'Company::Analyzer' }] } } }
+
+      it 'rejects in-process execution' do
+        expect { configuration }.to raise_error(Necropsy::Error, /requires trusted: true/)
       end
     end
 

@@ -195,6 +195,25 @@ RSpec.describe Necropsy::ReferenceBarrier do
     end
   end
 
+  it 'fails closed when the aggregate reference scan time budget is exhausted' do
+    stub_const('Necropsy::ReferenceBarrier::MAX_SCAN_SECONDS', 0.0)
+    files = {
+      'lib/time_target.rb' => 'class TimeTarget; def hidden_reference; end; end',
+      'config/reference.txt' => "hidden_reference\n"
+    }
+    config = { cache: { enabled: false }, paths: { analyze: ['lib/**'], reference: ['**/*'] } }
+
+    with_project(files: files, config: config) do |root|
+      report = Necropsy::Runner.new(root: root).analyze
+      finding = report.findings.find { |candidate| candidate.node.name == 'hidden_reference' }
+
+      expect(finding).to have_attributes(classification: :blocked)
+      expect(report.analysis_health).to have_attributes(status: :degraded)
+      expect(report.diagnostics.dig('non_ruby_reference_barrier', 'skipped_counts')).to include('time_budget' => 1)
+      expect(report.diagnostics.dig('non_ruby_reference_barrier', 'time_budget_exceeded')).to be(true)
+    end
+  end
+
   it 'bounds stored matches per physical definition' do
     references = 8.times.map { |index| "item#{index}: bounded_reference" }.join("\n")
     files = {

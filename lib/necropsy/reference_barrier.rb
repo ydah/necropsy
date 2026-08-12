@@ -6,6 +6,7 @@ module Necropsy
     MAX_STREAM_FILE_BYTES = 16_777_216
     MAX_TOTAL_SCAN_BYTES = 67_108_864
     MAX_TOTAL_MATCHES = 10_000
+    MAX_SCAN_SECONDS = 5.0
     MAX_MATCHES_PER_DEFINITION = 5
     MAX_SNIPPET_BYTES = 240
     SKIPPED_SAMPLE_LIMIT = 50
@@ -16,15 +17,16 @@ module Necropsy
     GENERATED_PATH_PARTS = %w[generated dist].freeze
     TOOL_METADATA_BASENAMES = %w[.necropsy.yml .necropsy_baseline.yml].freeze
     GENERATED_MARKER = /(?:@generated|automatically generated|generated file|do not edit)/i
-    UNSAFE_SKIP_REASONS = %i[generated oversized unreadable scan_budget match_budget].freeze
+    UNSAFE_SKIP_REASONS = %i[generated oversized unreadable scan_budget match_budget time_budget].freeze
     COMMON_SHORT_NAMES = %w[call create destroy edit index new run show update].freeze
     REFERENCE_DSL_KEYS = %w[action callback command function handler method perform task].freeze
     TOKEN_PATTERN = /[A-Za-z_][A-Za-z0-9_]*(?:[!?=](?![A-Za-z0-9_]))?/
 
-    def initialize(graph:, project:, ignored_paths: [])
+    def initialize(graph:, project:, ignored_paths: [], monotonic_clock: nil)
       @graph = graph
       @project = project
       @ignored_paths = Array(ignored_paths).compact.to_set { |path| File.expand_path(path, project.root) }
+      @monotonic_clock = monotonic_clock || -> { Process.clock_gettime(Process::CLOCK_MONOTONIC) }
     end
 
     def apply(findings)
@@ -41,10 +43,13 @@ module Necropsy
       @bytes_scanned = 0
       @total_matches = 0
       @truncated_matches = 0
+      @scan_deadline = monotonic_time + MAX_SCAN_SECONDS
       files = project.non_ruby_reference_files
       unless candidates.empty?
         files.each do |file|
-          if @match_budget_exceeded
+          if time_budget_exceeded?
+            record_time_budget(project.relative_path(file))
+          elsif @match_budget_exceeded
             record_match_budget(project.relative_path(file))
           else
             scan_file(file)
@@ -120,9 +125,12 @@ module Necropsy
       @files_scanned += 1
       original_lines = source.lines
       searchable_source(source, relative).each_line.with_index(1) do |line, line_number|
+        break if time_budget_exceeded?
+
         scan_line(relative, line, line_number, display_line: original_lines.fetch(line_number - 1, line))
         break if @match_budget_exceeded
       end
+      record_time_budget(relative) if @time_budget_exceeded
       record_match_budget(relative) if @match_budget_exceeded
     rescue SystemCallError => e
       skip(relative || path.to_s, :unreadable, error: e.class.name)
@@ -146,10 +154,13 @@ module Necropsy
       @files_streamed += 1
       File.open(path, 'r:UTF-8') do |io|
         io.each_line.with_index(1) do |line, line_number|
+          break if time_budget_exceeded?
+
           scan_line(relative, searchable_source(line, relative), line_number, display_line: line)
           break if @match_budget_exceeded
         end
       end
+      record_time_budget(relative) if @time_budget_exceeded
       record_match_budget(relative) if @match_budget_exceeded
     end
 
@@ -352,6 +363,23 @@ module Necropsy
       skip(file, :match_budget)
     end
 
+    def record_time_budget(file)
+      return if @time_budget_recorded
+
+      @time_budget_recorded = true
+      skip(file, :time_budget)
+    end
+
+    def time_budget_exceeded?
+      return true if @time_budget_exceeded
+
+      @time_budget_exceeded = monotonic_time > @scan_deadline
+    end
+
+    def monotonic_time
+      Float(@monotonic_clock.call)
+    end
+
     def unsafe_skip?(file, reason)
       UNSAFE_SKIP_REASONS.include?(reason.to_sym) && reference_domain(file) == 'runtime'
     end
@@ -417,6 +445,8 @@ module Necropsy
         'files_scanned' => @files_scanned,
         'files_streamed' => @files_streamed,
         'bytes_scanned' => @bytes_scanned,
+        'time_budget_seconds' => MAX_SCAN_SECONDS,
+        'time_budget_exceeded' => @time_budget_exceeded == true,
         'matched_definitions' => matches.count { |_definition_id, entries| entries.any? },
         'matches' => matches.values.sum(&:length),
         'truncated_matches' => @truncated_matches,

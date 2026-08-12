@@ -235,7 +235,7 @@ RSpec.describe Necropsy::CLI do
       let(:project_root) do
         create_project(
           files: { 'app/sample.rb' => 'class CliHealth; def dead; end; end' },
-          config: { analyzers: { static: [], custom: ['CliFailingAnalyzer'] } }
+          config: { analyzers: { static: [], custom: [{ class: 'CliFailingAnalyzer', trusted: true }] } }
         )
       end
       let(:baseline_path) { File.join(project_root, '.necropsy_baseline.yml') }
@@ -303,7 +303,7 @@ RSpec.describe Necropsy::CLI do
       let(:project_root) do
         create_project(
           files: { 'app/sample.rb' => 'class CliDegraded; def dead; end; end' },
-          config: { analyzers: { static: [], custom: ['CliDegradedAnalyzer'] } }
+          config: { analyzers: { static: [], custom: [{ class: 'CliDegradedAnalyzer', trusted: true }] } }
         )
       end
       let(:baseline_path) { File.join(project_root, '.necropsy_baseline.yml') }
@@ -346,7 +346,7 @@ RSpec.describe Necropsy::CLI do
             files: {
               'app/sample.rb' => 'class CliAnalyzerTarget; def run = helper; def helper = :ok; end'
             },
-            config: { analyzers: { static: [], custom: [analyzer_name] } }
+            config: { analyzers: { static: [], custom: [{ class: analyzer_name, trusted: true }] } }
           )
           status = nil
 

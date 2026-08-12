@@ -302,8 +302,6 @@ module Necropsy
     end
 
     def custom_analyzer_definition(entry)
-      return [entry, nil] unless entry.is_a?(Hash)
-
       [entry.fetch('class'), entry['require']]
     end
 

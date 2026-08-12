@@ -225,7 +225,7 @@ RSpec.describe Necropsy::Runner do
   it 'loads custom analyzer classes from configuration' do
     with_project(
       files: { 'app/sample.rb' => 'class RunnerCustomSample; def dead; end; end' },
-      config: { analyzers: { static: [], custom: ['RunnerSpecAnalyzer'] } }
+      config: { analyzers: { static: [], custom: [{ class: 'RunnerSpecAnalyzer', trusted: true }] } }
     ) do |root|
       report = described_class.new(root: root).analyze
 
@@ -270,7 +270,7 @@ RSpec.describe Necropsy::Runner do
   end
 
   it 'raises a Necropsy error for missing custom analyzers' do
-    with_project(config: { analyzers: { custom: ['MissingAnalyzer'] } }) do |root|
+    with_project(config: { analyzers: { custom: [{ class: 'MissingAnalyzer', trusted: true }] } }) do |root|
       expect { described_class.new(root: root).analyze }.to raise_error(
         Necropsy::Error,
         /Could not load custom analyzer MissingAnalyzer/
@@ -290,7 +290,7 @@ RSpec.describe Necropsy::Runner do
       config: {
         analyzers: {
           static: [],
-          custom: [{ class: 'RequiredRunnerAnalyzer', require: 'config/required_analyzer.rb' }]
+          custom: [{ class: 'RequiredRunnerAnalyzer', require: 'config/required_analyzer.rb', trusted: true }]
         }
       }
     ) do |root|

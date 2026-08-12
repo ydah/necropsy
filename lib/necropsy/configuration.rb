@@ -43,6 +43,7 @@ module Necropsy
     }.freeze
     DYNAMIC_KEYS = %w[source min_observation_days expected_source_revision keys key pattern connect_timeout read_timeout].freeze
     IMPLICIT_CALLER_KEYS = %w[name_pattern owner_ancestors reason].freeze
+    CUSTOM_ANALYZER_KEYS = %w[class require trusted].freeze
 
     attr_reader :root, :path, :data
 
@@ -411,11 +412,11 @@ module Necropsy
 
     def validate_custom_analyzers!
       custom_analyzers.each do |entry|
-        next if entry.is_a?(String)
-        raise Error, 'Each custom analyzer must be a class name or a mapping with class and require' unless entry.is_a?(Hash)
+        raise Error, 'Each custom analyzer must be a mapping with class and trusted: true' unless entry.is_a?(Hash)
 
-        validate_hash_keys(entry, %w[class require], 'custom analyzer')
+        validate_hash_keys(entry, CUSTOM_ANALYZER_KEYS, 'custom analyzer')
         raise Error, 'Custom analyzer mapping requires class' unless entry['class']
+        raise Error, 'Custom analyzer execution requires trusted: true' unless entry['trusted'] == true
       end
     end
 

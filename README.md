@@ -170,6 +170,7 @@ analyzers:
   custom:
     - class: "MyCompany::GraphqlEntryAnalyzer"
       require: "config/necropsy/graphql_entry_analyzer"
+      trusted: true # executes Ruby in the Necropsy process
 rta:
   pruning: rank_only # use legacy only for temporary compatibility with pre-0.2.1 edge pruning
 cache:
