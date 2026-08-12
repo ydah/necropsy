@@ -118,6 +118,19 @@ RSpec.describe Necropsy::Configuration do
       end
     end
 
+    context 'with non-Rails framework dependencies' do
+      let(:files) do
+        {
+          'Gemfile.lock' => "    rubocop (1.80.0)\n    sidekiq (8.0.0)\n",
+          'lib/example.rb' => ''
+        }
+      end
+
+      it 'detects statically supported frameworks from dependency artifacts' do
+        expect(configuration.frameworks).to include('rubocop', 'sidekiq')
+      end
+    end
+
     it 'does not auto-detect Rails through a Gemfile.lock symlink outside the repository' do
       Dir.mktmpdir do |outside|
         outside_gemfile = File.join(outside, 'Gemfile.lock')

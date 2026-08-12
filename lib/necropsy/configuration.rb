@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'yaml'
+require 'pathname'
 
 module Necropsy
   class Configuration
@@ -10,6 +11,15 @@ module Necropsy
     QUARANTINE_EXPIRY_POLICIES = %w[warn fail ignore].freeze
     WORLD_MODES = %w[application library].freeze
     LOAD_ROOT_POLICIES = %w[known all].freeze
+    FRAMEWORK_GEMS = {
+      'rails' => 'rails',
+      'rubocop' => 'rubocop',
+      'sidekiq' => 'sidekiq',
+      'graphql' => 'graphql',
+      'view_component' => 'view_component',
+      'active_model_serializers' => 'active_model_serializers',
+      'blueprinter' => 'blueprinter'
+    }.freeze
     TOP_LEVEL_KEYS = %w[
       analysis analyzers frameworks entry_points ci quarantine bench cache rta resolution paths report logging
       implicit_callers
@@ -85,18 +95,17 @@ module Necropsy
       Array(fetch('entry_points', 'extra')).compact.map(&:to_s)
     end
 
-    def frameworks
-      Array(data['frameworks']).map(&:to_s)
+    def frameworks(reference_files: nil)
+      return @frameworks if defined?(@frameworks)
+
+      reference_files ||= Project.new(root: root, config: self).reference_files
+      configured = Array(data['frameworks']).map(&:to_s)
+      @frameworks = (configured + detected_frameworks(reference_files)).uniq.sort.freeze
     end
 
     def rails_enabled?(reference_files: nil)
-      return true if frameworks.include?('rails')
-
       reference_files ||= Project.new(root: root, config: self).reference_files
-      gemfiles = reference_files.select do |file|
-        %w[Gemfile.lock Gemfile].include?(relative_root_file(file))
-      end
-      gemfiles.any? { |file| File.exist?(file) && File.read(file).match?(/(?:^|\s)rails(?:\s|\z|,)/) }
+      frameworks(reference_files: reference_files).include?('rails')
     end
 
     def baseline_path
@@ -233,13 +242,25 @@ module Necropsy
 
     private
 
-    def relative_root_file(file)
-      expanded = File.expand_path(file)
-      return unless File.dirname(expanded) == root
+    def detected_frameworks(reference_files)
+      dependency_files = reference_files.select do |file|
+        relative = relative_path_from_root(file)
+        %w[Gemfile Gemfile.lock].include?(relative) || relative.end_with?('.gemspec')
+      end
+      contents = dependency_files.filter_map do |file|
+        File.read(file) if File.file?(file)
+      rescue SystemCallError, EncodingError
+        nil
+      end.join("\n")
+      FRAMEWORK_GEMS.filter_map do |gem_name, framework|
+        framework if contents.match?(/\b#{Regexp.escape(gem_name)}\b/)
+      end
+    end
 
-      File.basename(expanded)
+    def relative_path_from_root(file)
+      Pathname.new(File.expand_path(file)).relative_path_from(Pathname.new(root)).to_s
     rescue ArgumentError
-      nil
+      file.to_s
     end
 
     def fetch(*keys)

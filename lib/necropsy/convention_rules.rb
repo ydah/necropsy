@@ -54,7 +54,7 @@ module Necropsy
     MAX_RULES = 32
 
     def initialize(rules: BUILT_IN)
-      @rules = Array(rules).first(MAX_RULES).freeze
+      @rules = Array(rules).freeze
       validate_rules!
     end
 
