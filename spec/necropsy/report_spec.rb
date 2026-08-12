@@ -29,6 +29,16 @@ RSpec.describe Necropsy::Report do
       'fingerprint' => match(/legacy logical/),
       'physical_fingerprint' => match(/physical definition/)
     )
+    expect(report.to_h.fetch('artifact_provenance')).to eq(
+      'producer' => { 'name' => 'necropsy', 'version' => Necropsy::VERSION },
+      'runtime' => {
+        'ruby_engine' => RUBY_ENGINE,
+        'ruby_version' => RUBY_VERSION,
+        'prism_version' => Prism::VERSION
+      },
+      'identity_schemas' => { 'definition' => 1, 'call_site' => 1 },
+      'inputs' => { 'configuration_sha256' => 'unavailable' }
+    )
     expect(report.to_h).not_to have_key('graph')
     expect(report.to_h(include_graph: true)).to include('graph' => include('nodes'))
     expect(JSON.parse(JSON.generate('report' => report))).to include('report' => include('root' => '/repo'))

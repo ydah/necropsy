@@ -19,6 +19,11 @@ module Necropsy
       @call_sites = scan_result.call_sites
       @instantiated_classes = scan_result.instantiated_classes.dup
       @class_infos = scan_result.class_infos.to_h { |info| [info.id, info] }
+      @direct_subclasses = Hash.new { |hash, key| hash[key] = [] }
+      @class_infos.each_value do |info|
+        @direct_subclasses[info.superclass] << info.id if info.superclass
+      end
+      @direct_subclasses.each_value(&:sort!)
       @entrypoint_hints = scan_result.entrypoint_hints
       @file_statuses = scan_result.file_statuses.to_h do |file, status|
         [file.to_s, status.to_sym]
@@ -300,8 +305,20 @@ module Necropsy
     end
 
     def descendants_of(owner)
-      @descendants[owner] ||= class_infos.keys.select do |candidate|
-        candidate == owner || ancestor_chain(candidate).include?(owner)
+      @descendants[owner] ||= begin
+        descendants = []
+        queue = class_infos.key?(owner) ? [owner] : []
+        seen = Set.new
+        head = 0
+        while head < queue.length
+          candidate = queue.fetch(head)
+          head += 1
+          next unless seen.add?(candidate)
+
+          descendants << candidate
+          queue.concat(@direct_subclasses.fetch(candidate, []))
+        end
+        descendants.freeze
       end
     end
 

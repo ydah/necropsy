@@ -5,7 +5,8 @@ require_relative 'definition_identity/canonical_digest'
 
 module Necropsy
   module DefinitionIdentity
-    PREFIX = 'def:v1'
+    VERSION = 1
+    PREFIX = "def:v#{VERSION}".freeze
     EXCLUDED_KEYS = %i[node_id location flags].freeze
 
     module_function
@@ -19,6 +20,11 @@ module Necropsy
       raise ArgumentError, 'definition ordinal must be positive' unless ordinal.positive?
 
       payload = [kind.to_s, symbol_id.to_s, relative_path.to_s, body_digest.to_s, ordinal]
+      "#{PREFIX}:#{CanonicalDigest.new.hexdigest_payload(payload)}"
+    end
+
+    def file_root_id(relative_path:)
+      payload = ['file_root', relative_path.to_s]
       "#{PREFIX}:#{CanonicalDigest.new.hexdigest_payload(payload)}"
     end
 

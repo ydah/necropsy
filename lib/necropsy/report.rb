@@ -2,6 +2,7 @@
 
 require 'json'
 require 'yaml'
+require 'digest'
 
 module Necropsy
   class Report
@@ -64,6 +65,7 @@ module Necropsy
     def to_h(include_graph: false)
       payload = {
         'schema_version' => SCHEMA_VERSION,
+        'artifact_provenance' => artifact_provenance,
         'compatibility' => { 'finding_fingerprints' => FINGERPRINT_COMPATIBILITY },
         'root' => root,
         'analysis_health' => analysis_health.to_h,
@@ -117,6 +119,8 @@ module Necropsy
       result['non_ruby_reference_barrier'] = reference_barrier if reference_barrier
       result['source_incompleteness'] = graph.source_incompleteness if graph.incomplete_files.any?
       result['analysis_scope'] = graph.scope_diagnostics unless graph.scope_diagnostics.empty?
+      unrooted = graph.observation['unrooted_load_units']
+      result['unrooted_load_units'] = unrooted if unrooted && unrooted['count'].positive?
       result['performance'] = performance_profile if performance_profile
       result
     end
@@ -124,6 +128,32 @@ module Necropsy
     private
 
     attr_reader :report_include_paths, :report_exclude_paths
+
+    def artifact_provenance
+      {
+        'producer' => { 'name' => 'necropsy', 'version' => Necropsy::VERSION },
+        'runtime' => {
+          'ruby_engine' => RUBY_ENGINE,
+          'ruby_version' => RUBY_VERSION,
+          'prism_version' => Prism::VERSION
+        },
+        'identity_schemas' => {
+          'definition' => DefinitionIdentity::VERSION,
+          'call_site' => CallSiteIdentity::VERSION
+        },
+        'inputs' => {
+          'configuration_sha256' => configuration_digest
+        }
+      }
+    end
+
+    def configuration_digest
+      return 'unavailable' unless project
+
+      Digest::SHA256.hexdigest(BoundedCanonicalizer.dump(project.config.scan_cache_key))
+    rescue BoundedCanonicalizer::Error, SystemStackError
+      'unavailable'
+    end
 
     def reported_findings
       @reported_findings ||= findings.select do |finding|

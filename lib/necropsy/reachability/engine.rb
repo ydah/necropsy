@@ -82,9 +82,11 @@ module Necropsy
         visited = {}
         queue = roots.compact.uniq.select { |node_id| traversable_in_domain?(node_id, domain) }
         queue.each { |node_id| visited[node_id] = nil }
+        head = 0
 
-        until queue.empty?
-          node_id = queue.shift
+        while head < queue.length
+          node_id = queue.fetch(head)
+          head += 1
           graph.edges_from(node_id, projection: projection, scope: scope).each_key do |callee_id|
             next if visited.key?(callee_id)
             next unless traversable_in_domain?(callee_id, domain)

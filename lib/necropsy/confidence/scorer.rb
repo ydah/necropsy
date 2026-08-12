@@ -168,9 +168,11 @@ module Necropsy
           roots = graph.method_nodes.reject(&:test).select { |node| implicit_call_reason(node) }.map(&:graph_id)
           paths = roots.to_h { |node_id| [node_id, node_id] }
           queue = roots.dup
+          head = 0
 
-          until queue.empty?
-            node_id = queue.shift
+          while head < queue.length
+            node_id = queue.fetch(head)
+            head += 1
             graph.edges_from(node_id).each_key do |callee_id|
               next if paths.key?(callee_id)
 

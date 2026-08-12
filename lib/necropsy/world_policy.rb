@@ -12,6 +12,7 @@ module Necropsy
     def apply
       protect_library_surface if config.library_world?
       add_conservative_load_roots if config.load_roots == :all
+      LoadGraph.new(graph: graph, project: project).apply
       record_policy
     end
 

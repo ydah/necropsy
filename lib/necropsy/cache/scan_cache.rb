@@ -7,7 +7,7 @@ require 'digest'
 module Necropsy
   module Cache
     class ScanCache
-      VERSION = 12
+      VERSION = 13
 
       def initialize(project:)
         @project = project
@@ -92,7 +92,15 @@ module Necropsy
         {
           'files' => file_metadata(files),
           'inventory' => project.scan_inventory_key,
-          'configuration' => project.config.scan_cache_key
+          'configuration' => project.config.scan_cache_key,
+          'environment' => {
+            'necropsy_version' => Necropsy::VERSION,
+            'ruby_engine' => RUBY_ENGINE,
+            'ruby_version' => RUBY_VERSION,
+            'prism_version' => Prism::VERSION,
+            'definition_identity_version' => DefinitionIdentity::VERSION,
+            'call_site_identity_version' => CallSiteIdentity::VERSION
+          }
         }
       end
 

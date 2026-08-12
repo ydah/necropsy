@@ -115,6 +115,14 @@ RSpec.describe Necropsy::DefinitionIdentity do
     expect(second).not_to eq(first)
   end
 
+  it 'uses only the source path for a file root identity' do
+    first = described_class.file_root_id(relative_path: 'lib/first.rb')
+
+    expect(first).to match(/\Adef:v1:[0-9a-f]{64}\z/)
+    expect(described_class.file_root_id(relative_path: 'lib/first.rb')).to eq(first)
+    expect(described_class.file_root_id(relative_path: 'lib/second.rb')).not_to eq(first)
+  end
+
   it 'rejects non-positive ordinals' do
     expect do
       described_class.definition_id(

@@ -9,16 +9,21 @@ module Necropsy
       body_digest = DefinitionIdentity.body_digest(source_node)
       ordinal_key = [kind, symbol_id, context.relative_file, body_digest]
       ordinal = definition_ordinals[ordinal_key] += 1
+      definition_id = if defined_via == :file
+                        DefinitionIdentity.file_root_id(relative_path: context.relative_file)
+                      else
+                        DefinitionIdentity.definition_id(
+                          kind: kind,
+                          symbol_id: symbol_id,
+                          relative_path: context.relative_file,
+                          body_digest: body_digest,
+                          ordinal: ordinal
+                        )
+                      end
       definition = Node.new(
         id: symbol_id,
         symbol_id: symbol_id,
-        definition_id: DefinitionIdentity.definition_id(
-          kind: kind,
-          symbol_id: symbol_id,
-          relative_path: context.relative_file,
-          body_digest: body_digest,
-          ordinal: ordinal
-        ),
+        definition_id: definition_id,
         body_digest: body_digest,
         ordinal: ordinal,
         kind: kind,

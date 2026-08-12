@@ -24,6 +24,8 @@ module Necropsy
         compact_receiver_fact(context.flow_result&.fact_for(argument))
       end
       metadata['argument_value_facts'] = argument_facts if argument_facts.any?
+      load_reference = load_reference_metadata(node)
+      metadata['load_reference'] = load_reference if load_reference
 
       if DYNAMIC_SENDS.include?(node.name)
         literal = literal_argument(node, index: 0)
@@ -56,6 +58,26 @@ module Necropsy
       return [] unless fact&.exact && %i[symbol_set string_set].include?(fact.kind)
 
       Array(fact.values).map(&:to_s).uniq.sort.first(FlowInterpreter::MAX_ATOMS)
+    end
+
+    def load_reference_metadata(node)
+      argument_index = case node.name
+                       when :require, :require_relative then 0
+                       when :autoload then 1
+                       else return
+                       end
+      return unless load_primitive_receiver?(node)
+
+      path = literal_argument(node, index: argument_index)
+      { 'kind' => node.name.to_s, 'literal' => !path.nil?, 'path' => path }.compact
+    end
+
+    def load_primitive_receiver?(node)
+      return true unless node.receiver
+      return true if node.receiver.is_a?(Prism::SelfNode)
+
+      receiver = constant_name(node.receiver)
+      node.name == :autoload ? !receiver.nil? : receiver == 'Kernel'
     end
 
     def compact_receiver_fact(fact)

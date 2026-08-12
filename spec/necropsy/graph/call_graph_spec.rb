@@ -1,6 +1,15 @@
 # frozen_string_literal: true
 
 RSpec.describe Necropsy::CallGraph do
+  it 'bounds reverse subclass traversal when invalid source ancestry is cyclic' do
+    graph = graph_with(
+      nodes: [],
+      class_infos: [class_info('First', superclass: 'Second'), class_info('Second', superclass: 'First')]
+    )
+
+    expect(graph.descendants_of('First')).to contain_exactly('First', 'Second')
+  end
+
   def unresolved_blocker(message:, scope_kind: :message, scope_value: message, domain: :runtime,
                          receiver_kind: :unknown, caller_kind: :instance_method, original_message: nil,
                          include_private: nil, scope_match: :exact)

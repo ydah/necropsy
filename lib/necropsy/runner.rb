@@ -47,6 +47,7 @@ module Necropsy
       end
 
       reachability = measure_phase(profiler, 'reachability_engine') { Reachability::Engine.new(graph).call }
+      LoadGraph.record_unrooted_units(graph: graph, reachability: reachability)
       findings = measure_phase(profiler, 'scoring') do
         scorer = Confidence::Scorer.new(graph: graph, reachability: reachability, project: project)
         scorer.findings

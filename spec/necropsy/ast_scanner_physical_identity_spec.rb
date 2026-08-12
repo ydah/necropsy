@@ -226,6 +226,17 @@ RSpec.describe Necropsy::AstScanner do
     end
   end
 
+  it 'keeps a file root id path-stable while retaining its changing content digest' do
+    with_project(files: { 'lib/load_unit.rb' => "VALUE = 1\n" }) do |root|
+      first = definitions(scan_in_order(root, ['lib/load_unit.rb']), 'file:lib/load_unit.rb').fetch(0)
+      write_project_file(root, 'lib/load_unit.rb', "VALUE = 2\n")
+      second = definitions(scan_in_order(root, ['lib/load_unit.rb']), 'file:lib/load_unit.rb').fetch(0)
+
+      expect(second.definition_id).to eq(first.definition_id)
+      expect(second.body_digest).not_to eq(first.body_digest)
+    end
+  end
+
   it 'is deterministic across input order and cache round trips' do
     files = {
       'lib/a.rb' => "class Ordered\n  def call\n    from_a\n  end\nend\n",
