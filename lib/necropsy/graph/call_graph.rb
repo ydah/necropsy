@@ -1098,6 +1098,7 @@ module Necropsy
 
     def private_target_rejected?(site, target)
       return false unless target.visibility == :private
+      return false if site.metadata['implicit_private_dispatch'] == true
       return false if %i[implicit self super].include?(site.receiver_kind)
 
       original = site.metadata['original_message'] || site.metadata[:original_message]

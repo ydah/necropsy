@@ -157,6 +157,38 @@ RSpec.describe Necropsy::Analyzers::Static::RTA do
       expect(analyzer.implicit_sites(user_call)).to be_empty
     end
 
+    it 'derives reflection hook dispatch unless the receiver overrides the public operation' do
+      caller = node('Caller#run', owner: 'Caller', name: 'run')
+      hook = node('Reflective#respond_to_missing?', owner: 'Reflective', name: 'respond_to_missing?',
+                                                    visibility: :private)
+      reflection = call_site(
+        caller_id: caller.graph_id,
+        message: 'respond_to?',
+        receiver_kind: :instance,
+        receiver_name: 'Reflective',
+        metadata: { 'receiver_candidates' => ['Reflective'], 'include_private' => false }
+      )
+      reflection_graph = graph_with(
+        nodes: [caller, hook], call_sites: [reflection],
+        class_infos: [class_info('Reflective')], instantiated_classes: Set['Reflective']
+      )
+
+      result = analyzer.analyze(reflection_graph, nil)
+      derived = result.derived_call_sites.find { |candidate| candidate.message == 'respond_to_missing?' }
+
+      expect(derived.metadata).to include('implicit_private_dispatch' => true)
+      expect(result.edge_evidences.map(&:callee_id)).to include(hook.graph_id)
+
+      override = node('Reflective#respond_to?', owner: 'Reflective', name: 'respond_to?')
+      override_graph = graph_with(
+        nodes: [caller, hook, override], call_sites: [reflection],
+        class_infos: [class_info('Reflective')], instantiated_classes: Set['Reflective']
+      )
+      expect(analyzer.analyze(override_graph, nil).derived_call_sites.map(&:message)).not_to include(
+        'respond_to_missing?'
+      )
+    end
+
     it 'does not iterate for blockless Enumerable calls that return an Enumerator' do
       blockless = call_site(
         caller_id: 'Caller#run', message: 'map', receiver_kind: :instance, receiver_name: 'Array',

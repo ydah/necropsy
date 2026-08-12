@@ -16,6 +16,7 @@ module Necropsy
         CORE_ENUMERABLE_RECEIVERS = %w[Array Enumerator Hash Range Set].freeze
         CORE_COMPARISON_RECEIVERS = %w[Array].freeze
         KERNEL_OUTPUT_MESSAGES = %w[print puts warn].freeze
+        REFLECTION_HOOK_MESSAGES = %w[method respond_to?].freeze
         BLOCK_DEPENDENT_ENUMERABLE_MESSAGES = %w[
           all? any? chunk collect cycle detect drop_while each_cons each_entry each_slice
           each_with_index each_with_object filter find find_all flat_map group_by
@@ -124,6 +125,7 @@ module Necropsy
           summaries << ['each', :same_receiver] if core_enumerable_receiver?(site) && enumerable_protocol?(site)
           summaries.concat(comparison_summaries(site)) if core_comparison_receiver?(site)
           summaries.concat(output_summaries(site)) if kernel_output_call?(site, graph)
+          summaries << ['respond_to_missing?', :same_receiver] if reflection_hook_call?(site, graph)
           summaries.map.with_index do |(message, receiver), index|
             derived_protocol_site(site, message, receiver, index: index)
           end
@@ -160,7 +162,9 @@ module Necropsy
               'protocol_receiver' => receiver_label,
               'derived_from_call_site_id' => site.call_site_id,
               'derived_via' => 'rta_implicit'
-            )
+            ).tap do |metadata|
+              metadata['implicit_private_dispatch'] = true if message == 'respond_to_missing?'
+            end
           )
         end
 
@@ -254,6 +258,13 @@ module Necropsy
           return true unless graph
 
           graph.method_lookup(site).targets.empty?
+        end
+
+        def reflection_hook_call?(site, graph)
+          return false unless REFLECTION_HOOK_MESSAGES.include?(site.message)
+          return true unless graph
+
+          graph.cha_method_lookup(site).targets.none? { |target| target.name == site.message }
         end
 
         def rta_candidates(graph, site)

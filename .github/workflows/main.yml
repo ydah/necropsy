@@ -37,6 +37,31 @@ jobs:
       - name: Run the default task
         run: bundle exec rake spec
 
+  prism-minimum:
+    runs-on: ubuntu-latest
+    name: Ruby 3.2 / Prism 1.0
+    env:
+      BUNDLE_GEMFILE: gemfiles/prism_min.gemfile
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Ruby and minimum Prism
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+          bundler-cache: true
+      - name: Verify identity, lookup, blockers, report schema, and semantics inventory
+        run: >-
+          bundle exec rspec
+          spec/necropsy/definition_identity_spec.rb
+          spec/necropsy/call_site_identity_spec.rb
+          spec/necropsy/core_method_lookup_spec.rb
+          spec/necropsy/parse_incompleteness_spec.rb
+          spec/necropsy/report_schema_spec.rb
+          spec/necropsy/semantics_matrix_spec.rb
+
   lint:
     runs-on: ubuntu-latest
     steps:
