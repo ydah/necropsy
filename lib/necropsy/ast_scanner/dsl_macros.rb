@@ -156,13 +156,23 @@ module Necropsy
       when :enum
         enum_name = names.first
         enum_values = keyword_keys(node)
-        add_generated_methods(context, [enum_name, "#{enum_name}=", *enum_values.map { |name| "#{name}?" }], node)
+        add_generated_methods(
+          context,
+          [enum_name, "#{enum_name}=", *enum_values.flat_map { |name| ["#{name}?", "#{name}!"] }],
+          node
+        )
       when :store_accessor
         add_generated_methods(context, names.drop(1).flat_map { |name| [name, "#{name}="] }, node)
-      else
+      when :belongs_to, :has_one
         names.each do |name|
-          add_generated_methods(context, [name, "#{name}=", "build_#{name}", "create_#{name}"], node)
+          add_generated_methods(
+            context,
+            [name, "#{name}=", "build_#{name}", "create_#{name}", "create_#{name}!", "reload_#{name}", "reset_#{name}"],
+            node
+          )
         end
+      when :has_many
+        names.each { |name| add_generated_methods(context, [name, "#{name}="], node) }
       end
       true
     end
@@ -181,7 +191,7 @@ module Necropsy
           kind: kind,
           source_node: source_node,
           context: context,
-          defined_via: :rails_generated,
+          defined_via: :"rails_#{source_node.name}",
           owner: context.owner,
           name: name,
           visibility: :public

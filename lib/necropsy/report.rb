@@ -131,6 +131,8 @@ module Necropsy
       result['analysis_scope'] = graph.scope_diagnostics unless graph.scope_diagnostics.empty?
       unrooted = graph.observation['unrooted_load_units']
       result['unrooted_load_units'] = unrooted if unrooted && unrooted['count'].positive?
+      generated_macros = graph.observation['rails_generated_macros']
+      result['rails_generated_macros'] = generated_macros if generated_macros
       result['performance'] = performance_profile if performance_profile
       result
     end

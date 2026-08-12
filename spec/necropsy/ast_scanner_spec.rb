@@ -466,10 +466,13 @@ RSpec.describe Necropsy::AstScanner do
 
       it 'keeps generated method declarations owner-scoped' do
         names = scan.nodes.filter_map do |node|
-          node.name if node.owner == 'GeneratedRecord' && node.defined_via == :rails_generated
+          node.name if node.owner == 'GeneratedRecord' && node.defined_via.to_s.start_with?('rails_')
         end
 
-        expect(names).to include('status', 'status=', 'draft?', 'published?', 'color', 'color=', 'account', 'account=')
+        expect(names).to include(
+          'status', 'status=', 'draft?', 'draft!', 'published?', 'published!', 'color', 'color=',
+          'account', 'account=', 'build_account', 'create_account', 'create_account!', 'reload_account', 'reset_account'
+        )
       end
     end
 

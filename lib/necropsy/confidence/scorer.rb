@@ -33,6 +33,7 @@ module Necropsy
         graph.method_nodes.filter_map do |node|
           next if node.test
           next unless graph.analyze_source?(node.file)
+          next if rails_generated?(node)
 
           blockers = graph.matching_blockers(node)
           classification = classification_for(node, blockers)
@@ -142,6 +143,10 @@ module Necropsy
 
       def generated_accessor?(node)
         %i[attr_reader attr_writer attr_accessor struct_new data_define].include?(node.defined_via)
+      end
+
+      def rails_generated?(node)
+        node.defined_via.to_s.start_with?('rails_')
       end
 
       def implicit_call_reason(node)

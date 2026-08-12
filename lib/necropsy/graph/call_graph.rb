@@ -44,6 +44,7 @@ module Necropsy
       end
       @dynamic_alive = {}
       @observation = {}
+      record_generated_macro_observation(scan_result.nodes)
       initialize_resolution_store
       @descendants = {}
       @rta_instantiated_owner_cache = {}
@@ -74,6 +75,28 @@ module Necropsy
       refresh_resolution_derived_state
       added
     end
+
+    def record_generated_macro_observation(scanned_nodes)
+      groups = scanned_nodes.select { |node| node.defined_via.to_s.start_with?('rails_') }.group_by do |node|
+        [node.file, node.line, node.owner, node.defined_via.to_s]
+      end
+      return if groups.empty?
+
+      observation['rails_generated_macros'] = {
+        'count' => groups.length,
+        'generated_method_count' => groups.values.sum(&:length),
+        'macros' => groups.sort_by(&:first).map do |(file, line, owner, macro), nodes|
+          {
+            'file' => file,
+            'line' => line,
+            'owner' => owner,
+            'macro' => macro.delete_prefix('rails_'),
+            'generated_methods' => nodes.map(&:name).uniq.sort
+          }
+        end
+      }
+    end
+    private :record_generated_macro_observation
 
     def add_entry_point(node_id, reason, domain: nil, evidence: nil)
       resolve_definitions(node_id).each do |definition|
