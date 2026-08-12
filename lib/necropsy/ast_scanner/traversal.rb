@@ -186,13 +186,7 @@ module Necropsy
         end
       ).analyze(node.body)
       method_context.flow_result.issues.each do |issue|
-        record_semantic_blocker(
-          :flow_budget,
-          node,
-          method_context,
-          "forward value analysis stopped at #{issue}",
-          suggested_action: :review_value_flow
-        )
+        uncertainties[definition.graph_id] << "Forward value analysis stopped at #{issue}; affected calls use conservative lookup"
       end
       visit_default_parameters(node.parameters, method_context)
       visit(node.body, method_context)

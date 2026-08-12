@@ -25,6 +25,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.include_paths).to eq([])
         expect(configuration.analyze_paths).to eq([])
         expect(configuration.reference_paths).to eq(['**/*'])
+        expect(configuration.test_paths).to eq(%w[spec/** test/**])
         expect(configuration.exclude_paths).to eq([])
         expect(configuration.report_include_paths).to eq([])
         expect(configuration.report_exclude_paths).to eq([])
@@ -51,7 +52,7 @@ RSpec.describe Necropsy::Configuration do
           implicit_callers: [
             { name_pattern: '^on_', owner_ancestors: ['Framework::Base'], reason: 'framework callback' }
           ],
-          paths: { analyze: ['lib/**'], reference: ['**/*'] },
+          paths: { analyze: ['lib/**'], reference: ['**/*'], test: ['features/**'] },
           report: { include: ['app/**'], exclude: ['app/legacy/**'] }
         }
       end
@@ -84,6 +85,7 @@ RSpec.describe Necropsy::Configuration do
         expect(configuration.analyze_paths).to eq(['lib/**'])
         expect(configuration.include_paths).to eq(['lib/**'])
         expect(configuration.reference_paths).to eq(['**/*'])
+        expect(configuration.test_paths).to eq(['features/**'])
         expect(configuration.report_include_paths).to eq(['app/**'])
         expect(configuration.report_exclude_paths).to eq(['app/legacy/**'])
       end

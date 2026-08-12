@@ -207,4 +207,26 @@ RSpec.describe Necropsy::Project do
       expect(project.test_file?(File.join(root, 'app/example.rb'))).to eq(false)
     end
   end
+
+  it 'uses configured test paths for nonstandard and nested test suites' do
+    with_project(
+      files: {
+        'features/steps.rb' => '',
+        'engines/billing/features/support.rb' => '',
+        'spec/example_spec.rb' => '',
+        'app/example.rb' => ''
+      },
+      config: { paths: { test: ['features/**', 'engines/*/features/**'] } }
+    ) do |root|
+      project = project_for(root)
+
+      expect(project.test_file?(File.join(root, 'features/steps.rb'))).to eq(true)
+      expect(project.test_file?(File.join(root, 'engines/billing/features/support.rb'))).to eq(true)
+      expect(project.test_file?(File.join(root, 'spec/example_spec.rb'))).to eq(false)
+      expect(project.test_file?(File.join(root, 'app/example.rb'))).to eq(false)
+      expect(project.scan_result.nodes.select(&:test).map(&:file)).to contain_exactly(
+        'engines/billing/features/support.rb', 'features/steps.rb'
+      )
+    end
+  end
 end

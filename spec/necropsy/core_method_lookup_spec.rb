@@ -390,6 +390,33 @@ RSpec.describe 'core Ruby method lookup conformance' do
     expect(result.rejected_targets).to eq([])
   end
 
+  it 'dispatches an unresolved known-receiver message to method_missing' do
+    caller = node('Caller#run', owner: 'Caller', name: 'run')
+    missing = node('Fallback#method_missing', owner: 'Fallback', name: 'method_missing', visibility: :private)
+    site = call_site(caller_id: caller.graph_id, message: 'unknown_message', receiver_kind: :instance,
+                     receiver_name: 'Host')
+    graph = graph_with(
+      nodes: [caller, missing],
+      class_infos: [class_info('Fallback', kind: :module), class_info('Host', includes: ['Fallback'])]
+    )
+
+    result = graph.method_lookup(site)
+
+    expect(result).to have_attributes(status: :complete, targets: [missing], reason: 'instance_lookup_method_missing')
+  end
+
+  it 'does not fall back from singleton self dispatch to an instance method' do
+    caller = node('Host.run', owner: 'Host', name: 'run', kind: :singleton_method)
+    instance_target = node('Other#helper', owner: 'Other', name: 'helper')
+    site = call_site(caller_id: caller.graph_id, message: 'helper', receiver_kind: :self, receiver_name: 'Host')
+    graph = graph_with(
+      nodes: [caller, instance_target],
+      class_infos: [class_info('Host'), class_info('Other')]
+    )
+
+    expect(graph.method_lookup(site)).to have_attributes(status: :unknown, targets: [])
+  end
+
   it 'keeps lookup output deterministic when definitions and class metadata arrive in different orders' do
     caller = node('Caller#run', owner: 'Caller', name: 'run')
     first = node('Mix#render', owner: 'Mix', name: 'render', definition_id: 'def:v1:b', line: 9)

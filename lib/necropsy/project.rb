@@ -223,7 +223,7 @@ module Necropsy
     end
 
     def test_source_path?(relative)
-      relative.start_with?('spec/', 'test/')
+      config.test_paths.any? { |pattern| path_matches?(pattern, relative) }
     end
 
     def repository_files
@@ -396,7 +396,7 @@ module Necropsy
 
     def potential_entry_point_path?(relative)
       relative == 'Rakefile' || relative == 'config/routes.rb' ||
-        relative.start_with?('bin/', 'exe/', 'spec/', 'test/') ||
+        relative.start_with?('bin/', 'exe/') || test_source_path?(relative) ||
         relative.end_with?('.rake', '.gemspec')
     end
   end

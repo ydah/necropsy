@@ -285,12 +285,13 @@ RSpec.describe Necropsy::Confidence::Scorer do
 
     context 'with methods invoked implicitly' do
       let(:protocol) { node('Sample#to_s', name: 'to_s') }
+      let(:ordinary_each) { node('Sample#each', name: 'each') }
       let(:callback) { node('FrameworkCallback#on_send', owner: 'FrameworkCallback', name: 'on_send') }
       let(:callback_helper) { node('FrameworkCallback#helper', owner: 'FrameworkCallback', name: 'helper') }
       let(:rubocop_callback) { node('RuboCopCallback#on_def', owner: 'RuboCopCallback', name: 'on_def') }
       let(:graph) do
         graph_with(
-          nodes: [protocol, callback, callback_helper, rubocop_callback],
+          nodes: [protocol, ordinary_each, callback, callback_helper, rubocop_callback],
           class_infos: [
             class_info('Framework::Base'),
             class_info('ConcreteCallback', superclass: 'Framework::Base', includes: ['FrameworkCallback']),
@@ -313,6 +314,8 @@ RSpec.describe Necropsy::Confidence::Scorer do
       it 'lowers confidence for Ruby protocols and configured callbacks' do
         expect(findings_by_id.fetch(protocol.id).confidence).to eq(:low)
         expect(findings_by_id.fetch(protocol.id).reasons).to include(match(/Ruby protocol/))
+        expect(findings_by_id.fetch(ordinary_each.id).confidence).to eq(:medium)
+        expect(findings_by_id.fetch(ordinary_each.id).reasons).not_to include(match(/Ruby protocol/))
         expect(findings_by_id.fetch(callback.id).confidence).to eq(:low)
         expect(findings_by_id.fetch(callback.id).reasons).to include(match(/framework callback/))
         expect(findings_by_id.fetch(rubocop_callback.id).confidence).to eq(:low)

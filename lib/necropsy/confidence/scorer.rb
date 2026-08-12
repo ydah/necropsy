@@ -10,7 +10,7 @@ module Necropsy
         const_missing method_missing respond_to_missing?
       ].freeze
       RUBY_PROTOCOLS = %w[
-        == eql? hash <=> to_s to_str to_a to_h to_proc inspect each call coerce
+        == eql? hash <=> to_s to_str to_a to_h to_proc inspect coerce
         succ initialize_copy marshal_dump marshal_load
       ].freeze
       BUILTIN_IMPLICIT_CALLERS = [

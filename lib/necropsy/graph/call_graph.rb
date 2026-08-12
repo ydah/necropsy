@@ -888,6 +888,7 @@ module Necropsy
         completeness_entries: [[owner, separator]]
       )
       return result unless result.unknown?
+      return result if singleton
 
       fallback_method_lookup(site, reason: 'self_lookup_fallback')
     end
@@ -936,6 +937,9 @@ module Necropsy
         definitions_for("#{owner}#{separator}#{site.message}").any?
       end
       unless target_index
+        missing = method_missing_lookup(site, entries, reason, completeness_entries, force_partial)
+        return missing if missing
+
         targets = dynamic_ancestry_candidates(site, [])
         return incomplete_method_lookup(targets, entries, "#{reason}_missing")
       end
@@ -960,6 +964,27 @@ module Necropsy
         rejected_targets: target_rejections + shadowed,
         lookup_chain: entries.map(&:first),
         reason: reason
+      )
+    end
+
+    def method_missing_lookup(site, entries, reason, completeness_entries, force_partial)
+      missing_index = entries.index do |owner, separator|
+        definitions_for("#{owner}#{separator}method_missing").any?
+      end
+      return unless missing_index
+
+      entry = entries.fetch(missing_index)
+      targets = definitions_for("#{entry.first}#{entry.last}method_missing")
+      prefix = completeness_entries + entries.first(missing_index + 1)
+      complete = !force_partial && complete_lookup_prefix?(prefix) && !dynamic_lookup_chain?(entries) &&
+                 !dynamic_ancestry_uncertain?(site)
+      return incomplete_method_lookup(targets, entries, "#{reason}_method_missing_incomplete") unless complete
+
+      MethodLookup.new(
+        targets: targets,
+        status: :complete,
+        lookup_chain: entries.map(&:first),
+        reason: "#{reason}_method_missing"
       )
     end
 

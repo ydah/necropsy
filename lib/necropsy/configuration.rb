@@ -25,7 +25,7 @@ module Necropsy
       'cache' => %w[enabled path],
       'rta' => %w[factory_methods pruning],
       'resolution' => %w[ambiguity_limit],
-      'paths' => %w[analyze reference include exclude],
+      'paths' => %w[analyze reference test include exclude],
       'report' => %w[include exclude],
       'logging' => %w[verbose]
     }.freeze
@@ -190,6 +190,11 @@ module Necropsy
     def reference_paths
       configured = fetch('paths', 'reference')
       Array(configured.nil? ? ['**/*'] : configured).map(&:to_s)
+    end
+
+    def test_paths
+      configured = fetch('paths', 'test')
+      Array(configured.nil? ? %w[spec/** test/**] : configured).map(&:to_s)
     end
 
     def include_paths
