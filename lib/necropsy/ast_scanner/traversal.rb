@@ -244,6 +244,7 @@ module Necropsy
 
       handle_module_relation(node, context)
       callback_block_consumed = handle_rails_callback(node, context)
+      handle_graphql_field(node, context)
       if handle_generated_rails_methods(node, context)
         visit_call_children(node, context, visit_block: false)
         return

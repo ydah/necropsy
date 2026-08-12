@@ -52,6 +52,8 @@ module Necropsy
       enum store store_accessor attribute class_attribute mattr_reader mattr_writer mattr_accessor
       cattr_reader cattr_writer cattr_accessor belongs_to has_one has_many scope
     ].freeze
+    RAILS_RUNTIME_BLOCK_MACROS = %i[discard_on retry_on stream_for stream_from].freeze
+    SIDEKIQ_RUNTIME_BLOCK_MACROS = %i[sidekiq_retries_exhausted sidekiq_retry_in].freeze
     VISIBILITY_MACROS = %i[public protected private public_class_method private_class_method].freeze
     SYMBOL_REFERENCE_CALLS = %i[method respond_to? try try!].freeze
     ANCESTRY_CONTROL_FLOW_TYPES = %i[

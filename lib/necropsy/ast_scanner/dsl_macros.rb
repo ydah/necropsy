@@ -70,6 +70,34 @@ module Necropsy
       return false unless context.owner
       return false if context.test
 
+      if runtime_block_macro_enabled?(node)
+        callback = keyword_value(node, 'callback')
+        if callback.is_a?(String)
+          entrypoint_hints << EntryPoint.new(
+            node_id: "#{context.owner}##{callback}", reason: :callback_registered,
+            evidence: { 'type' => 'runtime_callback', 'macro' => node.name.to_s }
+          )
+        elsif keyword_keys(node).include?('callback')
+          record_semantic_blocker(
+            :framework_runtime_callback,
+            node,
+            context,
+            "#{node.name} callback is not statically bounded",
+            suggested_action: :review_callback
+          )
+        end
+        if node.block
+          synthetic = visit_synthetic_body(node.block.body, context, :runtime_callback_block)
+          entrypoint_hints << EntryPoint.new(
+            node_id: synthetic.graph_id,
+            reason: :callback_registered,
+            evidence: { 'type' => 'runtime_callback_block', 'macro' => node.name.to_s }
+          )
+          return true
+        end
+        return false
+      end
+
       if RAILS_CALLBACK_MACROS.include?(node.name)
         return false if callback_disabled?(node)
 
@@ -107,6 +135,51 @@ module Necropsy
         end
       end
       false
+    end
+
+    def runtime_block_macro_enabled?(node)
+      return framework_enabled?('rails') if RAILS_RUNTIME_BLOCK_MACROS.include?(node.name)
+      return framework_enabled?('sidekiq') if SIDEKIQ_RUNTIME_BLOCK_MACROS.include?(node.name)
+
+      false
+    end
+
+    def handle_graphql_field(node, context)
+      return unless node.name == :field && context.owner && !context.test
+      return unless framework_enabled?('graphql')
+      return unless graphql_owner?(context.owner)
+
+      method_name = if keyword_keys(node).include?('method')
+                      keyword_value(node, 'method')
+                    else
+                      literal_argument(node, index: 0)
+                    end
+      if method_name.is_a?(String)
+        entrypoint_hints << EntryPoint.new(
+          node_id: "#{context.owner}##{method_name}",
+          reason: :graphql_field,
+          evidence: { 'type' => 'graphql_field', 'field' => literal_argument(node, index: 0) }
+        )
+      else
+        record_semantic_blocker(
+          :graphql_field,
+          node,
+          context,
+          'GraphQL field resolver method is not statically bounded',
+          suggested_action: :review_graphql_field
+        )
+      end
+    end
+
+    def graphql_owner?(owner)
+      owner.end_with?('Type', 'Resolver', 'Mutation', 'Subscription') ||
+        convention_ancestors(owner).any? { |ancestor| ancestor.start_with?('GraphQL::') }
+    end
+
+    def framework_enabled?(name)
+      project.config.frameworks(reference_files: project.reference_files).include?(name)
+    rescue SystemCallError, EncodingError
+      project.config.frameworks.include?(name)
     end
 
     def callback_condition_names(node)
