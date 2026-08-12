@@ -78,40 +78,47 @@ module Necropsy
       end
 
       def gold_standard(classification: nil, confidence: nil)
-        entries = gold_entries
         if classification
-          scoped = entries.select do |entry|
-            !entry.key?('classification') || entry['classification'] == classification.to_s
-          end
+          grouped = gold_entries_by(:classification)
+          scoped = grouped.fetch(nil, []) + grouped.fetch(classification.to_s, [])
           return ids_for(scoped)
         end
         if confidence
-          scoped = entries.select { |entry| entry['confidence'] == confidence.to_s }
+          scoped = gold_entries_by(:confidence).fetch(confidence.to_s, [])
           return nil if scoped.empty?
 
           return ids_for(scoped)
         end
 
-        ids_for(entries)
+        ids_for(gold_entries)
       end
 
       def gold_entries
+        return @gold_entries if defined?(@gold_entries)
+
         payload = gold_payload
         entries = if payload.is_a?(Hash)
                     payload['dead_methods'] || payload['findings'] || dead_labels(payload['labels']) || []
                   else
                     payload
                   end
-        normalize_entries(entries).select do |entry|
+        @gold_entries = normalize_entries(entries).select do |entry|
           classification = entry['classification']
           classification.nil? || FindingFacts::ACTIONABLE_CLASSIFICATIONS.include?(classification.to_sym)
-        end
+        end.freeze
       end
 
       def known_positive_entries
+        return @known_positive_entries if defined?(@known_positive_entries)
+
         payload = gold_payload
         entries = payload['known_positives'] || payload['known_positive_methods'] if payload.is_a?(Hash)
-        entries ? normalize_entries(entries) : gold_entries
+        @known_positive_entries = (entries ? normalize_entries(entries).freeze : gold_entries)
+      end
+
+      def gold_entries_by(attribute)
+        @gold_entries_by ||= {}
+        @gold_entries_by[attribute] ||= gold_entries.group_by { |entry| entry[attribute.to_s] }.freeze
       end
 
       def gold_payload
@@ -289,14 +296,16 @@ module Necropsy
         findings = target_report.reportable_findings
         expected = gold_entries
         known = known_positive_entries
+        expected_by_category = expected.group_by { |entry| category_for_entry(entry) }
+        known_by_category = known.group_by { |entry| category_for_entry(entry) }
         categories = candidates.map { |finding| category_for_finding(finding) } +
                      findings.map { |finding| category_for_finding(finding) } +
                      (expected + known).map { |entry| category_for_entry(entry) }
         categories.uniq.sort.to_h do |category|
           category_candidates = candidates.select { |finding| category_for_finding(finding) == category }
           category_findings = findings.select { |finding| category_for_finding(finding) == category }
-          category_expected = expected.select { |entry| category_for_entry(entry) == category }
-          category_known = known.select { |entry| category_for_entry(entry) == category }
+          category_expected = expected_by_category.fetch(category, [])
+          category_known = known_by_category.fetch(category, [])
           blocked = category_findings.select { |finding| finding.classification == :blocked }
           unknown = category_findings.select { |finding| FindingFacts.unknown?(finding) }
           [category, {
@@ -321,10 +330,15 @@ module Necropsy
       end
 
       def category_for_finding(finding)
-        entry = (gold_entries + known_positive_entries).find do |candidate|
-          entry_matches_finding?(candidate, finding)
-        end
+        entry = finding_identifiers(finding).filter_map { |identifier| gold_entry_index[identifier] }.min_by(&:first)&.last
         entry ? category_for_entry(entry) : FindingFacts.category(finding)
+      end
+
+      def gold_entry_index
+        @gold_entry_index ||= (gold_entries + known_positive_entries).each_with_index.with_object({}) do |(entry, index), lookup|
+          identifier = entry_identifier(entry)
+          lookup[identifier] ||= [index, entry] if identifier
+        end.freeze
       end
 
       def category_for_entry(entry)
@@ -335,24 +349,25 @@ module Necropsy
       def physical_precision(candidates, expected_entries)
         return 0.0 if candidates.empty?
 
-        matches = candidates.count do |finding|
-          expected_entries.any? { |entry| entry_matches_finding?(entry, finding) }
-        end
+        expected_ids = expected_entries.filter_map { |entry| entry_identifier(entry) }.to_set
+        matches = candidates.count { |finding| finding_identifiers(finding).intersect?(expected_ids) }
         FindingFacts.ratio(matches, candidates.length)
       end
 
       def physical_recall(candidates, expected_entries)
         return nil if expected_entries.empty?
 
-        matches = expected_entries.count do |entry|
-          candidates.any? { |finding| entry_matches_finding?(entry, finding) }
-        end
+        candidate_ids = candidates.flat_map { |finding| finding_identifiers(finding) }.to_set
+        matches = expected_entries.count { |entry| candidate_ids.include?(entry_identifier(entry)) }
         FindingFacts.ratio(matches, expected_entries.length)
       end
 
-      def entry_matches_finding?(entry, finding)
-        identifier = entry['definition_id'] || entry['id'] || entry['node_id']
-        [finding.node.definition_id, finding.node.symbol_id, finding.node.id].compact.include?(identifier)
+      def entry_identifier(entry)
+        entry['definition_id'] || entry['id'] || entry['node_id']
+      end
+
+      def finding_identifiers(finding)
+        [finding.node.definition_id, finding.node.symbol_id, finding.node.id].compact.uniq
       end
 
       def feature_ablation_metrics
