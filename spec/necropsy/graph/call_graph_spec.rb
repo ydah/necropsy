@@ -85,6 +85,19 @@ RSpec.describe Necropsy::CallGraph do
     )
   end
 
+  it 'applies analyzer results atomically when validation fails after an edge is staged' do
+    caller = node('Sample#caller', name: 'caller')
+    callee = node('Sample#callee', name: 'callee')
+    graph = graph_with(nodes: [caller, callee])
+    result = analyzer_result(
+      edge_evidences: [edge_evidence(caller.id, callee.id, evidence)]
+    ).with(uncertainties: 1)
+    original = graph.to_h
+
+    expect { graph.apply_result(result) }.to raise_error(NoMethodError)
+    expect(graph.to_h).to eq(original)
+  end
+
   it 'resolves calls by receiver kind and RTA instantiated classes' do
     caller = node('Caller#run', owner: 'Caller', name: 'run')
     base = node('Base#render', owner: 'Base', name: 'render')
@@ -151,6 +164,9 @@ RSpec.describe Necropsy::CallGraph do
       }
     )
     second = analyzer_result(
+      alive_evidences: [
+        Necropsy::AliveEvidence.new(node_id: 'Sample#run', evidence: evidence(kind: :alive))
+      ],
       observation: {
         'coverage' => {
           'schema_version' => 2, 'source_revision' => 'old', 'source_revision_status' => 'mismatch',
@@ -160,7 +176,9 @@ RSpec.describe Necropsy::CallGraph do
     )
 
     graph.apply_result(first)
+    original = graph.to_h
     expect { graph.apply_result(second) }.to raise_error(Necropsy::Error, /source_revision/)
+    expect(graph.to_h).to eq(original)
   end
 
   it 'does not enable absence-based classification when all dynamic node IDs are unknown' do

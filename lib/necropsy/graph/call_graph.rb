@@ -86,6 +86,15 @@ module Necropsy
     end
 
     def apply_result(result, refresh: true)
+      staged = transactional_copy
+      staged.send(:apply_result!, result, refresh: refresh)
+      staged.instance_variables.each do |name|
+        instance_variable_set(name, staged.instance_variable_get(name))
+      end
+      nil
+    end
+
+    def apply_result!(result, refresh: true)
       dynamic_result = dynamic_result?(result)
       edge_matches = result.edge_evidences.map do |edge|
         next apply_dynamic_edge(edge) if dynamic_result
@@ -110,6 +119,7 @@ module Necropsy
       register_result_resolutions(result, refresh: refresh)
       refresh_resolution_derived_state if refresh && (!result.respond_to?(:resolutions) || result.resolutions.nil?)
     end
+    private :apply_result!
 
     def refresh_derived_state
       refresh_resolution_derived_state
@@ -543,6 +553,55 @@ module Necropsy
     end
 
     private
+
+    def transactional_copy
+      copy = dup
+      memo = {}.compare_by_identity
+      instance_variables.each do |name|
+        value = instance_variable_get(name)
+        copy.instance_variable_set(name, duplicate_transaction_value(value, memo))
+      end
+      copy
+    end
+
+    def duplicate_transaction_value(value, memo)
+      return memo.fetch(value) if memo.key?(value)
+
+      case value
+      when Hash
+        duplicate_transaction_hash(value, memo)
+      when Array
+        duplicate_transaction_array(value, memo)
+      when Set
+        duplicate_transaction_set(value, memo)
+      else
+        value
+      end
+    end
+
+    def duplicate_transaction_hash(value, memo)
+      copy = {}
+      copy.compare_by_identity if value.compare_by_identity?
+      copy.default_proc = value.default_proc if value.default_proc
+      copy.default = value.default unless value.default_proc
+      memo[value] = copy
+      value.each { |key, item| copy[key] = duplicate_transaction_value(item, memo) }
+      copy
+    end
+
+    def duplicate_transaction_array(value, memo)
+      copy = []
+      memo[value] = copy
+      value.each { |item| copy << duplicate_transaction_value(item, memo) }
+      copy
+    end
+
+    def duplicate_transaction_set(value, memo)
+      copy = Set.new
+      memo[value] = copy
+      value.each { |item| copy.add(duplicate_transaction_value(item, memo)) }
+      copy
+    end
 
     def register_result_evidences(result)
       records = result.respond_to?(:evidences) ? result.evidences : []
