@@ -1,9 +1,6 @@
 # frozen_string_literal: true
 
 require 'open3'
-require 'json'
-require 'yaml'
-
 module Necropsy
   module Guardrail
     class Diff
@@ -18,23 +15,18 @@ module Necropsy
       end
 
       def self.compare_reports(base_path:, head_path:)
-        new(base: load_report(base_path), head: load_report(head_path)).compare
+        new(
+          base: ArtifactLoader.load_mapping(base_path, label: 'Base diff report'),
+          head: ArtifactLoader.load_mapping(head_path, label: 'Head diff report')
+        ).compare
       end
-
-      def self.load_report(path)
-        contents = File.read(File.expand_path(path))
-        JSON.parse(contents)
-      rescue JSON::ParserError
-        YAML.safe_load(contents, aliases: false) || {}
-      rescue SystemCallError, Psych::Exception => e
-        raise Error, "Could not read diff report #{path}: #{e.message}"
-      end
-
-      private_class_method :load_report
 
       def initialize(base:, head:)
+        validate_report!(base, 'Base diff report')
+        validate_report!(head, 'Head diff report')
         @base = base
         @head = head
+        @validation = report_comparability
       end
 
       def compare
@@ -56,7 +48,7 @@ module Necropsy
           'analysis_health_changed' => health_change(@base, @head),
           'public_surface_changed' => public_surface_changes(base_graph, head_graph),
           'runtime_evidence_invalidated' => runtime_evidence_invalidated(@base, @head)
-        }
+        }.merge('validation' => @validation)
       end
 
       private
@@ -70,6 +62,8 @@ module Necropsy
       end
 
       def newly_unreachable(base, head, graph)
+        return [] unless @validation.fetch('comparable') && analysis_complete?(@head)
+
         head.filter_map do |definition_id, finding|
           next unless candidate?(finding)
           next if candidate?(base[definition_id])
@@ -79,10 +73,12 @@ module Necropsy
       end
 
       def newly_reachable(base, head, graph)
+        return [] unless @validation.fetch('comparable') && analysis_complete?(@head)
+
         base.filter_map do |definition_id, finding|
           next unless candidate?(finding)
           next if head.key?(definition_id)
-          next unless graph_node(graph, definition_id)
+          next unless reachability_witness?(graph, definition_id)
 
           finding_identity(finding).merge('state' => 'newly_reachable')
         end.sort_by { |finding| sort_key(finding) }
@@ -146,6 +142,80 @@ module Necropsy
 
       def graph_node(graph, definition_id)
         Array(graph['nodes']).find { |node| node['definition_id'].to_s == definition_id.to_s }
+      end
+
+      def reachability_witness?(graph, definition_id)
+        return false unless graph_node(graph, definition_id)
+
+        reachable = entry_point_ids(graph)
+        queue = reachable.dup
+        adjacency = Array(graph['edges']).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |edge, result|
+          result[edge['caller_id'].to_s] << edge['callee_id'].to_s
+        end
+        until queue.empty?
+          caller = queue.shift
+          adjacency.fetch(caller, []).each do |callee|
+            next if reachable.include?(callee)
+
+            reachable << callee
+            queue << callee
+          end
+        end
+        reachable.include?(definition_id.to_s)
+      end
+
+      def entry_point_ids(graph)
+        Array(graph['entry_points']).filter_map do |entry|
+          (entry['definition_id'] || entry['node_id'] || entry['id'])&.to_s
+        end
+      end
+
+      def validate_report!(report, label)
+        raise Error, "#{label} must contain findings" unless report['findings'].is_a?(Array)
+
+        report['findings'].each do |finding|
+          raise Error, "#{label} findings must contain mappings" unless finding.is_a?(Hash)
+          raise Error, "#{label} finding node must be a mapping" if finding.key?('node') && !finding['node'].is_a?(Hash)
+        end
+
+        graph = report['graph']
+        raise Error, "#{label} must include a graph" unless graph.is_a?(Hash)
+
+        %w[nodes edges entry_points resolutions].each do |collection|
+          next unless graph.key?(collection)
+          raise Error, "#{label} graph #{collection} must be an array" unless graph[collection].is_a?(Array)
+          raise Error, "#{label} graph #{collection} must contain mappings" unless graph[collection].all?(Hash)
+        end
+      end
+
+      def report_comparability
+        reasons = []
+        roots = [@base['root'], @head['root']].compact
+        if roots.length == 1
+          reasons << 'root_missing'
+        elsif roots.length == 2 && roots.uniq.length > 1
+          reasons << 'root_mismatch'
+        end
+        base_configuration = configuration_sha256(@base)
+        head_configuration = configuration_sha256(@head)
+        configurations = [base_configuration, head_configuration].compact
+        if configurations.length == 1
+          reasons << 'configuration_missing'
+        elsif configurations.length == 2 && configurations.uniq.length > 1
+          reasons << 'configuration_mismatch'
+        end
+        { 'comparable' => reasons.empty?, 'reasons' => reasons }
+      end
+
+      def configuration_sha256(report)
+        provenance = report['artifact_provenance']
+        inputs = provenance.is_a?(Hash) ? provenance['inputs'] : nil
+        inputs.is_a?(Hash) ? inputs['configuration_sha256'] : nil
+      end
+
+      def analysis_complete?(report)
+        health = report['analysis_health']
+        health.is_a?(Hash) && health['status'].to_s == 'complete'
       end
 
       def difference_ids(left, right)

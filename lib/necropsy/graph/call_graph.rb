@@ -430,6 +430,7 @@ module Necropsy
       return unproven_initialize_lookup(site) if unproven_initialize_dispatch?(site)
       return callable_method_lookup(site) if flow_callable?(site)
       return flow_instance_method_lookup(site) if flow_instance_types(site)
+      return incomplete_method_lookup([], [], 'flow_unknown_receiver') if site.metadata['flow_unknown_receiver']
 
       case site.receiver_kind
       when :constant

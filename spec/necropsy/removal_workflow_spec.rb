@@ -27,4 +27,38 @@ RSpec.describe Necropsy::RemovalWorkflow do
       expect(File.read(source_path)).to include('def dead')
     end
   end
+
+  it 'returns a failed bounded result when verification exceeds its timeout' do
+    Dir.mktmpdir do |root|
+      source_path = File.join(root, 'sample.rb')
+      File.write(source_path, "class Sample\n  def dead\n    :dead\n  end\nend\n")
+      report_path = File.join(root, 'report.json')
+      File.write(report_path, JSON.generate(
+                                'findings' => [{
+                                  'classification' => 'unreachable', 'actionability' => 'review_candidate', 'blockers' => [],
+                                  'node' => {
+                                    'definition_id' => 'def:dead', 'symbol_id' => 'Sample#dead', 'file' => 'sample.rb',
+                                    'line' => 2, 'end_line' => 4
+                                  }
+                                }]
+                              ))
+
+      workflow = described_class.new(report_path: report_path, candidate: 'def:dead', root: root,
+                                     timeout_seconds: 0.05)
+      result = workflow.verify([RbConfig.ruby, '-e', 'sleep 2'])
+
+      expect(result).to include('passed' => false, 'timed_out' => true, 'status' => nil)
+    end
+  end
+
+  it 'rejects a non-mapping removal report' do
+    Dir.mktmpdir do |root|
+      report_path = File.join(root, 'report.yml')
+      File.write(report_path, "- not-a-report\n")
+
+      expect do
+        described_class.new(report_path: report_path, candidate: 'def:dead', root: root)
+      end.to raise_error(Necropsy::Error, /must contain a mapping/)
+    end
+  end
 end

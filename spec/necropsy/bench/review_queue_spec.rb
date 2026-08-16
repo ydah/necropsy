@@ -28,7 +28,8 @@ RSpec.describe Necropsy::Bench::ReviewQueue do
       'reviewed_candidates' => 0,
       'reviewed_high_candidates' => 0,
       'pending_high_candidates' => 1,
-      'target_shortfall' => 1,
+      'target_shortfall' => 0,
+      'legacy_high_target_shortfall' => 1,
       'claim_gate_passed' => false
     )
     expect(queue.fetch('entries').map { |entry| entry.fetch('id') }).to eq(
@@ -51,6 +52,24 @@ RSpec.describe Necropsy::Bench::ReviewQueue do
     ).call
 
     expect(queue.fetch('entries').first).to include('id' => 'Seed#dead', 'review_class' => 'candidate')
+  end
+
+  it 'does not let a diagnostic actionability flag become a review candidate' do
+    queue = described_class.new(
+      reports: {
+        'fixture' => { 'findings' => [
+          { 'id' => 'Diagnostic#dead', 'state' => 'unreachable', 'confidence' => 'high', 'candidate' => true,
+            'actionability' => 'diagnostic' },
+          { 'id' => 'Review#dead', 'state' => 'unreachable', 'confidence' => 'low', 'candidate' => false,
+            'actionability' => 'review_candidate' }
+        ] }
+      },
+      target_reviewed_high: 1,
+      limit: 2
+    ).call
+
+    expect(queue.fetch('entries').map { |entry| entry.fetch('id') }).to eq(['Review#dead'])
+    expect(queue.fetch('target_shortfall')).to eq(0)
   end
 
   it 'rejects a non-positive target' do

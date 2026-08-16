@@ -4,17 +4,23 @@ require 'fileutils'
 require 'json'
 require 'open3'
 require 'tmpdir'
-require 'yaml'
+require 'timeout'
 
 module Necropsy
   class RemovalWorkflow
     PROOF_OBLIGATIONS = %w[source load dispatch framework external_contract dynamic_evidence].freeze
     OUTPUT_LIMIT = 4_096
+    DEFAULT_TIMEOUT_SECONDS = 300
 
-    def initialize(report_path:, candidate:, root:)
-      @report = load_report(report_path)
+    def initialize(report_path:, candidate:, root:, timeout_seconds: DEFAULT_TIMEOUT_SECONDS)
+      @report = ArtifactLoader.load_mapping(report_path, label: 'Removal report')
+      validate_report!
       @candidate = find_candidate(candidate)
       @root = File.expand_path(root)
+      @timeout_seconds = Float(timeout_seconds)
+      raise Error, 'verification timeout must be positive and finite' unless @timeout_seconds.positive? && @timeout_seconds.finite?
+    rescue ArgumentError, TypeError
+      raise Error, 'verification timeout must be positive and finite'
     end
 
     def plan
@@ -47,11 +53,12 @@ module Necropsy
         worktree = File.join(directory, File.basename(@root))
         FileUtils.cp_r(@root, worktree)
         apply_removal(worktree)
-        stdout, stderr, status = Open3.capture3(*command, chdir: worktree)
+        stdout, stderr, status, timed_out = run_command(command, worktree)
         return {
           'candidate' => candidate_identity,
-          'passed' => status.success?,
-          'status' => status.exitstatus,
+          'passed' => !timed_out && status&.success?,
+          'status' => status&.exitstatus,
+          'timed_out' => timed_out,
           'command' => command,
           'worktree' => 'temporary copy (removed after verification)',
           'stdout' => bounded(stdout),
@@ -147,13 +154,64 @@ module Necropsy
       candidates.first
     end
 
-    def load_report(path)
-      contents = File.read(File.expand_path(path))
-      JSON.parse(contents)
-    rescue JSON::ParserError
-      YAML.safe_load(contents, aliases: false) || {}
-    rescue SystemCallError, Psych::Exception => e
-      raise Error, "Could not read removal report #{path}: #{e.message}"
+    def validate_report!
+      findings = @report['findings']
+      raise Error, 'Removal report must contain findings' unless findings.is_a?(Array)
+      raise Error, 'Removal report findings must contain mappings' unless findings.all?(Hash)
+    end
+
+    def run_command(command, worktree)
+      stdout_chunks = []
+      stderr_chunks = []
+      timed_out = false
+      status = nil
+
+      Open3.popen3(*command, chdir: worktree, pgroup: true) do |stdin, stdout, stderr, wait_thread|
+        stdin.close
+        readers = [stdout, stderr].zip([stdout_chunks, stderr_chunks]).map do |io, chunks|
+          Thread.new { read_output(io, chunks) }
+        end
+        begin
+          status = Timeout.timeout(@timeout_seconds) { wait_thread.value }
+        rescue Timeout::Error
+          timed_out = true
+          terminate_process(wait_thread.pid)
+          status = begin
+            wait_thread.value
+          rescue StandardError
+            nil
+          end
+        ensure
+          stdout.close unless stdout.closed?
+          stderr.close unless stderr.closed?
+          readers.each(&:join)
+        end
+      end
+
+      [stdout_chunks.join, stderr_chunks.join, status, timed_out]
+    end
+
+    def read_output(io, chunks)
+      stored = 0
+      loop do
+        part = io.read(1_024)
+        break unless part
+
+        remaining = OUTPUT_LIMIT - stored
+        if remaining.positive?
+          chunks << part.byteslice(0, remaining)
+          stored += [part.bytesize, remaining].min
+        end
+      end
+    rescue IOError, Errno::EBADF
+      nil
+    end
+
+    def terminate_process(pid)
+      Process.kill('TERM', -pid)
+      Process.kill('KILL', -pid)
+    rescue Errno::ESRCH
+      nil
     end
 
     def bounded(value)

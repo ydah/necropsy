@@ -10,6 +10,7 @@ module Necropsy
     # the public claim gate by itself.
     class ReviewQueue
       ACTIONABLE_STATES = %w[unreachable unused candidate].freeze
+      REVIEWABLE_ACTIONABILITIES = %w[verified_candidate review_candidate].freeze
       HIGH_CONFIDENCES = %w[high certain].freeze
       CONFIDENCE_ORDER = { 'certain' => 0, 'high' => 1, 'medium' => 2, 'low' => 3 }.freeze
       ACTIONABILITY_ORDER = {
@@ -18,7 +19,7 @@ module Necropsy
         'investigate' => 2,
         'diagnostic' => 3
       }.freeze
-      VERSION = 1
+      VERSION = 2
 
       def initialize(reports:, target_reviewed_high: 300, limit: nil)
         @reports = reports
@@ -38,7 +39,8 @@ module Necropsy
         {
           'schema_version' => VERSION,
           'status' => 'pending',
-          'selection' => 'actionable findings, actionability ascending, then priority confidence and identity',
+          'selection' => 'reviewable findings, actionability ascending, then priority confidence and identity',
+          'target_reviewed_candidates' => target_reviewed_high,
           'target_reviewed_high_candidates' => target_reviewed_high,
           'available_actionable_candidates' => available.length,
           'queued_candidates' => entries.length,
@@ -47,7 +49,8 @@ module Necropsy
           'pending_candidates' => entries.length,
           'pending_high_candidates' => high_entries.length,
           'pending_review_candidates' => review_entries.length,
-          'target_shortfall' => [target_reviewed_high - high_entries.length, 0].max,
+          'legacy_high_target_shortfall' => [target_reviewed_high - high_entries.length, 0].max,
+          'target_shortfall' => [target_reviewed_high - review_entries.length, 0].max,
           'claim_gate_passed' => false,
           'corpora' => corpus_summary(available, entries),
           'provenance' => provenance,
@@ -99,6 +102,8 @@ module Necropsy
       end
 
       def actionable?(finding)
+        return REVIEWABLE_ACTIONABILITIES.include?(finding['actionability'].to_s) if finding.key?('actionability')
+
         finding['candidate'] == true || ACTIONABLE_STATES.include?(finding['state'].to_s)
       end
 
@@ -117,7 +122,7 @@ module Necropsy
       end
 
       def review_candidate?(entry)
-        %w[verified_candidate review_candidate].include?(entry.fetch('actionability'))
+        REVIEWABLE_ACTIONABILITIES.include?(entry.fetch('actionability'))
       end
 
       def sort_key(entry)

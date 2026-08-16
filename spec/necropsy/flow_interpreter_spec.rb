@@ -484,6 +484,62 @@ RSpec.describe 'FLOW01 receiver integration' do
     end
   end
 
+  it 'does not collect a registry defined only in an unreachable branch' do
+    source = <<~RUBY
+      class Service
+        def call; end
+      end
+
+      if false
+        REGISTRY = { run: Service.new }
+      end
+
+      class Sample
+        def dispatch
+          REGISTRY.fetch(:run).call
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/conditional_registry.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      caller = scan.nodes.find { |node| node.symbol_id == 'Sample#dispatch' }
+      callable_site = scan.call_sites.find { |site| site.caller_id == caller.graph_id && site.message == 'call' }
+
+      expect(callable_site.metadata.dig('receiver_value_fact', 'kind')).not_to eq('instance_types')
+      expect(graph.method_lookup(callable_site)).to be_unknown
+    end
+  end
+
+  it 'does not leak a namespaced registry into a sibling namespace' do
+    source = <<~RUBY
+      class Service
+        def call; end
+      end
+
+      class A
+        REGISTRY = { run: Service.new }
+      end
+
+      class B
+        def dispatch
+          REGISTRY.fetch(:run).call
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/namespaced_registry.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      caller = scan.nodes.find { |node| node.symbol_id == 'B#dispatch' }
+      callable_site = scan.call_sites.find { |site| site.caller_id == caller.graph_id && site.message == 'call' }
+
+      expect(callable_site.metadata.dig('receiver_value_fact', 'kind')).not_to eq('instance_types')
+      expect(graph.method_lookup(callable_site)).to be_unknown
+    end
+  end
+
   it 'resolves finite array registries and one-level dig lookups' do
     source = Prism.parse(<<~RUBY).value
       handlers = [FastHandler.new, SafeHandler.new]

@@ -1,13 +1,11 @@
 # frozen_string_literal: true
 
-require 'json'
-require 'yaml'
-
 module Necropsy
   class FeedbackWorkflow
     def initialize(static_report:, observed_artifact:, max_fixtures: RuntimeFeedback::DEFAULT_FIXTURE_LIMIT)
-      @static_report = load_artifact(static_report)
-      @observed_artifact = load_artifact(observed_artifact)
+      @static_report = ArtifactLoader.load_mapping(static_report, label: 'Static feedback report')
+      validate_static_report!
+      @observed_artifact = ArtifactLoader.load(observed_artifact, label: 'Observed feedback artifact')
       @max_fixtures = max_fixtures
     end
 
@@ -47,12 +45,12 @@ module Necropsy
 
     def static_targets
       @static_targets ||= begin
-        source = @static_report['graph'] || @static_report
-        explicit = source['static_targets'] || @static_report['static_targets']
+        source = @static_report['graph'].is_a?(Hash) ? @static_report['graph'] : {}
+        explicit = @static_report['static_targets'] || source['static_targets']
         if explicit
           normalize_static_targets(explicit)
         else
-          Array(source['resolutions']).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |record, result|
+          source.fetch('resolutions').each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |record, result|
             resolution = record['resolution'] || record
             call_site_id = resolution['call_site_id']
             next if call_site_id.to_s.empty?
@@ -67,7 +65,7 @@ module Necropsy
       source = @observed_artifact
       values = if source.is_a?(Array)
                  source
-               else
+               elsif source.is_a?(Hash)
                  source['observed_targets'] || source['targets'] || source['runtime_targets'] || source
                end
       raise Error, 'Observed artifact must contain an array of observed targets' unless values.is_a?(Array)
@@ -81,13 +79,23 @@ module Necropsy
       value.transform_keys(&:to_s).transform_values { |targets| Array(targets).map(&:to_s).uniq.sort }
     end
 
-    def load_artifact(path)
-      contents = File.read(File.expand_path(path))
-      JSON.parse(contents)
-    rescue JSON::ParserError
-      YAML.safe_load(contents, aliases: false) || {}
-    rescue SystemCallError, Psych::Exception => e
-      raise Error, "Could not read feedback artifact #{path}: #{e.message}"
+    def validate_static_report!
+      graph = @static_report['graph']
+      raise Error, 'Static feedback report graph must be a mapping' if graph && !graph.is_a?(Hash)
+
+      explicit = @static_report['static_targets'] || graph&.[]('static_targets')
+      resolutions = graph&.[]('resolutions')
+      raise Error, 'Static feedback report must include static_targets or graph.resolutions' unless
+        explicit.is_a?(Hash) || resolutions.is_a?(Array)
+
+      return unless resolutions
+
+      resolutions.each do |record|
+        raise Error, 'Static feedback report resolutions must contain mappings' unless record.is_a?(Hash)
+
+        resolution = record['resolution'] || record
+        raise Error, 'Static feedback report resolution must be a mapping' unless resolution.is_a?(Hash)
+      end
     end
   end
 end

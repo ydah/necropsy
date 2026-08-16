@@ -104,6 +104,7 @@ module Necropsy
       @method_signatures = {}
       @semantic_blockers = []
       @constant_facts = {}
+      @ambiguous_constant_facts = Set.new
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
       @convention_rules = ConventionRules.new
     end
@@ -135,13 +136,63 @@ module Necropsy
     def collect_constant_facts(files)
       files.each do |file|
         result = Prism.parse(File.read(file))
-        flow = FlowInterpreter.new(
-          constant_resolver: ->(name) { name },
-          constant_facts: constant_facts
-        ).analyze(result.value)
-        constant_facts.merge!(flow.constant_facts)
+        static_constant_writes(result.value).each do |node, namespace|
+          flow = FlowInterpreter.new(
+            constant_resolver: ->(name) { name },
+            constant_facts: constant_facts_for(Array(namespace).compact),
+            allow_constant_writes: false
+          ).analyze(node.value)
+          fact = flow.return_fact
+          next unless fact.exact
+
+          register_constant_fact(qualify_constant(node.name.to_s, namespace), fact)
+        end
       rescue SystemCallError, EncodingError
         next
+      end
+    end
+
+    def static_constant_writes(node, namespace = nil)
+      case node
+      when Prism::ProgramNode
+        static_constant_writes(node.statements, namespace)
+      when Prism::StatementsNode
+        node.body.flat_map { |child| static_constant_writes(child, namespace) }
+      when Prism::ClassNode, Prism::ModuleNode
+        child_namespace = qualify_constant(constant_name(node.constant_path), namespace)
+        static_constant_writes(node.body, child_namespace)
+      when Prism::ConstantWriteNode
+        [[node, namespace]]
+      else
+        []
+      end
+    end
+
+    def register_constant_fact(name, fact)
+      return if name.nil? || ambiguous_constant_facts.include?(name)
+
+      current = constant_facts[name]
+      if current && current.to_h != fact.to_h
+        constant_facts.delete(name)
+        ambiguous_constant_facts.add(name)
+      else
+        constant_facts[name] = fact
+      end
+    end
+
+    def constant_facts_for(lexical_nesting)
+      lexical_nesting = Array(lexical_nesting).compact
+      constant_facts.each_with_object({}) do |(name, fact), result|
+        next if ambiguous_constant_facts.include?(name)
+
+        result[name] = fact
+        next unless name.include?('::')
+
+        namespace, local_name = name.rpartition('::').values_at(0, 2)
+        visible = lexical_nesting.any? do |scope|
+          scope == namespace || scope.start_with?("#{namespace}::")
+        end
+        result[local_name] ||= fact if visible
       end
     end
 
@@ -152,6 +203,6 @@ module Necropsy
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
                 :deferred_module_functions, :call_site_ordinals, :source_domains, :scope_diagnostics,
-                :method_signatures, :semantic_blockers, :constant_facts, :convention_rules
+                :method_signatures, :semantic_blockers, :constant_facts, :ambiguous_constant_facts, :convention_rules
   end
 end

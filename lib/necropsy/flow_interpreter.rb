@@ -10,10 +10,11 @@ module Necropsy
     class StepBudgetExceeded < StandardError; end
     ControlTransfer = Data.define(:kind, :fact)
 
-    def initialize(constant_resolver:, max_steps: DEFAULT_MAX_STEPS, constant_facts: {})
+    def initialize(constant_resolver:, max_steps: DEFAULT_MAX_STEPS, constant_facts: {}, allow_constant_writes: true)
       @constant_resolver = constant_resolver
       @max_steps = Integer(max_steps)
       @initial_constant_facts = constant_facts.transform_keys(&:to_s)
+      @allow_constant_writes = allow_constant_writes
     end
 
     def analyze(body)
@@ -502,7 +503,7 @@ module Necropsy
       value = evaluate(node.value)
       return value if transfer?(value)
 
-      @constant_facts[node.name.to_s] = value
+      @constant_facts[node.name.to_s] = value if @allow_constant_writes
       value
     end
 

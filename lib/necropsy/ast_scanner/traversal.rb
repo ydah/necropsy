@@ -64,7 +64,8 @@ module Necropsy
       context.root_id = root_id
       context.flow_result = FlowInterpreter.new(
         constant_resolver: ->(constant) { resolve_candidate_group(constant_candidates(constant, context.lexical_nesting)) },
-        constant_facts: constant_facts
+        constant_facts: constant_facts_for(context.lexical_nesting),
+        allow_constant_writes: false
       ).analyze(result.value)
 
       if result.failure?
@@ -121,6 +122,11 @@ module Necropsy
       child_context.singleton_scope = false
       child_context.visibility = :public
       child_context.module_function = false
+      child_context.flow_result = FlowInterpreter.new(
+        constant_resolver: ->(constant) { resolve_candidate_group(constant_candidates(constant, child_context.lexical_nesting)) },
+        constant_facts: constant_facts_for(child_context.lexical_nesting),
+        allow_constant_writes: false
+      ).analyze(node.body)
       visit(node.body, child_context)
     end
 
@@ -186,7 +192,8 @@ module Necropsy
         constant_resolver: lambda do |constant|
           resolve_candidate_group(constant_candidates(constant, method_context.lexical_nesting))
         end,
-        constant_facts: constant_facts
+        constant_facts: constant_facts_for(method_context.lexical_nesting),
+        allow_constant_writes: false
       ).analyze(node.body)
       method_context.flow_result.issues.each do |issue|
         uncertainties[definition.graph_id] << "Forward value analysis stopped at #{issue}; affected calls use conservative lookup"

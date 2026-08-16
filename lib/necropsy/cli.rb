@@ -111,7 +111,8 @@ module Necropsy
         max_fixtures: RuntimeFeedback::DEFAULT_FIXTURE_LIMIT,
         fail_on_missing_static_target: false,
         base_report: nil,
-        head_report: nil
+        head_report: nil,
+        verify_timeout: RemovalWorkflow::DEFAULT_TIMEOUT_SECONDS
       }
     end
 
@@ -152,6 +153,11 @@ module Necropsy
         end
         parser.on('--base PATH', 'Base report path for causal diff') { |value| options[:base_report] = value }
         parser.on('--head PATH', 'Head report path for causal diff') { |value| options[:head_report] = value }
+        parser.on('--verify-timeout SECONDS', Float, 'Maximum removal verification time') do |value|
+          raise OptionParser::InvalidArgument, 'verify-timeout must be positive and finite' unless value.positive? && value.finite?
+
+          options[:verify_timeout] = value
+        end
         parser.on('--sample-rate RATE', Float, 'TracePoint sample rate for record') do |value|
           raise OptionParser::InvalidArgument, 'sample rate must be between 0.0 and 1.0' unless value.between?(0.0, 1.0)
 
@@ -491,7 +497,7 @@ module Necropsy
       raise Error, "#{command} requires --report and --candidate" unless options[:report] && options[:candidate]
 
       workflow = RemovalWorkflow.new(report_path: options[:report], candidate: options[:candidate],
-                                     root: File.expand_path(options[:root]))
+                                     root: File.expand_path(options[:root]), timeout_seconds: options[:verify_timeout])
       case command
       when 'plan'
         result = workflow.plan

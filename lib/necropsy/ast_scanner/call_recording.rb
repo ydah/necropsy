@@ -19,6 +19,10 @@ module Necropsy
       metadata['arguments'] = call_arguments(node, offset: DYNAMIC_SENDS.include?(node.name) ? 1 : 0)
       metadata['block_kind'] = call_block_kind(node)
       receiver_fact = context.flow_result&.fact_for(node.receiver)
+      if receiver_fact && !receiver_fact.exact && receiver_fact.kind == :unknown && receiver_fact.origin == 'not_a_container'
+        metadata['flow_unknown_receiver'] = true
+        metadata['flow_unknown_origin'] = receiver_fact.origin
+      end
       compact_receiver_fact = compact_receiver_fact(receiver_fact)
       metadata['receiver_value_fact'] = compact_receiver_fact if compact_receiver_fact
       argument_facts = arguments(node).map do |argument|
