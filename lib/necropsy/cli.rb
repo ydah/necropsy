@@ -73,7 +73,8 @@ module Necropsy
         warn parser
         2
       end
-    rescue OptionParser::ParseError, Psych::Exception, Error, GraphSelfCheck::Failure => e
+    rescue OptionParser::ParseError, Psych::Exception, Error, GraphSelfCheck::Failure,
+           ArgumentError, TypeError, KeyError => e
       warn e.message
       2
     end
@@ -151,8 +152,12 @@ module Necropsy
         parser.on('--fail-on-missing-static-target', 'Fail feedback verification on a missing static target') do
           options[:fail_on_missing_static_target] = true
         end
-        parser.on('--base PATH', 'Base report path for causal diff') { |value| options[:base_report] = value }
-        parser.on('--head PATH', 'Head report path for causal diff') { |value| options[:head_report] = value }
+        parser.on('--base PATH_OR_REVISION', 'Base report path or Git revision for causal diff') do |value|
+          options[:base_report] = value
+        end
+        parser.on('--head PATH_OR_REVISION', 'Head report path or Git revision for causal diff') do |value|
+          options[:head_report] = value
+        end
         parser.on('--verify-timeout SECONDS', Float, 'Maximum removal verification time') do |value|
           raise OptionParser::InvalidArgument, 'verify-timeout must be positive and finite' unless value.positive? && value.finite?
 
@@ -483,12 +488,24 @@ module Necropsy
     end
 
     def causal_diff(options)
-      raise Error, 'diff requires --base and --head report paths' unless options[:base_report] && options[:head_report]
+      raise Error, 'diff requires --base' unless options[:base_report]
 
-      result = Guardrail::Diff.compare_reports(
-        base_path: options[:base_report],
-        head_path: options[:head_report]
-      )
+      base_path = File.expand_path(options[:base_report], options[:root])
+      head_path = options[:head_report] && File.expand_path(options[:head_report], options[:root])
+      result = if head_path && File.file?(base_path) && File.file?(head_path)
+                 Guardrail::Diff.compare_reports(base_path: base_path, head_path: head_path)
+               elsif !options[:head_report] && !File.file?(base_path)
+                 Guardrail::Diff.compare_revisions(
+                   root: options[:root], base_revision: options[:base_report], config_path: options[:config]
+                 )
+               elsif options[:head_report] && !File.file?(base_path) && !File.file?(head_path)
+                 Guardrail::Diff.compare_revisions(
+                   root: options[:root], base_revision: options[:base_report],
+                   head_revision: options[:head_report], config_path: options[:config]
+                 )
+               else
+                 raise Error, 'diff expects two report paths or one/two Git revisions'
+               end
       puts JSON.pretty_generate(result)
       0
     end

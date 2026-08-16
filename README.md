@@ -126,6 +126,7 @@ Compare two physical-definition reports and prepare an isolated removal check:
 
 ```bash
 bundle exec necropsy diff --base tmp/base.json --head tmp/head.json
+bundle exec necropsy diff --root . --base origin/main
 bundle exec necropsy plan --report tmp/head.json --candidate 'def:v1:...' --output tmp/proof.json
 bundle exec necropsy verify --root . --report tmp/head.json --candidate 'def:v1:...' -- bundle exec rspec
 ```
