@@ -58,6 +58,14 @@ module Necropsy
         coverage(options, argv)
       when 'semantics'
         semantics(options, argv)
+      when 'doctor'
+        doctor(options)
+      when 'feedback'
+        feedback(options, argv)
+      when 'diff'
+        causal_diff(options)
+      when 'plan', 'patch', 'verify'
+        removal_workflow(command, options, argv)
       when 'why', 'why-not', 'explain'
         diagnose(command, options, argv)
       else
@@ -96,7 +104,14 @@ module Necropsy
         help: false,
         version: false,
         include_graph: false,
-        self_check: false
+        self_check: false,
+        report: nil,
+        observed: nil,
+        candidate: nil,
+        max_fixtures: RuntimeFeedback::DEFAULT_FIXTURE_LIMIT,
+        fail_on_missing_static_target: false,
+        base_report: nil,
+        head_report: nil
       }
     end
 
@@ -115,7 +130,7 @@ module Necropsy
         end
         parser.on('--baseline PATH', 'Baseline path') { |value| options[:baseline] = value }
         parser.on('--fail-on LEVEL', 'CI failure threshold') do |value|
-          options[:fail_on] = confidence_level(value)
+          options[:fail_on] = ci_threshold(value)
         end
         parser.on('--diff-base REV', 'Restrict reported findings to files changed since REV') do |value|
           options[:diff_base] = value
@@ -124,6 +139,19 @@ module Necropsy
         parser.on('--write', 'Write quarantine annotations') { options[:write] = true }
         parser.on('--gold-standard PATH', 'Gold standard YAML for bench') { |value| options[:gold_standard] = value }
         parser.on('--output PATH', 'Output path for record') { |value| options[:output] = value }
+        parser.on('--report PATH', 'Static report or proof report path') { |value| options[:report] = value }
+        parser.on('--observed PATH', 'Runtime observed-target artifact path') { |value| options[:observed] = value }
+        parser.on('--candidate ID', 'Physical definition ID or unique symbol ID') { |value| options[:candidate] = value }
+        parser.on('--max-fixtures N', Integer, 'Maximum exported runtime feedback fixtures') do |value|
+          raise OptionParser::InvalidArgument, 'max-fixtures must be non-negative' if value.negative?
+
+          options[:max_fixtures] = value
+        end
+        parser.on('--fail-on-missing-static-target', 'Fail feedback verification on a missing static target') do
+          options[:fail_on_missing_static_target] = true
+        end
+        parser.on('--base PATH', 'Base report path for causal diff') { |value| options[:base_report] = value }
+        parser.on('--head PATH', 'Head report path for causal diff') { |value| options[:head_report] = value }
         parser.on('--sample-rate RATE', Float, 'TracePoint sample rate for record') do |value|
           raise OptionParser::InvalidArgument, 'sample rate must be between 0.0 and 1.0' unless value.between?(0.0, 1.0)
 
@@ -219,7 +247,7 @@ module Necropsy
       end
 
       if failures.any?
-        emit_report(report_with_findings(report, failures), options, min_confidence: options[:fail_on])
+        emit_report(report_with_findings(report, failures), options, min_confidence: :low)
         return 1
       end
 
@@ -305,7 +333,12 @@ module Necropsy
     end
 
     def filtered_findings(report, options)
-      findings = report.actionable_candidates(min_confidence: options[:fail_on])
+      threshold = options[:fail_on]
+      findings = if actionability_threshold?(threshold)
+                   report.actionable_candidates(min_actionability: actionability_threshold(threshold))
+                 else
+                   report.actionable_candidates(min_confidence: threshold)
+                 end
       return findings unless options[:diff_base]
 
       project = Project.new(root: File.expand_path(options[:root]), config: report_config(options))
@@ -321,7 +354,7 @@ module Necropsy
       if options[:format] == :human
         puts Reporter.render_analysis_health(report.analysis_health)
       else
-        emit_report(report, options, min_confidence: options[:fail_on] || options[:min_confidence])
+        emit_report(report, options, min_confidence: :low)
       end
       HEALTH_FAILURE_STATUS
     end
@@ -403,6 +436,90 @@ module Necropsy
       ).call
       puts JSON.pretty_generate(result)
       options[:bench_check] && !result.dig('release_criteria', 'passed') ? 1 : 0
+    end
+
+    def doctor(options)
+      report = analyze(options)
+      config = report_config(options)
+      doctor = Doctor.new(report: report, config: config)
+      puts doctor.render(format: options[:format])
+      result = doctor.call
+      return 1 if result.fetch('status') == 'error'
+
+      result.fetch('checks').any? { |check| check.fetch('status') == 'issue' } ? 1 : 0
+    end
+
+    def feedback(options, argv)
+      subcommand = argv.shift || 'compare'
+      raise Error, 'feedback requires --report and --observed' unless options[:report] && options[:observed]
+      raise Error, "Unexpected feedback arguments: #{argv.join(' ')}" unless argv.empty?
+
+      workflow = FeedbackWorkflow.new(
+        static_report: options[:report],
+        observed_artifact: options[:observed],
+        max_fixtures: options[:max_fixtures]
+      )
+      result = case subcommand
+               when 'compare' then workflow.compare
+               when 'export-fixtures'
+                 raise Error, 'feedback export-fixtures requires --output' unless options[:output]
+
+                 workflow.export_fixtures(options[:output])
+               when 'verify'
+                 workflow.verify(fail_on_missing_static_target: options[:fail_on_missing_static_target])
+               else
+                 raise Error, "Unknown feedback command: #{subcommand}"
+               end
+      puts JSON.pretty_generate(result)
+      return 1 if subcommand == 'verify' && !result.dig('verification', 'passed')
+
+      0
+    end
+
+    def causal_diff(options)
+      raise Error, 'diff requires --base and --head report paths' unless options[:base_report] && options[:head_report]
+
+      result = Guardrail::Diff.compare_reports(
+        base_path: options[:base_report],
+        head_path: options[:head_report]
+      )
+      puts JSON.pretty_generate(result)
+      0
+    end
+
+    def removal_workflow(command, options, argv)
+      raise Error, "#{command} requires --report and --candidate" unless options[:report] && options[:candidate]
+
+      workflow = RemovalWorkflow.new(report_path: options[:report], candidate: options[:candidate],
+                                     root: File.expand_path(options[:root]))
+      case command
+      when 'plan'
+        result = workflow.plan
+        write_or_print(result, options[:output], root: options[:root])
+        0
+      when 'patch'
+        result = workflow.patch_preview
+        write_or_print(result, options[:output], root: options[:root], raw: true)
+        0
+      when 'verify'
+        raise Error, 'verify requires a command after --' if argv.empty?
+
+        result = workflow.verify(argv)
+        puts JSON.pretty_generate(result)
+        result.fetch('passed') ? 0 : 1
+      end
+    end
+
+    def write_or_print(value, path, root:, raw: false)
+      contents = raw ? value : JSON.pretty_generate(value)
+      if path
+        destination = File.expand_path(path, root)
+        FileUtils.mkdir_p(File.dirname(destination))
+        File.write(destination, "#{contents}\n")
+        puts "Wrote #{destination}"
+      else
+        puts contents
+      end
     end
 
     def record(options, argv)
@@ -515,6 +632,27 @@ module Necropsy
       return level if CONFIDENCE_LEVELS.key?(level)
 
       raise OptionParser::InvalidArgument, "unknown confidence level: #{value}"
+    end
+
+    def ci_threshold(value)
+      threshold = value.to_sym
+      return threshold if CONFIDENCE_LEVELS.key?(threshold) ||
+                          Configuration::CI_ACTIONABILITY_THRESHOLDS.include?(threshold)
+
+      allowed = (CONFIDENCE_LEVELS.keys + Configuration::CI_ACTIONABILITY_THRESHOLDS).join(', ')
+      raise OptionParser::InvalidArgument, "unknown CI threshold: #{value}; expected one of: #{allowed}"
+    end
+
+    def actionability_threshold?(threshold)
+      Configuration::CI_ACTIONABILITY_THRESHOLDS.include?(threshold)
+    end
+
+    def actionability_threshold(threshold)
+      case threshold
+      when :new_review_candidate then :review_candidate
+      when :new_verified_candidate then :verified_candidate
+      else raise Error, "Unsupported actionability threshold: #{threshold}"
+      end
     end
 
     def artifact_run_id(options, output, kind)

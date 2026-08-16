@@ -85,7 +85,7 @@ module Necropsy
       return unless fact&.exact
       return unless %i[instance_types callable_set container].include?(fact.kind)
 
-      fact.to_h.merge('summary' => fact.kind == :container ? fact.summary : nil)
+      fact.to_h.merge('summary' => fact.summary)
     end
 
     def call_block_kind(node)

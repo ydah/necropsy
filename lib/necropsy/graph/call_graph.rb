@@ -562,8 +562,43 @@ module Necropsy
       fact.is_a?(Hash) && hash_value(fact, 'kind').to_s == 'callable_set' && hash_value(fact, 'exact') == true
     end
 
-    def callable_method_lookup(_site)
-      incomplete_method_lookup([], [], 'callable_invocation')
+    def callable_method_lookup(site)
+      fact = site.metadata['receiver_value_fact'] || site.metadata[:receiver_value_fact]
+      return incomplete_method_lookup([], [], 'callable_invocation_unknown') unless fact.is_a?(Hash)
+
+      summary = hash_value(fact, 'summary') || {}
+      return literal_callable_lookup unless hash_value(summary, 'reflection_kind')
+
+      names = Array(hash_value(fact, 'values')).map(&:to_s).reject(&:empty?).uniq
+      return incomplete_method_lookup([], [], 'callable_invocation_dynamic_name') if names.empty?
+
+      caller = nodes.exact(site.caller_id)
+      receiver_kind = hash_value(summary, 'receiver_kind').to_s
+      receiver_values = Array(hash_value(summary, 'receiver_values')).map(&:to_s)
+      separators = callable_separators(caller, receiver_kind)
+      targets = names.flat_map do |name|
+        owners = receiver_values.empty? ? [caller&.owner].compact : receiver_values
+        owners.flat_map { |owner| separators.flat_map { |separator| definitions_for("#{owner}#{separator}#{name}") } }
+      end.uniq(&:graph_id)
+      return incomplete_method_lookup([], [], 'callable_invocation_missing') if targets.empty?
+
+      MethodLookup.new(
+        targets: targets.sort_by(&:graph_id),
+        status: targets.length == names.length ? :complete : :partial,
+        lookup_chain: targets.map(&:owner).uniq,
+        reason: 'callable_invocation'
+      )
+    end
+
+    def literal_callable_lookup
+      incomplete_method_lookup([], [], 'literal_callable_invocation')
+    end
+
+    def callable_separators(caller, receiver_kind)
+      return ['.'] if receiver_kind == 'constant'
+      return ['#'] if receiver_kind == 'instance'
+
+      [caller&.kind == :singleton_method ? '.' : '#']
     end
 
     def retain_rta_candidates(candidates, site)

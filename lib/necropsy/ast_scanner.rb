@@ -103,12 +103,15 @@ module Necropsy
       @deferred_module_functions = {}
       @method_signatures = {}
       @semantic_blockers = []
+      @constant_facts = {}
       @factory_methods = project.config.factory_methods.to_set(&:to_s)
       @convention_rules = ConventionRules.new
     end
 
     def scan
-      files.sort_by { |file| project.relative_path(file) }.each { |file| scan_file(file) }
+      ordered_files = files.sort_by { |file| project.relative_path(file) }
+      collect_constant_facts(ordered_files)
+      ordered_files.each { |file| scan_file(file) }
       resolve_deferred_module_function_sources
       copy_module_function_call_sites
       ScanResult.new(
@@ -129,6 +132,19 @@ module Necropsy
 
     private
 
+    def collect_constant_facts(files)
+      files.each do |file|
+        result = Prism.parse(File.read(file))
+        flow = FlowInterpreter.new(
+          constant_resolver: ->(name) { name },
+          constant_facts: constant_facts
+        ).analyze(result.value)
+        constant_facts.merge!(flow.constant_facts)
+      rescue SystemCallError, EncodingError
+        next
+      end
+    end
+
     def handled_call(receiver: true, arguments: true, block: false)
       CallTraversal.new(receiver: receiver, arguments: arguments, block: block)
     end
@@ -136,6 +152,6 @@ module Necropsy
     attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                 :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
                 :deferred_module_functions, :call_site_ordinals, :source_domains, :scope_diagnostics,
-                :method_signatures, :semantic_blockers, :convention_rules
+                :method_signatures, :semantic_blockers, :constant_facts, :convention_rules
   end
 end

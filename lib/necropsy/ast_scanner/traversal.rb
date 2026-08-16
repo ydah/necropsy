@@ -62,6 +62,10 @@ module Necropsy
       root_id = root.graph_id
       context.current_caller_id = root_id
       context.root_id = root_id
+      context.flow_result = FlowInterpreter.new(
+        constant_resolver: ->(constant) { resolve_candidate_group(constant_candidates(constant, context.lexical_nesting)) },
+        constant_facts: constant_facts
+      ).analyze(result.value)
 
       if result.failure?
         file_statuses[relative] = :recovered
@@ -181,7 +185,8 @@ module Necropsy
       method_context.flow_result = FlowInterpreter.new(
         constant_resolver: lambda do |constant|
           resolve_candidate_group(constant_candidates(constant, method_context.lexical_nesting))
-        end
+        end,
+        constant_facts: constant_facts
       ).analyze(node.body)
       method_context.flow_result.issues.each do |issue|
         uncertainties[definition.graph_id] << "Forward value analysis stopped at #{issue}; affected calls use conservative lookup"

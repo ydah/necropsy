@@ -223,6 +223,18 @@ RSpec.describe Necropsy::FlowInterpreter do
     )
   end
 
+  it 'resolves Hash#fetch as a finite registry lookup' do
+    source = Prism.parse('registry = { fast: Service.new }; registry.fetch(:fast).call').value
+    result = described_class.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    call = source.statements.body.last
+
+    expect(result.fact_for(call.receiver)).to have_attributes(
+      kind: :instance_types,
+      values: ['Service'],
+      exact: true
+    )
+  end
+
   it 'distinguishes symbol and string hash keys' do
     source = Prism.parse(<<~RUBY).value
       registry = { fast: SymbolService.new, "fast" => StringService.new }
@@ -442,6 +454,48 @@ RSpec.describe 'FLOW01 receiver integration' do
       expect(graph.method_lookup(callable_site)).to be_unknown
       expect(graph.method_lookup(returned_site).targets.map(&:symbol_id)).to eq(['Service#call'])
     end
+  end
+
+  it 'resolves finite constant registries and reflective method callables' do
+    source = <<~RUBY
+      class RegistryClient
+        HANDLERS = { run: method(:run) }
+
+        def run = :ok
+
+        def dispatch
+          HANDLERS.fetch(:run).call
+        end
+      end
+    RUBY
+
+    with_project(files: { 'app/constant_registry.rb' => source }, config: { cache: { enabled: false } }) do |root|
+      scan = scan_project(root)
+      graph = graph_for_scan(scan)
+      caller = scan.nodes.find { |node| node.symbol_id == 'RegistryClient#dispatch' }
+      callable_site = scan.call_sites.find do |site|
+        site.caller_id == caller.graph_id && site.message == 'call' &&
+          site.metadata.dig('receiver_value_fact', 'kind') == 'callable_set'
+      end
+
+      expect(callable_site.metadata.dig('receiver_value_fact', 'summary', 'reflection_kind')).to eq('method')
+      expect(graph.method_lookup(callable_site).targets.map(&:symbol_id)).to eq(['RegistryClient#run'])
+      expect(graph.method_lookup(callable_site)).to be_complete
+    end
+  end
+
+  it 'resolves finite array registries and one-level dig lookups' do
+    source = Prism.parse(<<~RUBY).value
+      handlers = [FastHandler.new, SafeHandler.new]
+      handlers[1].call
+      registry = { fast: FastHandler.new }
+      registry.dig(:fast).call
+    RUBY
+    result = Necropsy::FlowInterpreter.new(constant_resolver: ->(name) { name }).analyze(source.statements)
+    array_call, hash_call = source.statements.body.values_at(1, 3)
+
+    expect(result.fact_for(array_call.receiver)).to have_attributes(kind: :instance_types, values: ['SafeHandler'])
+    expect(result.fact_for(hash_call.receiver)).to have_attributes(kind: :instance_types, values: ['FastHandler'])
   end
 
   it 'does not trust constructor flow when singleton new is overridden' do

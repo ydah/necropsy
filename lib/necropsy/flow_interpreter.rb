@@ -6,12 +6,14 @@ module Necropsy
   class FlowInterpreter
     DEFAULT_MAX_STEPS = 512
     MAX_ATOMS = 8
+    REFLECTIVE_CALLS = %i[method public_method instance_method].freeze
     class StepBudgetExceeded < StandardError; end
     ControlTransfer = Data.define(:kind, :fact)
 
-    def initialize(constant_resolver:, max_steps: DEFAULT_MAX_STEPS)
+    def initialize(constant_resolver:, max_steps: DEFAULT_MAX_STEPS, constant_facts: {})
       @constant_resolver = constant_resolver
       @max_steps = Integer(max_steps)
+      @initial_constant_facts = constant_facts.transform_keys(&:to_s)
     end
 
     def analyze(body)
@@ -20,6 +22,7 @@ module Necropsy
       @value_facts = {}.compare_by_identity
       @issues = []
       @return_facts = []
+      @constant_facts = @initial_constant_facts.dup
       @steps = 0
       value = evaluate(body)
       FlowResult.new(
@@ -27,7 +30,8 @@ module Necropsy
         value_facts: @value_facts,
         return_fact: return_fact(value),
         issues: @issues,
-        steps: @steps
+        steps: @steps,
+        constant_facts: @constant_facts
       )
     rescue StepBudgetExceeded
       FlowResult.new(
@@ -35,7 +39,8 @@ module Necropsy
         value_facts: @value_facts,
         return_fact: ValueFact.unknown(:step_budget),
         issues: [*@issues, 'step_budget'],
-        steps: @steps
+        steps: @steps,
+        constant_facts: @constant_facts
       )
     end
 
@@ -84,6 +89,8 @@ module Necropsy
                 ValueFact.new(kind: :nil, exact: true, nilable: true, origin: :literal)
               when Prism::TrueNode, Prism::FalseNode
                 ValueFact.new(kind: :boolean, values: [node.type.to_s.delete_suffix('_node')], origin: :literal)
+              when Prism::IntegerNode
+                ValueFact.new(kind: :integer_set, values: [node.value.to_s], origin: :literal)
               when Prism::SymbolNode
                 ValueFact.new(kind: :symbol_set, values: [node.value.to_s], origin: :literal)
               when Prism::StringNode
@@ -91,7 +98,9 @@ module Necropsy
               when Prism::InterpolatedStringNode, Prism::InterpolatedSymbolNode
                 evaluate_interpolated(node)
               when Prism::ConstantReadNode, Prism::ConstantPathNode
-                class_object(node)
+                constant_value(node) || class_object(node)
+              when Prism::ConstantWriteNode
+                assign_constant(node)
               else
                 evaluate_unsupported(node)
               end
@@ -198,8 +207,9 @@ module Necropsy
       @receiver_facts[node.receiver] = receiver_fact if node.receiver
       return ControlTransfer.new(kind: :raise, fact: ValueFact.unknown(:raised)) if node.name == :raise && !node.receiver
       return transparent_wrapper(node) if transparent_wrapper?(node)
-      return container_lookup(receiver_fact, arguments.first) if node.name == :[] && receiver_fact
+      return container_lookup(receiver_fact, arguments) if receiver_fact && %i[[] fetch dig values_at].include?(node.name)
       return callable_result(receiver_fact) if node.name == :call && receiver_fact
+      return reflective_callable(node, receiver_fact) if REFLECTIVE_CALLS.include?(node.name)
       return direct_constructor(node) if node.name == :new && receiver_fact&.kind == :class_object
       return concatenate_strings(receiver_fact, arguments.first) if node.name == :+ && receiver_fact
 
@@ -281,6 +291,7 @@ module Necropsy
                     summary: {
                       'type' => 'array',
                       'size' => elements.length,
+                      'entries' => element_facts.each_with_index.to_h { |fact, index| [index.to_s, fact.to_h] },
                       'element_fact' => join_facts(element_facts).to_h
                     })
     end
@@ -326,10 +337,18 @@ module Necropsy
       @return_facts = previous_returns
     end
 
-    def container_lookup(receiver_fact, argument)
+    def container_lookup(receiver_fact, arguments)
       return ValueFact.unknown(:not_a_container) unless receiver_fact.kind == :container && receiver_fact.exact
 
-      key_fact = @value_facts[argument]
+      type = receiver_fact.summary&.fetch('type', nil)
+      return array_lookup(receiver_fact, arguments) if type == 'array'
+      return hash_lookup(receiver_fact, arguments) if type == 'hash' && arguments.length == 1
+
+      ValueFact.unknown(:unsupported_container_lookup)
+    end
+
+    def hash_lookup(receiver_fact, arguments)
+      key_fact = @value_facts[arguments.first]
       return ValueFact.unknown(:dynamic_container_key) unless
         key_fact&.exact && %i[symbol_set string_set].include?(key_fact.kind)
 
@@ -341,11 +360,50 @@ module Necropsy
       join_facts(values)
     end
 
+    def array_lookup(receiver_fact, arguments)
+      return ValueFact.unknown(:dynamic_container_key) unless arguments.length == 1
+
+      key_fact = @value_facts[arguments.first]
+      return ValueFact.unknown(:dynamic_container_key) unless key_fact&.exact && key_fact.kind == :integer_set
+
+      entries = receiver_fact.summary&.fetch('entries', {}) || {}
+      values = key_fact.values.filter_map { |key| entries[key] }.map { |entry| ValueFact.from_h(entry) }
+      return ValueFact.unknown(:missing_container_key) unless values.length == key_fact.values.length
+
+      join_facts(values)
+    end
+
     def callable_result(receiver_fact)
       return ValueFact.unknown(:not_callable) unless receiver_fact.kind == :callable_set
 
       return_fact = receiver_fact.summary&.fetch('return_fact', nil)
       return_fact.is_a?(Hash) ? ValueFact.from_h(return_fact) : ValueFact.unknown(:unknown_callable_return)
+    end
+
+    def reflective_callable(node, receiver_fact)
+      argument = Array(node.arguments&.arguments).first
+      argument_fact = @value_facts[argument]
+      return ValueFact.unknown(:dynamic_reflection_name) unless
+        argument_fact&.exact && %i[symbol_set string_set].include?(argument_fact.kind)
+
+      receiver_kind = if receiver_fact&.kind == :class_object
+                        :constant
+                      elsif receiver_fact&.kind == :instance_types
+                        :instance
+                      else
+                        :implicit
+                      end
+      ValueFact.new(
+        kind: :callable_set,
+        values: argument_fact.values,
+        exact: true,
+        origin: :reflection,
+        summary: {
+          'reflection_kind' => node.name.to_s,
+          'receiver_kind' => receiver_kind.to_s,
+          'receiver_values' => receiver_fact&.values || []
+        }
+      )
     end
 
     def literal_key(node)
@@ -433,6 +491,19 @@ module Necropsy
       return ValueFact.unknown(:dynamic_constant) unless name
 
       ValueFact.new(kind: :class_object, values: [@constant_resolver.call(name)], origin: :constant)
+    end
+
+    def constant_value(node)
+      name = constant_name(node)
+      @constant_facts[name] if name && @constant_facts.key?(name)
+    end
+
+    def assign_constant(node)
+      value = evaluate(node.value)
+      return value if transfer?(value)
+
+      @constant_facts[node.name.to_s] = value
+      value
     end
 
     def direct_constructor(node)

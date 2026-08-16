@@ -453,7 +453,7 @@ RSpec.describe Necropsy::CLI do
               end
             RUBY
           },
-          config: { quarantine: { expiry: expiry_policy } }
+          config: { ci: { fail_on: 'high' }, quarantine: { expiry: expiry_policy } }
         )
       end
 
@@ -506,7 +506,7 @@ RSpec.describe Necropsy::CLI do
               end
             RUBY
           },
-          config: { quarantine: { expiry: expiry_policy } }
+          config: { ci: { fail_on: 'high' }, quarantine: { expiry: expiry_policy } }
         )
       end
 
