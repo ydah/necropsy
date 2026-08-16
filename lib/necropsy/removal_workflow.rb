@@ -17,10 +17,7 @@ module Necropsy
       validate_report!
       @candidate = find_candidate(candidate)
       @root = File.expand_path(root)
-      @timeout_seconds = Float(timeout_seconds)
-      raise Error, 'verification timeout must be positive and finite' unless @timeout_seconds.positive? && @timeout_seconds.finite?
-    rescue ArgumentError, TypeError
-      raise Error, 'verification timeout must be positive and finite'
+      @timeout_seconds = normalize_timeout(timeout_seconds)
     end
 
     def plan
@@ -112,7 +109,7 @@ module Necropsy
     def source_replacement(root: @root)
       node = @candidate.fetch('node')
       path = safe_source_path(root, node.fetch('file'))
-      lines = File.readlines(path)
+      lines = read_source_lines(path)
       first = Integer(node.fetch('line'))
       last = Integer(node.fetch('end_line', first))
       raise Error, 'candidate source range is invalid' unless first.positive? && last >= first && last <= lines.length
@@ -127,16 +124,40 @@ module Necropsy
     def apply_removal(worktree)
       _original, replacement, node_path = source_replacement(root: worktree)
       path = safe_source_path(worktree, node_path)
-      File.write(path, replacement.join)
+      File.open(path, File::WRONLY | File::TRUNC | File::NOFOLLOW) do |file|
+        file.write(replacement.join)
+      end
+    rescue Errno::ELOOP => e
+      raise Error, "candidate source became a symlink during removal: #{e.message}"
     end
 
     def safe_source_path(root, relative_path)
+      root = File.realpath(root)
       path = File.expand_path(relative_path, root)
-      root_prefix = "#{File.expand_path(root)}/"
+      root_prefix = "#{root}/"
       raise Error, "candidate path escapes project root: #{relative_path}" unless path.start_with?(root_prefix)
+
+      reject_symlink_components(root, path, relative_path)
       raise Error, "candidate source does not exist: #{relative_path}" unless File.file?(path)
 
       path
+    rescue Errno::ENOENT => e
+      raise Error, "candidate source does not exist: #{relative_path}: #{e.message}"
+    end
+
+    def reject_symlink_components(root, path, relative_path)
+      relative = path.delete_prefix("#{root}/")
+      current = root
+      relative.split(File::SEPARATOR).each do |component|
+        current = File.join(current, component)
+        raise Error, "candidate path contains a symlink: #{relative_path}" if File.symlink?(current)
+      end
+    end
+
+    def read_source_lines(path)
+      File.open(path, File::RDONLY | File::NOFOLLOW, &:readlines)
+    rescue Errno::ELOOP => e
+      raise Error, "candidate source is a symlink: #{e.message}"
     end
 
     def candidate_line
@@ -158,6 +179,17 @@ module Necropsy
       findings = @report['findings']
       raise Error, 'Removal report must contain findings' unless findings.is_a?(Array)
       raise Error, 'Removal report findings must contain mappings' unless findings.all?(Hash)
+      raise Error, 'Removal report finding nodes must contain mappings' unless
+        findings.all? { |finding| !finding.key?('node') || finding['node'].is_a?(Hash) }
+    end
+
+    def normalize_timeout(value)
+      seconds = Float(value)
+      raise Error, 'verification timeout must be positive and finite' unless seconds.positive? && seconds.finite?
+
+      seconds
+    rescue ArgumentError, TypeError
+      raise Error, 'verification timeout must be positive and finite'
     end
 
     def run_command(command, worktree)

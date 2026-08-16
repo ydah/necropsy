@@ -74,6 +74,14 @@ module Necropsy
           raise Error, 'Review queue corpus names must be non-empty strings' if corpus.to_s.empty?
           raise Error, "Review queue report #{corpus} must contain findings" unless
             report.is_a?(Hash) && report['findings'].is_a?(Array)
+
+          report['findings'].each do |finding|
+            raise Error, "Review queue report #{corpus} findings must be mappings" unless finding.is_a?(Hash)
+
+            %w[id state confidence].each do |field|
+              raise Error, "Review queue report #{corpus} findings require #{field}" unless finding.key?(field)
+            end
+          end
         end
       end
 

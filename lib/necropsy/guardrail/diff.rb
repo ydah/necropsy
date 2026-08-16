@@ -21,6 +21,15 @@ module Necropsy
         ).compare
       end
 
+      def self.compare_revisions(root:, base_revision:, head_revision: nil, config_path: nil)
+        RevisionDiff.compare(
+          root: root,
+          base_revision: base_revision,
+          head_revision: head_revision,
+          config_path: config_path
+        )
+      end
+
       def initialize(base:, head:)
         validate_report!(base, 'Base diff report')
         validate_report!(head, 'Head diff report')
@@ -150,6 +159,8 @@ module Necropsy
         reachable = entry_point_ids(graph)
         queue = reachable.dup
         adjacency = Array(graph['edges']).each_with_object(Hash.new { |hash, key| hash[key] = [] }) do |edge, result|
+          next unless edge_has_evidence?(edge)
+
           result[edge['caller_id'].to_s] << edge['callee_id'].to_s
         end
         until queue.empty?
@@ -162,6 +173,10 @@ module Necropsy
           end
         end
         reachable.include?(definition_id.to_s)
+      end
+
+      def edge_has_evidence?(edge)
+        Array(edge['evidence_ids']).any? || Array(edge['evidences']).any?
       end
 
       def entry_point_ids(graph)
@@ -186,6 +201,52 @@ module Necropsy
           raise Error, "#{label} graph #{collection} must be an array" unless graph[collection].is_a?(Array)
           raise Error, "#{label} graph #{collection} must contain mappings" unless graph[collection].all?(Hash)
         end
+        validate_resolution_records!(graph['resolutions'], label)
+        validate_graph_edges!(graph['edges'], label)
+        validate_optional_mappings!(report, label)
+      end
+
+      def validate_resolution_records!(records, label)
+        Array(records).each do |record|
+          resolution = record['resolution'] || record
+          raise Error, "#{label} graph resolutions must contain mappings" unless resolution.is_a?(Hash)
+
+          targets = resolution['target_definition_ids']
+          raise Error, "#{label} resolution targets must be an array" if targets && !targets.is_a?(Array)
+        end
+      end
+
+      def validate_graph_edges!(edges, label)
+        Array(edges).each do |edge|
+          %w[evidence_ids evidences].each do |field|
+            next unless edge.key?(field)
+            raise Error, "#{label} graph edge #{field} must be an array" unless edge[field].is_a?(Array)
+          end
+        end
+      end
+
+      def validate_optional_mappings!(report, label)
+        %w[analysis_health diagnostics source_snapshot artifact_provenance].each do |field|
+          next unless report.key?(field)
+          raise Error, "#{label} #{field} must be a mapping" unless report[field].is_a?(Hash)
+        end
+
+        diagnostics = report['diagnostics']
+        if diagnostics&.key?('unrooted_load_units')
+          units = diagnostics['unrooted_load_units']
+          raise Error, "#{label} unrooted_load_units must be a mapping" unless units.is_a?(Hash)
+          raise Error, "#{label} unrooted_load_units.units must be an array" if
+            units.key?('units') && !units['units'].is_a?(Array)
+        end
+
+        snapshot = report['source_snapshot']
+        if snapshot&.key?('verification') && !snapshot['verification'].is_a?(Hash)
+          raise Error, "#{label} source_snapshot.verification must be a mapping"
+        end
+
+        provenance = report['artifact_provenance']
+        raise Error, "#{label} artifact_provenance.inputs must be a mapping" if
+          provenance&.key?('inputs') && !provenance['inputs'].is_a?(Hash)
       end
 
       def report_comparability
@@ -260,7 +321,7 @@ module Necropsy
           Array(graph['nodes']).filter_map do |node|
             next unless %w[public protected].include?(node['visibility'].to_s)
 
-            [node['definition_id'], node['symbol_id'], node['visibility']]
+            [node['definition_id'], { 'symbol_id' => node['symbol_id'], 'visibility' => node['visibility'] }]
           end.to_h
         end
         before = fields.call(base_graph)

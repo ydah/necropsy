@@ -17,7 +17,7 @@ OptionParser.new do |parser|
   parser.banner = 'Usage: bundle exec ruby bench/review_queue.rb [options]'
   parser.on('--input DIR', 'Directory containing normalized report JSON files') { |path| options[:input] = path }
   parser.on('--output PATH', 'Review queue YAML output path') { |path| options[:output] = path }
-  parser.on('--target COUNT', Integer, 'Required reviewed high-candidate target') { |count| options[:target] = count }
+  parser.on('--target COUNT', Integer, 'Required reviewed-candidate target') { |count| options[:target] = count }
 end.parse!
 
 reports = Dir.glob(File.join(File.expand_path(options.fetch(:input), root), '*.json')).to_h do |path|

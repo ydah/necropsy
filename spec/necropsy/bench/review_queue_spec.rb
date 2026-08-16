@@ -77,4 +77,18 @@ RSpec.describe Necropsy::Bench::ReviewQueue do
       described_class.new(reports: reports, target_reviewed_high: 0)
     end.to raise_error(Necropsy::Error, /target must be positive/)
   end
+
+  it 'rejects malformed findings before selecting queue entries' do
+    expect do
+      described_class.new(reports: { 'fixture' => { 'findings' => ['not-a-finding'] } }).call
+    end.to raise_error(Necropsy::Error, /findings must be mappings/)
+  end
+
+  it 'rejects findings missing queue identity fields' do
+    expect do
+      described_class.new(
+        reports: { 'fixture' => { 'findings' => [{ 'id' => 'Fixture#dead' }] } }
+      ).call
+    end.to raise_error(Necropsy::Error, /findings require state/)
+  end
 end

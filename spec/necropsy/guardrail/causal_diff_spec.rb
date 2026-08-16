@@ -118,4 +118,25 @@ RSpec.describe Necropsy::Guardrail::Diff do
       expect(status).to eq(2)
     end
   end
+
+  it 'turns malformed nested diff input into a CLI error' do
+    Dir.mktmpdir do |directory|
+      base = File.join(directory, 'base.json')
+      head = File.join(directory, 'head.json')
+      valid = {
+        'analysis_health' => { 'status' => 'complete' },
+        'findings' => [],
+        'graph' => { 'nodes' => [], 'edges' => [], 'entry_points' => [], 'resolutions' => [] }
+      }
+      File.write(base, JSON.generate(valid))
+      File.write(head, JSON.generate(valid.merge('analysis_health' => 'not-a-mapping')))
+      status = nil
+
+      expect do
+        status = Necropsy::CLI.run(['diff', '--base', base, '--head', head])
+      end.to output(/analysis_health must be a mapping/).to_stderr
+
+      expect(status).to eq(2)
+    end
+  end
 end

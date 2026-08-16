@@ -1,7 +1,9 @@
 ---
-schema_version: 1
+schema_version: 2
 status: pending
-selection: actionable findings, confidence ascending, then corpus and identity
+selection: reviewable findings, actionability ascending, then priority confidence
+  and identity
+target_reviewed_candidates: 300
 target_reviewed_high_candidates: 300
 available_actionable_candidates: 636
 queued_candidates: 300
@@ -9,7 +11,9 @@ reviewed_candidates: 0
 reviewed_high_candidates: 0
 pending_candidates: 300
 pending_high_candidates: 0
-target_shortfall: 300
+pending_review_candidates: 300
+legacy_high_target_shortfall: 300
+target_shortfall: 0
 claim_gate_passed: false
 corpora:
   dynamic_evidence:
@@ -58,6 +62,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -70,6 +75,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -82,6 +88,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -94,6 +101,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -106,6 +114,7 @@ entries:
   loc: 1
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: generated_method
   status: pending
   review_class: candidate
@@ -118,6 +127,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -130,6 +140,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -142,6 +153,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -154,6 +166,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -166,6 +179,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -178,6 +192,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -190,6 +205,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -202,6 +218,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: generated_method
   status: pending
   review_class: candidate
@@ -214,6 +231,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -226,6 +244,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -238,6 +257,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -250,6 +270,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -262,6 +283,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -274,6 +296,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -286,6 +309,7 @@ entries:
   loc: 16
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -298,6 +322,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -310,6 +335,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -322,6 +348,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -334,6 +361,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: medium
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -346,6 +374,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -358,6 +387,7 @@ entries:
   loc: 1
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: generated_method
   status: pending
   review_class: candidate
@@ -370,6 +400,7 @@ entries:
   loc: 1
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: generated_method
   status: pending
   review_class: candidate
@@ -382,6 +413,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -394,6 +426,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -406,6 +439,7 @@ entries:
   loc: 13
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -418,6 +452,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -430,6 +465,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -442,6 +478,7 @@ entries:
   loc: 13
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -454,6 +491,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -466,6 +504,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -478,6 +517,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -490,6 +530,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -502,6 +543,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -514,6 +556,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -526,6 +569,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -538,6 +582,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -550,6 +595,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -562,6 +608,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -574,6 +621,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -586,6 +634,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -598,6 +647,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -610,6 +660,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -622,6 +673,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -634,6 +686,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -646,6 +699,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -658,6 +712,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -670,6 +725,7 @@ entries:
   loc: 18
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -682,6 +738,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -694,6 +751,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -706,6 +764,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -718,6 +777,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -730,6 +790,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -742,6 +803,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -754,6 +816,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -766,6 +829,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -778,6 +842,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -790,6 +855,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -802,6 +868,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -814,6 +881,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -826,6 +894,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -838,6 +907,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -850,6 +920,7 @@ entries:
   loc: 18
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -862,6 +933,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -874,6 +946,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -886,6 +959,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -898,6 +972,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -910,6 +985,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -922,6 +998,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -934,6 +1011,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -946,6 +1024,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -958,6 +1037,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -970,6 +1050,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -982,6 +1063,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -994,6 +1076,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1006,6 +1089,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1018,6 +1102,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1030,6 +1115,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1042,6 +1128,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1054,6 +1141,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1066,6 +1154,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1078,6 +1167,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1090,6 +1180,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1102,6 +1193,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1114,6 +1206,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1126,6 +1219,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1138,6 +1232,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1150,6 +1245,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1162,6 +1258,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1174,6 +1271,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1186,6 +1284,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1198,6 +1297,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1210,6 +1310,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1222,6 +1323,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1234,6 +1336,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1246,6 +1349,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1258,6 +1362,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1270,6 +1375,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1282,6 +1388,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1294,6 +1401,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1306,6 +1414,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1318,6 +1427,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1330,6 +1440,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1342,6 +1453,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1354,6 +1466,7 @@ entries:
   loc: 17
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1366,6 +1479,7 @@ entries:
   loc: 18
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1378,6 +1492,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1390,6 +1505,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1402,6 +1518,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1414,6 +1531,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1426,6 +1544,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1438,6 +1557,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1450,6 +1570,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1462,6 +1583,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1474,6 +1596,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1486,6 +1609,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1498,6 +1622,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1510,6 +1635,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1522,6 +1648,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1534,6 +1661,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1546,6 +1674,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1558,6 +1687,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1570,6 +1700,7 @@ entries:
   loc: 20
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1582,6 +1713,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1594,6 +1726,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1606,6 +1739,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1618,6 +1752,7 @@ entries:
   loc: 16
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1630,6 +1765,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1642,6 +1778,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1654,6 +1791,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1666,6 +1804,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1678,6 +1817,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1690,6 +1830,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1702,6 +1843,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1714,6 +1856,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1726,6 +1869,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1738,6 +1882,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1750,6 +1895,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1762,6 +1908,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1774,6 +1921,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1786,6 +1934,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1798,6 +1947,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1810,6 +1960,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1822,6 +1973,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1834,6 +1986,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1846,6 +1999,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1858,6 +2012,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1870,6 +2025,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1882,6 +2038,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1894,6 +2051,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1906,6 +2064,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1918,6 +2077,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1930,6 +2090,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1942,6 +2103,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1954,6 +2116,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1966,6 +2129,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1978,6 +2142,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -1990,6 +2155,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2002,6 +2168,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2014,6 +2181,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2026,6 +2194,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2038,6 +2207,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2050,6 +2220,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2062,6 +2233,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2074,6 +2246,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2086,6 +2259,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2098,6 +2272,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2110,6 +2285,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2122,6 +2298,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2134,6 +2311,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2146,6 +2324,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2158,6 +2337,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2170,6 +2350,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2182,6 +2363,7 @@ entries:
   loc: 17
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2194,6 +2376,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2206,6 +2389,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2218,6 +2402,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2230,6 +2415,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2242,6 +2428,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2254,6 +2441,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2266,6 +2454,7 @@ entries:
   loc: 14
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2278,6 +2467,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2290,6 +2480,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2302,6 +2493,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2314,6 +2506,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2326,6 +2519,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2338,6 +2532,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2350,6 +2545,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2362,6 +2558,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2374,6 +2571,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2386,6 +2584,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2398,6 +2597,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2410,6 +2610,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2422,6 +2623,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2434,6 +2636,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2446,6 +2649,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2458,6 +2662,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2470,6 +2675,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2482,6 +2688,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2494,6 +2701,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2506,6 +2714,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2518,6 +2727,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2530,6 +2740,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2542,6 +2753,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2554,6 +2766,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2566,6 +2779,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2578,6 +2792,7 @@ entries:
   loc: 12
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2590,6 +2805,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2602,6 +2818,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2614,6 +2831,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2626,6 +2844,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2638,6 +2857,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2650,6 +2870,7 @@ entries:
   loc: 17
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2662,6 +2883,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2674,6 +2896,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2686,6 +2909,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2698,6 +2922,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2710,6 +2935,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2722,6 +2948,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2734,6 +2961,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2746,6 +2974,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2758,6 +2987,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2770,6 +3000,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2782,6 +3013,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2794,6 +3026,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2806,6 +3039,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2818,6 +3052,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2830,6 +3065,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2842,6 +3078,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2854,6 +3091,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2866,6 +3104,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2878,6 +3117,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2890,6 +3130,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2902,6 +3143,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2914,6 +3156,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2926,6 +3169,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2938,6 +3182,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2950,6 +3195,7 @@ entries:
   loc: 14
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2962,6 +3208,7 @@ entries:
   loc: 14
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2974,6 +3221,7 @@ entries:
   loc: 14
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2986,6 +3234,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -2998,6 +3247,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3010,6 +3260,7 @@ entries:
   loc: 14
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3022,6 +3273,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3034,6 +3286,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3046,6 +3299,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3058,6 +3312,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3070,6 +3325,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3082,6 +3338,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3094,6 +3351,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3106,6 +3364,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3118,6 +3377,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3130,6 +3390,7 @@ entries:
   loc: 18
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3142,6 +3403,7 @@ entries:
   loc: 15
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3154,6 +3416,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3166,6 +3429,7 @@ entries:
   loc: 14
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3178,6 +3442,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3190,6 +3455,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3202,6 +3468,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3214,6 +3481,7 @@ entries:
   loc: 17
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3226,6 +3494,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3238,6 +3507,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3250,6 +3520,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3262,6 +3533,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3274,6 +3546,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3286,6 +3559,7 @@ entries:
   loc: 7
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3298,6 +3572,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3310,6 +3585,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3322,6 +3598,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3334,6 +3611,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3346,6 +3624,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3358,6 +3637,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3370,6 +3650,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3382,6 +3663,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3394,6 +3676,7 @@ entries:
   loc: 9
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3406,6 +3689,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3418,6 +3702,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3430,6 +3715,7 @@ entries:
   loc: 14
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3442,6 +3728,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3454,6 +3741,7 @@ entries:
   loc: 8
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3466,6 +3754,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3478,6 +3767,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3490,6 +3780,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3502,6 +3793,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3514,6 +3806,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3526,6 +3819,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3538,6 +3832,7 @@ entries:
   loc: 10
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3550,6 +3845,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3562,6 +3858,7 @@ entries:
   loc: 4
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3574,6 +3871,7 @@ entries:
   loc: 5
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3586,6 +3884,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3598,6 +3897,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3610,6 +3910,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3622,6 +3923,7 @@ entries:
   loc: 6
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3634,6 +3936,7 @@ entries:
   loc: 11
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
@@ -3646,6 +3949,7 @@ entries:
   loc: 3
   state: unreachable
   confidence: low
+  actionability: review_candidate
   category: unreachable
   status: pending
   review_class: candidate
