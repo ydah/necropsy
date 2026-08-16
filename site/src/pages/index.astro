@@ -1,0 +1,81 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Icon from "../components/Icon.astro";
+import TopBar from "../components/TopBar.astro";
+import StatCard from "../components/StatCard.astro";
+import WorkflowRow from "../components/WorkflowRow.astro";
+import HealthCard from "../components/HealthCard.astro";
+import ActiveWorkflows from "../components/ActiveWorkflows.astro";
+import { workflowRuns } from "../data/runs";
+
+const base = import.meta.env.BASE_URL;
+---
+
+<BaseLayout>
+  <TopBar />
+
+  <main class="page-shell" id="overview">
+    <section class="hero-grid" aria-labelledby="page-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="eyebrow-line"></span>GITHUB ACTIONS / REPOSITORY INSIGHTS</p>
+        <h1 id="page-title">Keep the branch <span>green.</span></h1>
+        <p class="hero-description">A calm, focused view of every workflow that keeps <strong>ydah/necropsy</strong> moving.</p>
+        <div class="hero-actions">
+          <button class="primary-button" type="button" data-toast="Workflow dispatch is ready for a GitHub API connection."><Icon name="rocket" size={16} />Run workflow</button>
+          <a class="secondary-button" href="https://github.com/ydah/necropsy/actions" target="_blank" rel="noreferrer">Open Actions <Icon name="external" size={15} /></a>
+        </div>
+      </div>
+      <div class="hero-status">
+        <div class="status-orbit"><span class="orbit-dot"></span><span class="orbit-core"><Icon name="check" size={22} /></span></div>
+        <div><span class="section-kicker">CURRENT STATUS</span><strong>All systems normal</strong><small>main is ready to ship</small></div>
+      </div>
+    </section>
+
+    <section class="stats-grid" aria-label="Workflow summary">
+      <StatCard label="WORKFLOW RUNS" value="128" detail="12.5% more than last month" tone="blue" icon="activity" />
+      <StatCard label="SUCCESS RATE" value="98.4%" detail="2.1% above last month" tone="green" icon="check" />
+      <StatCard label="AVG. DURATION" value="2m 18s" detail="8.6% faster this month" tone="amber" icon="clock" />
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="card runs-card" id="runs">
+        <div class="card-heading runs-heading">
+          <div><span class="section-kicker">RECENT ACTIVITY</span><h2>Workflow runs</h2><p>Latest activity across your repository.</p></div>
+          <button class="ghost-button" id="clear-filters" type="button">Clear filters</button>
+        </div>
+        <div class="filter-bar" aria-label="Filter workflow runs">
+          <label class="search-field"><Icon name="search" size={15} /><span class="sr-only">Search workflow runs</span><input id="run-search" type="search" placeholder="Filter workflow runs" autocomplete="off" /></label>
+          <label class="select-field"><span class="sr-only">Filter by branch</span><select id="branch-filter"><option value="all">All branches</option><option value="main">main</option><option value="release">release/0.3</option><option value="feature">feature/*</option></select><Icon name="chevron" size={15} /></label>
+          <div class="status-filters" role="group" aria-label="Filter by status">
+            <button class="filter-chip active" type="button" data-status="all" aria-pressed="true">All</button>
+            <button class="filter-chip" type="button" data-status="success" aria-pressed="false">Passed</button>
+            <button class="filter-chip" type="button" data-status="failed" aria-pressed="false">Failed</button>
+            <button class="filter-chip" type="button" data-status="in-progress" aria-pressed="false">Running</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="workflow-table">
+            <caption class="sr-only">Recent GitHub Actions workflow runs</caption>
+            <thead><tr><th scope="col">Workflow</th><th scope="col">Branch</th><th scope="col">Event</th><th scope="col">Duration</th><th scope="col">Updated</th><th scope="col">Status</th></tr></thead>
+            <tbody id="run-rows">
+              {workflowRuns.map((run) => <WorkflowRow run={run} />)}
+            </tbody>
+          </table>
+          <div class="empty-state" id="empty-state" hidden><span class="empty-icon"><Icon name="search" size={18} /></span><strong>No workflow runs found</strong><span>Try another search or clear your filters.</span></div>
+        </div>
+        <div class="table-footer"><span id="run-summary">Showing {workflowRuns.length} of 128 runs</span><button class="card-link" type="button" data-toast="The full run history is available when the GitHub API is connected.">View all runs <Icon name="arrow" size={15} /></button></div>
+      </article>
+
+      <aside class="side-column" aria-label="Workflow insights">
+        <HealthCard />
+        <ActiveWorkflows />
+        <article class="release-card" id="settings"><div class="release-top"><span class="section-kicker">LATEST RELEASE</span><span class="release-tag">v0.3.0</span></div><strong>Ready for review</strong><p>Release audit passed on <span class="mono">main</span>.</p><a href="https://github.com/ydah/necropsy/releases" target="_blank" rel="noreferrer">View release <Icon name="arrow" size={15} /></a></article>
+      </aside>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    import "../scripts/run-filters";
+  </script>
+</BaseLayout>

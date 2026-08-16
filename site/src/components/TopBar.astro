@@ -1,0 +1,23 @@
+---
+import Icon from "./Icon.astro";
+
+const base = import.meta.env.BASE_URL;
+---
+
+<header class="topbar">
+  <a class="brand" href={`${base}#overview`} aria-label="Necropsy Actions home">
+    <span class="brand-mark"><span></span><span></span><span></span></span>
+    <span>Necropsy <em>/ Actions</em></span>
+  </a>
+
+  <nav class="top-nav" aria-label="Primary navigation">
+    <a class="top-nav-link active" href={`${base}#runs`}>Runs</a>
+    <a class="top-nav-link" href={`${base}#workflows`}>Workflows</a>
+    <a class="top-nav-link" href={`${base}#settings`}>Settings</a>
+  </nav>
+
+  <div class="top-actions">
+    <span class="sync-label"><span class="pulse-dot"></span>Synced just now</span>
+    <button class="avatar" type="button" aria-label="Open account menu">YT</button>
+  </div>
+</header>

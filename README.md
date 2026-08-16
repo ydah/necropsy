@@ -227,6 +227,28 @@ Machine-readable reports use schema v2. The published contract is
 The [0.3.0 migration guide](docs/migrations/0.3.0.md) describes the structured
 physical-definition and resolution model.
 
+## Actions Dashboard
+
+The repository includes an Astro-based GitHub Actions dashboard in `site/`.
+
+Run it locally:
+
+```bash
+cd site
+npm ci
+npm run dev
+```
+
+Build the static site for production:
+
+```bash
+npm run build
+```
+
+The workflow at `.github/workflows/deploy-pages.yml` deploys the site to
+GitHub Pages after pushes to `main`. On the first deployment, set the
+repository's Pages source to **GitHub Actions** in **Settings → Pages**.
+
 ## Development
 
 Set up a checkout and run the complete local quality suite:

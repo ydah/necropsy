@@ -1,0 +1,25 @@
+---
+import Icon from "./Icon.astro";
+import type { RunStatus } from "../data/runs";
+
+interface Props {
+  status: RunStatus;
+}
+
+const { status } = Astro.props;
+const labels: Record<RunStatus, string> = {
+  success: "Passed",
+  failed: "Failed",
+  "in-progress": "Running"
+};
+const iconNames: Record<RunStatus, string> = {
+  success: "check",
+  failed: "close",
+  "in-progress": "clock"
+};
+---
+
+<span class={`status-badge status-${status}`}>
+  <Icon name={iconNames[status]} size={14} />
+  {labels[status]}
+</span>

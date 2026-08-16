@@ -1,0 +1,31 @@
+---
+import Icon from "./Icon.astro";
+import StatusBadge from "./StatusBadge.astro";
+import type { WorkflowRun } from "../data/runs";
+
+interface Props {
+  run: WorkflowRun;
+}
+
+const { run } = Astro.props;
+---
+
+<tr
+  tabindex="0"
+  class="run-row"
+  data-run-name={run.name}
+  data-run-status={run.status}
+  data-run-search={`${run.name} ${run.workflow} ${run.branch} ${run.event} ${run.commit}`.toLowerCase()}
+>
+  <td data-label="Workflow">
+    <div class="workflow-cell">
+      <span class={`workflow-icon workflow-icon-${run.status}`}><Icon name={run.status === "success" ? "check" : run.status === "failed" ? "close" : "clock"} size={15} /></span>
+      <span class="workflow-copy"><strong>{run.name}</strong><small>{run.workflow}</small></span>
+    </div>
+  </td>
+  <td data-label="Branch"><span class="mono-cell"><Icon name="branch" size={14} />{run.branch}<small>{run.commit}</small></span></td>
+  <td data-label="Event"><span class="event-cell">{run.event}<small>GitHub event</small></span></td>
+  <td data-label="Duration"><span class="mono-cell plain">{run.duration}</span></td>
+  <td data-label="Updated"><span class="mono-cell plain">{run.updated}</span></td>
+  <td data-label="Status"><StatusBadge status={run.status} /></td>
+</tr>
