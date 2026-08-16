@@ -85,3 +85,23 @@ jobs:
           ruby-version: '3.4'
           bundler-cache: true
       - run: gem build necropsy.gemspec
+
+  safety-contract:
+    runs-on: ubuntu-latest
+    name: Actionability and safety contract
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.4'
+          bundler-cache: true
+      - name: Verify actionability and proof workflows
+        run: >-
+          bundle exec rspec
+          spec/necropsy/trust_contract_spec.rb
+          spec/necropsy/ci_actionability_spec.rb
+          spec/necropsy/feedback_workflow_spec.rb
+          spec/necropsy/guardrail/causal_diff_spec.rb
+          spec/necropsy/removal_workflow_spec.rb

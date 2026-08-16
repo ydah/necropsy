@@ -24,7 +24,8 @@ thresholds. Empty candidate output reports `precision_status: no_candidates` and
 The raw candidate diff remains available in `candidate_union.json` for every tool.
 
 The 1.0 review target is tracked separately from this safety release. `bundle exec ruby
-bench/review_queue.rb` deterministically selects 300 actionable rows as `pending`; the queue never
-adds labels and cannot make the public claim gate pass. The current snapshot has no high-confidence
-rows, so the target shortfall is reported rather than hidden. Human reviewers must supply rationale,
-outcome, and reviewer identity before a claim can be enabled.
+bench/review_queue.rb` deterministically selects 300 actionable rows as `pending`, ordering by
+actionability before priority confidence; the queue never adds labels and cannot make the public
+claim gate pass. Legacy high-confidence counts remain as compatibility telemetry, while new
+reports expose `review_candidate` and `verified_candidate` explicitly. Human reviewers must
+supply rationale, outcome, and reviewer identity before a claim can be enabled.

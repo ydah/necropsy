@@ -14,7 +14,8 @@ Necropsy includes:
 - static name resolution and CHA, with rank-only RTA hints from classes instantiated in the scanned program
 - Prism-backed Rails route parsing plus callback, view, component, migration, plain Ruby, and test-suite entry points
 - `unreachable`, `unused`, `blocked`, and `test_only_reachable` classifications
-- confidence levels, compact JSON/YAML reports, SARIF/GitHub output, CI guardrails, dynamic collectors, and benchmarking
+- confidence levels for prioritization, explicit actionability/completeness states, compact JSON/YAML reports,
+  SARIF/GitHub output, CI guardrails, dynamic collectors, and benchmarking
 
 ## Installation
 
@@ -84,10 +85,11 @@ endpoint references with `definition_id`, `symbol_id`, `file`, and `line` when
 available. Importers prefer structured references and continue to accept v1
 logical-ID artifacts.
 
-Fail CI only for new high-confidence findings:
+Fail CI for new removal-review candidates (the default):
 
 ```bash
-bundle exec necropsy check --root . --fail-on high
+bundle exec necropsy check --root .
+bundle exec necropsy check --root . --fail-on new_review_candidate
 ```
 
 `check`, baseline writes, quarantine writes, and release benchmarks fail with status
@@ -112,6 +114,22 @@ bundle exec necropsy coverage --root . --output tmp/necropsy_coverage.yml -- bun
 Child Ruby processes inherit the collector and are merged into the same output
 for that run.
 
+Close the runtime-feedback loop with positive-only observations:
+
+```bash
+bundle exec necropsy feedback compare --report tmp/static.json --observed tmp/runtime-targets.json
+bundle exec necropsy feedback export-fixtures --report tmp/static.json --observed tmp/runtime-targets.json \
+  --output spec/fixtures/runtime_feedback
+```
+
+Compare two physical-definition reports and prepare an isolated removal check:
+
+```bash
+bundle exec necropsy diff --base tmp/base.json --head tmp/head.json
+bundle exec necropsy plan --report tmp/head.json --candidate 'def:v1:...' --output tmp/proof.json
+bundle exec necropsy verify --root . --report tmp/head.json --candidate 'def:v1:...' -- bundle exec rspec
+```
+
 Evaluate against a gold standard:
 
 ```bash
@@ -123,8 +141,9 @@ The legacy view groups by `symbol_id`; the physical view lists every
 `definition_id` and both fingerprints, so duplicate definitions cannot disappear
 from review totals.
 
-Benchmark precision is measured from actionable `unreachable`/`unused` findings only.
-`blocked` and `test_only_reachable` remain visible diagnostics but are not removal candidates.
+Benchmark precision is measured from actionable findings only. `blocked` and
+`test_only_reachable` remain visible diagnostics but are not removal candidates;
+confidence and priority score are retained for ranking and benchmark slicing.
 The additive `quality` and `by_category` objects report candidate precision/count/LOC,
 known-positive recall, blocked and unknown rates, and rule/risk counts. A run with zero
 candidates fails the evaluator's `candidate_yield` release check instead of receiving perfect
@@ -199,7 +218,7 @@ entry_points:
   extra:
     - "PublicApi::*"
 ci:
-  fail_on: high
+  fail_on: new_review_candidate
   baseline: .necropsy_baseline.yml
 quarantine:
   days: 30
@@ -212,6 +231,16 @@ logging:
 
 The scan cache is invalidated when analyzed Ruby files, reference files, or
 configuration values change.
+
+`confidence` and `score` rank findings; they do not prove that removal is safe.
+The default CI gate is `new_review_candidate`, which fails on a candidate not
+present in the physical-definition baseline. `high` and `certain` remain
+accepted as legacy priority thresholds. Reports also expose
+`reachability_state`, `analysis_completeness`, and `actionability` so a review
+can distinguish a model-relative candidate from an unresolved diagnostic.
+
+Use `necropsy doctor --root .` to detect legacy confidence gates, incomplete
+analysis, narrowed scopes, and unrooted load units.
 
 `analysis.world: application` uses executable, framework, and configured roots.
 Use `library` when callers may live outside the repository: every non-test
