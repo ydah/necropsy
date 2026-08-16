@@ -1,0 +1,19 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+  icon: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+}
+
+const { icon, eyebrow, title, description } = Astro.props;
+---
+
+<article class="feature-card">
+  <span class="feature-icon"><Icon name={icon} size={19} /></span>
+  <p class="card-eyebrow">{eyebrow}</p>
+  <h3>{title}</h3>
+  <p class="card-description">{description}</p>
+</article>

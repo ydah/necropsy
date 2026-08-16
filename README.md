@@ -227,9 +227,10 @@ Machine-readable reports use schema v2. The published contract is
 The [0.3.0 migration guide](docs/migrations/0.3.0.md) describes the structured
 physical-definition and resolution model.
 
-## Actions Dashboard
+## Repository Landing Page
 
-The repository includes an Astro-based GitHub Actions dashboard in `site/`.
+The repository includes an Astro-based landing page in `site/` that explains
+Necropsy's safety-first approach to Ruby dead-code analysis.
 
 Run it locally:
 
