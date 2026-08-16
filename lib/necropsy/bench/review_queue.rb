@@ -79,7 +79,9 @@ module Necropsy
             raise Error, "Review queue report #{corpus} findings must be mappings" unless finding.is_a?(Hash)
 
             %w[id state confidence].each do |field|
-              raise Error, "Review queue report #{corpus} findings require #{field}" unless finding.key?(field)
+              value = finding[field]
+              raise Error, "Review queue report #{corpus} findings require #{field}" unless
+                value.is_a?(String) && !value.empty?
             end
           end
         end

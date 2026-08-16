@@ -55,4 +55,36 @@ RSpec.describe Necropsy::FeedbackWorkflow do
       end.to raise_error(Necropsy::Error, /must contain a mapping/)
     end
   end
+
+  it 'rejects non-scalar observed identifiers at the artifact boundary' do
+    Dir.mktmpdir do |directory|
+      static_path = File.join(directory, 'static.json')
+      observed_path = File.join(directory, 'observed.json')
+      File.write(static_path, JSON.generate('graph' => {
+                                              'resolutions' => [{ 'resolution' => {
+                                                'call_site_id' => 'call:one', 'target_definition_ids' => ['Service#run']
+                                              } }]
+                                            }))
+      File.write(observed_path, JSON.generate('observed_targets' => [
+                                                { 'call_site_id' => [], 'target_definition_id' => 'Service#run' }
+                                              ]))
+
+      expect do
+        described_class.new(static_report: static_path, observed_artifact: observed_path)
+      end.to raise_error(Necropsy::Error, /must include call_site_id/)
+    end
+  end
+
+  it 'rejects non-scalar static identifiers at the artifact boundary' do
+    Dir.mktmpdir do |directory|
+      static_path = File.join(directory, 'static.json')
+      observed_path = File.join(directory, 'observed.json')
+      File.write(static_path, JSON.generate('static_targets' => { 'call:one' => [{}] }))
+      File.write(observed_path, JSON.generate([]))
+
+      expect do
+        described_class.new(static_report: static_path, observed_artifact: observed_path)
+      end.to raise_error(Necropsy::Error, /scalar non-empty IDs/)
+    end
+  end
 end

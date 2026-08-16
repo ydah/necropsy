@@ -55,6 +55,36 @@ RSpec.describe Necropsy::Guardrail::RevisionDiff do
     end
   end
 
+  it 'rejects symlinks in a Git revision before analysis' do
+    Dir.mktmpdir do |root|
+      Dir.mktmpdir do |outside|
+        write_project_file(root, '.necropsy.yml', { cache: { enabled: false } }.to_yaml)
+        write_project_file(outside, 'outside.rb', "class Outside; end\n")
+        File.symlink(File.join(outside, 'outside.rb'), File.join(root, 'linked.rb'))
+        git_run(root, 'init', '-q')
+        git_run(root, 'config', 'user.email', 'necropsy@example.test')
+        git_run(root, 'config', 'user.name', 'Necropsy Test')
+        git_run(root, 'add', '.')
+        git_run(root, 'commit', '-qm', 'symlink')
+        revision = git_run(root, 'rev-parse', 'HEAD').strip
+
+        expect do
+          described_class.compare(root: root, base_revision: revision)
+        end.to raise_error(Necropsy::Error, /unsupported symlink/)
+      end
+    end
+  end
+
+  it 'does not pass option-like revision input to Git archive' do
+    Dir.mktmpdir do |root|
+      git_run(root, 'init', '-q')
+
+      expect do
+        described_class.compare(root: root, base_revision: '--output=/tmp/unsafe')
+      end.to raise_error(Necropsy::Error, /Could not resolve Git revision/)
+    end
+  end
+
   def write_project_file(root, path, contents)
     full_path = File.join(root, path)
     FileUtils.mkdir_p(File.dirname(full_path))

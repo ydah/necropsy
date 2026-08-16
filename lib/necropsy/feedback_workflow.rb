@@ -86,8 +86,9 @@ module Necropsy
       call_site_id = target['call_site_id'] || target[:call_site_id]
       target_definition_id = target['target_definition_id'] || target['target_id'] ||
                              target[:target_definition_id] || target[:target_id]
-      raise Error, "Observed target #{index} must include call_site_id" if call_site_id.to_s.empty?
-      raise Error, "Observed target #{index} must include target_definition_id" if target_definition_id.to_s.empty?
+      raise Error, "Observed target #{index} must include call_site_id" unless valid_identifier?(call_site_id)
+      raise Error, "Observed target #{index} must include target_definition_id" unless
+        valid_identifier?(target_definition_id)
     end
 
     def normalize_max_fixtures(value)
@@ -106,7 +107,7 @@ module Necropsy
         raise Error, 'Static target entries must contain arrays' unless targets.is_a?(Array)
 
         targets.map do |target|
-          raise Error, 'Static target IDs must not be empty' if target.to_s.empty?
+          raise Error, 'Static target IDs must be scalar non-empty IDs' unless valid_identifier?(target)
 
           target.to_s
         end.uniq.sort
@@ -122,6 +123,8 @@ module Necropsy
       raise Error, 'Static feedback report must include static_targets or graph.resolutions' unless
         explicit.is_a?(Hash) || resolutions.is_a?(Array)
 
+      normalize_static_targets(explicit) if explicit
+
       return unless resolutions
 
       resolutions.each do |record|
@@ -130,11 +133,19 @@ module Necropsy
         resolution = record['resolution'] || record
         raise Error, 'Static feedback report resolution must be a mapping' unless resolution.is_a?(Hash)
 
+        call_site_id = resolution['call_site_id']
+        raise Error, 'Static feedback report call_site_id must be a scalar non-empty ID' unless
+          valid_identifier?(call_site_id)
+
         target_ids = resolution['target_definition_ids']
-        if target_ids && (!target_ids.is_a?(Array) || target_ids.any? { |target| target.to_s.empty? })
-          raise Error, 'Static feedback report target_definition_ids must be an array of non-empty IDs'
+        if target_ids && (!target_ids.is_a?(Array) || target_ids.any? { |target| !valid_identifier?(target) })
+          raise Error, 'Static feedback report target_definition_ids must be an array of scalar IDs'
         end
       end
+    end
+
+    def valid_identifier?(value)
+      (value.is_a?(String) || value.is_a?(Symbol)) && !value.to_s.empty?
     end
   end
 end

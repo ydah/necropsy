@@ -8,7 +8,10 @@ RSpec.describe Necropsy::Guardrail::Diff do
       base = File.join(directory, 'base.json')
       head = File.join(directory, 'head.json')
       base_payload = {
-        'artifact_provenance' => { 'producer' => { 'version' => '0.3.0' } },
+        'root' => '/project',
+        'artifact_provenance' => {
+          'producer' => { 'version' => '0.3.0' }, 'inputs' => { 'configuration_sha256' => 'config-sha' }
+        },
         'analysis_health' => { 'status' => 'complete' },
         'findings' => [],
         'graph' => { 'nodes' => [], 'edges' => [], 'entry_points' => [], 'resolutions' => [] }
@@ -46,6 +49,8 @@ RSpec.describe Necropsy::Guardrail::Diff do
       base = File.join(directory, 'base.json')
       head = File.join(directory, 'head.json')
       base_payload = {
+        'root' => '/project',
+        'artifact_provenance' => { 'inputs' => { 'configuration_sha256' => 'config-sha' } },
         'analysis_health' => { 'status' => 'complete' },
         'findings' => [{
           'classification' => 'unreachable', 'actionability' => 'review_candidate', 'blockers' => [],
@@ -64,11 +69,47 @@ RSpec.describe Necropsy::Guardrail::Diff do
     end
   end
 
+  it 'retains the base incoming witness when the head edge disappears' do
+    Dir.mktmpdir do |directory|
+      base = File.join(directory, 'base.json')
+      head = File.join(directory, 'head.json')
+      common = {
+        'root' => '/project',
+        'artifact_provenance' => { 'inputs' => { 'configuration_sha256' => 'config-sha' } },
+        'analysis_health' => { 'status' => 'complete' },
+        'findings' => [],
+        'graph' => { 'nodes' => [{ 'definition_id' => 'def:dead' }], 'entry_points' => [], 'resolutions' => [] }
+      }
+      base_graph = common['graph'].merge(
+        'edges' => [{ 'caller_id' => 'def:caller', 'callee_id' => 'def:dead', 'evidence_ids' => ['evidence:1'] }]
+      )
+      head_graph = common['graph'].merge('edges' => [])
+      File.write(base, JSON.generate(common.merge('graph' => base_graph)))
+      File.write(head, JSON.generate(common.merge(
+                                       'findings' => [{
+                                         'classification' => 'unreachable', 'actionability' => 'review_candidate', 'blockers' => [],
+                                         'node' => { 'definition_id' => 'def:dead' }
+                                       }],
+                                       'graph' => head_graph
+                                     )))
+
+      result = described_class.compare_reports(base_path: base, head_path: head)
+      finding = result.fetch('newly_unreachable').fetch(0)
+
+      expect(finding).to include(
+        'last_incoming_edge' => include('caller_id' => 'def:caller'),
+        'removed_incoming_edges' => include(include('caller_id' => 'def:caller'))
+      )
+    end
+  end
+
   it 'accepts an explicit entry point as a reachability witness' do
     Dir.mktmpdir do |directory|
       base = File.join(directory, 'base.json')
       head = File.join(directory, 'head.json')
       base_payload = {
+        'root' => '/project',
+        'artifact_provenance' => { 'inputs' => { 'configuration_sha256' => 'config-sha' } },
         'analysis_health' => { 'status' => 'complete' },
         'findings' => [{
           'classification' => 'unreachable', 'actionability' => 'review_candidate', 'blockers' => [],
@@ -137,6 +178,55 @@ RSpec.describe Necropsy::Guardrail::Diff do
       end.to output(/analysis_health must be a mapping/).to_stderr
 
       expect(status).to eq(2)
+    end
+  end
+
+  it 'fails closed when comparability provenance is missing' do
+    Dir.mktmpdir do |directory|
+      base = File.join(directory, 'base.json')
+      head = File.join(directory, 'head.json')
+      common = {
+        'analysis_health' => { 'status' => 'complete' },
+        'graph' => { 'nodes' => [], 'edges' => [], 'entry_points' => [], 'resolutions' => [] }
+      }
+      File.write(base, JSON.generate(common.merge('findings' => [])))
+      File.write(head, JSON.generate(common.merge(
+                                       'findings' => [{
+                                         'classification' => 'unreachable', 'actionability' => 'review_candidate',
+                                         'blockers' => [], 'node' => { 'definition_id' => 'def:dead' }
+                                       }],
+                                       'graph' => common['graph'].merge('nodes' => [{ 'definition_id' => 'def:dead' }])
+                                     )))
+
+      result = described_class.compare_reports(base_path: base, head_path: head)
+
+      expect(result.fetch('validation')).to include(
+        'comparable' => false,
+        'reasons' => include('root_missing', 'configuration_missing')
+      )
+      expect(result.fetch('newly_unreachable')).to eq([])
+    end
+  end
+
+  it 'rejects graph nodes without physical definition IDs' do
+    Dir.mktmpdir do |directory|
+      base = File.join(directory, 'base.json')
+      head = File.join(directory, 'head.json')
+      common = {
+        'root' => '/project',
+        'artifact_provenance' => { 'inputs' => { 'configuration_sha256' => 'config-sha' } },
+        'analysis_health' => { 'status' => 'complete' },
+        'findings' => [],
+        'graph' => { 'nodes' => [], 'edges' => [], 'entry_points' => [], 'resolutions' => [] }
+      }
+      File.write(base, JSON.generate(common))
+      File.write(head, JSON.generate(common.merge('graph' => common['graph'].merge(
+        'nodes' => [{ 'visibility' => 'public' }]
+      ))))
+
+      expect do
+        described_class.compare_reports(base_path: base, head_path: head)
+      end.to raise_error(Necropsy::Error, /graph nodes require definition_id/)
     end
   end
 end

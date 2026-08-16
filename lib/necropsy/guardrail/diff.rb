@@ -47,7 +47,7 @@ module Necropsy
           'schema_version' => 1,
           'base' => report_identity(@base),
           'head' => report_identity(@head),
-          'newly_unreachable' => newly_unreachable(base_findings, head_findings, head_graph),
+          'newly_unreachable' => newly_unreachable(base_findings, head_findings, base_graph, head_graph),
           'newly_reachable' => newly_reachable(base_findings, head_findings, head_graph),
           'newly_blocked' => state_changes(base_findings, head_findings, 'blocked'),
           'blocker_removed' => blocker_removed(base_findings, head_findings),
@@ -70,14 +70,14 @@ module Necropsy
         end
       end
 
-      def newly_unreachable(base, head, graph)
+      def newly_unreachable(base, head, base_graph, head_graph)
         return [] unless @validation.fetch('comparable') && analysis_complete?(@head)
 
         head.filter_map do |definition_id, finding|
           next unless candidate?(finding)
           next if candidate?(base[definition_id])
 
-          finding_with_witness(finding, graph, definition_id)
+          finding_with_witness(finding, base_graph, head_graph, definition_id)
         end.sort_by { |finding| sort_key(finding) }
       end
 
@@ -115,15 +115,36 @@ module Necropsy
         end.sort_by { |finding| sort_key(finding) }
       end
 
-      def finding_with_witness(finding, graph, definition_id)
-        edges = Array(graph['edges'])
-        incoming = edges.select { |edge| edge['callee_id'].to_s == definition_id.to_s }
+      def finding_with_witness(finding, base_graph, head_graph, definition_id)
+        base_incoming = incoming_edges(base_graph, definition_id)
+        head_incoming = incoming_edges(head_graph, definition_id)
+        removed_incoming = base_incoming.reject do |base_edge|
+          head_incoming.any? { |head_edge| edge_identity(base_edge) == edge_identity(head_edge) }
+        end
+        current_incoming = head_incoming.empty? ? base_incoming : head_incoming
         finding_identity(finding).merge(
           'state' => 'newly_unreachable',
           'proof_obligations' => %w[source load dispatch framework external_contract dynamic_evidence],
-          'incoming_edges' => incoming.sort_by { |edge| [edge['caller_id'].to_s, edge['callee_id'].to_s] },
-          'last_incoming_edge' => incoming.one? ? incoming.first : nil
+          'incoming_edges' => current_incoming,
+          'base_incoming_edges' => base_incoming,
+          'head_incoming_edges' => head_incoming,
+          'removed_incoming_edges' => removed_incoming,
+          'last_incoming_edge' => current_incoming.last
         ).compact
+      end
+
+      def incoming_edges(graph, definition_id)
+        edges = Array(graph['edges']).select do |edge|
+          edge['callee_id'].to_s == definition_id.to_s
+        end
+        edges.sort_by do |edge|
+          [edge['caller_id'].to_s, edge['callee_id'].to_s,
+           edge['call_site_id'].to_s]
+        end
+      end
+
+      def edge_identity(edge)
+        [edge['caller_id'].to_s, edge['callee_id'].to_s, edge['call_site_id'].to_s]
       end
 
       def finding_identity(finding)
@@ -201,9 +222,17 @@ module Necropsy
           raise Error, "#{label} graph #{collection} must be an array" unless graph[collection].is_a?(Array)
           raise Error, "#{label} graph #{collection} must contain mappings" unless graph[collection].all?(Hash)
         end
+        validate_graph_nodes!(graph['nodes'], label)
         validate_resolution_records!(graph['resolutions'], label)
         validate_graph_edges!(graph['edges'], label)
         validate_optional_mappings!(report, label)
+      end
+
+      def validate_graph_nodes!(nodes, label)
+        Array(nodes).each do |node|
+          identifier = node['definition_id']
+          raise Error, "#{label} graph nodes require definition_id" unless identifier.is_a?(String) && !identifier.empty?
+        end
       end
 
       def validate_resolution_records!(records, label)
@@ -218,6 +247,11 @@ module Necropsy
 
       def validate_graph_edges!(edges, label)
         Array(edges).each do |edge|
+          %w[caller_id callee_id].each do |field|
+            value = edge[field]
+            raise Error, "#{label} graph edges require #{field}" unless value.is_a?(String) && !value.empty?
+          end
+
           %w[evidence_ids evidences].each do |field|
             next unless edge.key?(field)
             raise Error, "#{label} graph edge #{field} must be an array" unless edge[field].is_a?(Array)
@@ -252,17 +286,17 @@ module Necropsy
       def report_comparability
         reasons = []
         roots = [@base['root'], @head['root']].compact
-        if roots.length == 1
+        if roots.length != 2 || roots.any? { |root| !root.is_a?(String) || root.empty? }
           reasons << 'root_missing'
-        elsif roots.length == 2 && roots.uniq.length > 1
+        elsif roots.uniq.length > 1
           reasons << 'root_mismatch'
         end
         base_configuration = configuration_sha256(@base)
         head_configuration = configuration_sha256(@head)
         configurations = [base_configuration, head_configuration].compact
-        if configurations.length == 1
+        if configurations.length != 2 || configurations.any? { |configuration| !configuration.is_a?(String) || configuration.empty? }
           reasons << 'configuration_missing'
-        elsif configurations.length == 2 && configurations.uniq.length > 1
+        elsif configurations.uniq.length > 1
           reasons << 'configuration_mismatch'
         end
         { 'comparable' => reasons.empty?, 'reasons' => reasons }
@@ -327,8 +361,8 @@ module Necropsy
         before = fields.call(base_graph)
         after = fields.call(head_graph)
         {
-          'added' => (after.keys - before.keys).sort,
-          'removed' => (before.keys - after.keys).sort,
+          'added' => (after.keys - before.keys).sort_by(&:to_s),
+          'removed' => (before.keys - after.keys).sort_by(&:to_s),
           'visibility_changed' => (before.keys & after.keys).filter_map do |key|
             next if before[key] == after[key]
 

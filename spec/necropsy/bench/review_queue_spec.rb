@@ -91,4 +91,14 @@ RSpec.describe Necropsy::Bench::ReviewQueue do
       ).call
     end.to raise_error(Necropsy::Error, /findings require state/)
   end
+
+  it 'rejects blank queue identity fields' do
+    expect do
+      described_class.new(
+        reports: {
+          'fixture' => { 'findings' => [{ 'id' => '', 'state' => 'unreachable', 'confidence' => 'low' }] }
+        }
+      ).call
+    end.to raise_error(Necropsy::Error, /findings require id/)
+  end
 end
