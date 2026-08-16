@@ -61,6 +61,7 @@ module Necropsy
             'logical_fingerprint' => finding.logical_fingerprint,
             'classification' => finding.classification.to_s,
             'confidence' => finding.confidence.to_s,
+            'actionability' => finding.actionability.to_s,
             'node_id' => finding.node.id,
             'symbol_id' => finding.node.symbol_id,
             'definition_id' => finding.node.definition_id,
@@ -152,6 +153,14 @@ module Necropsy
       end
 
       def count_at_least(confidence)
+        if Configuration::CI_ACTIONABILITY_THRESHOLDS.include?(confidence)
+          threshold = confidence == :new_verified_candidate ? :verified_candidate : :review_candidate
+          return @findings.count do |finding|
+            actionability = finding['actionability']&.to_sym || inferred_actionability(finding)
+            ACTIONABILITY_LEVELS.fetch(actionability, -1) >= ACTIONABILITY_LEVELS.fetch(threshold)
+          end
+        end
+
         threshold = CONFIDENCE_LEVELS.fetch(confidence)
         @findings.count do |finding|
           level = finding['confidence']&.to_sym
@@ -275,7 +284,7 @@ module Necropsy
 
       def validate_entry!(entry)
         string_fields = %w[
-          fingerprint logical_fingerprint classification confidence node_id symbol_id definition_id body_digest file
+          fingerprint logical_fingerprint classification confidence actionability node_id symbol_id definition_id body_digest file
         ]
         string_fields.each do |field|
           value = entry[field]
@@ -291,6 +300,10 @@ module Necropsy
         confidence = entry['confidence']
         raise Error, "Unknown baseline confidence: #{confidence}" if
           confidence && !CONFIDENCE_LEVELS.key?(confidence.to_sym)
+
+        actionability = entry['actionability']
+        raise Error, "Unknown baseline actionability: #{actionability}" if
+          actionability && !ACTIONABILITY_STATES.include?(actionability.to_sym)
 
         validate_v1_fingerprint!(entry) if schema_version == 1
         validate_v2_fingerprints!(entry) if schema_version == SCHEMA_VERSION
@@ -346,6 +359,12 @@ module Necropsy
       def same_classification?(entry, finding)
         classification = entry['classification']
         classification.nil? || classification == finding.classification.to_s
+      end
+
+      def inferred_actionability(entry)
+        return :review_candidate if %w[unreachable unused].include?(entry['classification'].to_s)
+
+        :diagnostic
       end
 
       def ambiguity(entry, index, resolution, assignment_indexes)

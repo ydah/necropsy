@@ -12,6 +12,12 @@ module Necropsy
       ACTIONABLE_STATES = %w[unreachable unused candidate].freeze
       HIGH_CONFIDENCES = %w[high certain].freeze
       CONFIDENCE_ORDER = { 'certain' => 0, 'high' => 1, 'medium' => 2, 'low' => 3 }.freeze
+      ACTIONABILITY_ORDER = {
+        'verified_candidate' => 0,
+        'review_candidate' => 1,
+        'investigate' => 2,
+        'diagnostic' => 3
+      }.freeze
       VERSION = 1
 
       def initialize(reports:, target_reviewed_high: 300, limit: nil)
@@ -28,10 +34,11 @@ module Necropsy
         available = actionable_entries
         entries = available.sort_by { |entry| sort_key(entry) }.first(limit)
         high_entries = entries.select { |entry| HIGH_CONFIDENCES.include?(entry.fetch('confidence')) }
+        review_entries = entries.select { |entry| review_candidate?(entry) }
         {
           'schema_version' => VERSION,
           'status' => 'pending',
-          'selection' => 'actionable findings, confidence ascending, then corpus and identity',
+          'selection' => 'actionable findings, actionability ascending, then priority confidence and identity',
           'target_reviewed_high_candidates' => target_reviewed_high,
           'available_actionable_candidates' => available.length,
           'queued_candidates' => entries.length,
@@ -39,6 +46,7 @@ module Necropsy
           'reviewed_high_candidates' => 0,
           'pending_candidates' => entries.length,
           'pending_high_candidates' => high_entries.length,
+          'pending_review_candidates' => review_entries.length,
           'target_shortfall' => [target_reviewed_high - high_entries.length, 0].max,
           'claim_gate_passed' => false,
           'corpora' => corpus_summary(available, entries),
@@ -81,6 +89,7 @@ module Necropsy
               'loc' => finding['loc'],
               'state' => finding.fetch('state').to_s,
               'confidence' => finding.fetch('confidence').to_s,
+              'actionability' => actionability(finding),
               'category' => finding['category'].to_s,
               'status' => 'pending',
               'review_class' => review_class(finding)
@@ -94,13 +103,26 @@ module Necropsy
       end
 
       def review_class(finding)
+        level = finding['actionability'].to_s
+        return level if %w[verified_candidate review_candidate].include?(level)
         return 'high_candidate' if HIGH_CONFIDENCES.include?(finding['confidence'].to_s)
 
         'candidate'
       end
 
+      def actionability(finding)
+        return finding['actionability'].to_s if finding['actionability']
+
+        actionable?(finding) ? 'review_candidate' : 'diagnostic'
+      end
+
+      def review_candidate?(entry)
+        %w[verified_candidate review_candidate].include?(entry.fetch('actionability'))
+      end
+
       def sort_key(entry)
         [
+          ACTIONABILITY_ORDER.fetch(entry.fetch('actionability'), ACTIONABILITY_ORDER.length),
           CONFIDENCE_ORDER.fetch(entry.fetch('confidence'), CONFIDENCE_ORDER.length),
           entry.fetch('corpus'),
           entry.fetch('category'),

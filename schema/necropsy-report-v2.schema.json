@@ -166,11 +166,15 @@
         "classification",
         "confidence",
         "score",
+        "priority_score",
         "score_components",
         "node",
         "reasons",
         "evidences",
-        "blockers"
+        "blockers",
+        "reachability_state",
+        "analysis_completeness",
+        "actionability"
       ],
       "properties": {
         "fingerprint": { "$ref": "#/$defs/sha256" },
@@ -181,6 +185,20 @@
         },
         "confidence": { "enum": ["low", "medium", "high", "certain"] },
         "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "priority_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reachability_state": {
+          "enum": [
+            "observed_alive",
+            "statically_reachable",
+            "externally_reachable",
+            "unreachable_under_model",
+            "unknown"
+          ]
+        },
+        "analysis_completeness": { "enum": ["complete", "partial", "invalid"] },
+        "actionability": {
+          "enum": ["diagnostic", "investigate", "review_candidate", "verified_candidate"]
+        },
         "score_components": {
           "type": "array",
           "items": { "$ref": "#/$defs/scoreComponent" }

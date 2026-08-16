@@ -91,13 +91,17 @@ module Necropsy
           confidence_changed_ids = common_ids.reject do |id|
             baseline[id]['confidence'] == current[id]['confidence']
           end
+          actionability_changed_ids = common_ids.reject do |id|
+            baseline[id]['actionability'] == current[id]['actionability']
+          end
           [corpus, {
             'baseline_metrics' => baseline_reports.fetch(corpus).fetch('metrics'),
             'current_metrics' => current_reports.fetch(corpus).fetch('metrics'),
             'added' => change_list(added_ids, nil, current),
             'removed' => change_list(removed_ids, baseline, nil),
             'state_changed' => change_list(state_changed_ids, baseline, current),
-            'confidence_changed' => change_list(confidence_changed_ids, baseline, current)
+            'confidence_changed' => change_list(confidence_changed_ids, baseline, current),
+            'actionability_changed' => change_list(actionability_changed_ids, baseline, current)
           }]
         end
       end
@@ -132,7 +136,7 @@ module Necropsy
             next unless high_actionable?(finding) && !high_actionable?(baseline[identity])
 
             label, identity_match = label_for(corpus, finding)
-            finding.slice('id', 'definition_id', 'path', 'line', 'state', 'confidence').merge(
+            finding.slice('id', 'definition_id', 'path', 'line', 'state', 'confidence', 'actionability').merge(
               'corpus' => corpus,
               'identity' => identity,
               'label' => label,
@@ -334,6 +338,8 @@ module Necropsy
           validate_identifier!(finding['id'], "#{label} finding id")
           validate_identifier!(finding['definition_id'], "#{label} finding definition_id") if
             finding.key?('definition_id')
+          validate_actionability!(finding['actionability'], "#{label} finding actionability") if
+            finding.key?('actionability')
         end
       end
 
@@ -350,6 +356,10 @@ module Necropsy
       def validate_identifier!(value, label)
         raise Error, "#{label} must be a non-empty string" unless value.is_a?(String) && !value.empty?
         raise Error, "#{label} exceeds #{MAX_STRING_BYTES} bytes" if value.bytesize > MAX_STRING_BYTES
+      end
+
+      def validate_actionability!(value, label)
+        raise Error, "#{label} must be a known actionability state" unless ACTIONABILITY_LEVELS.key?(value.to_s)
       end
 
       def gate(passed, failures)

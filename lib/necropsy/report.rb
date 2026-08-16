@@ -45,14 +45,20 @@ module Necropsy
     # explain uncertainty or test-only reachability. Benchmarks and precision
     # gates must measure only definitions that a user can actually review as a
     # removal candidate.
-    def actionable_candidates(min_confidence: :low)
+    def actionable_candidates(min_confidence: :low, min_actionability: nil)
       reported_findings.select do |finding|
-        ACTIONABLE_CLASSIFICATIONS.include?(finding.classification) && finding.at_least?(min_confidence)
+        next false unless finding.actionable?
+
+        if min_actionability
+          finding.actionability_at_least?(min_actionability)
+        else
+          finding.at_least?(min_confidence)
+        end
       end
     end
 
     def diagnostic_findings
-      reported_findings.reject { |finding| ACTIONABLE_CLASSIFICATIONS.include?(finding.classification) }
+      reported_findings.reject(&:actionable?)
     end
 
     def reportable_findings
@@ -101,7 +107,7 @@ module Necropsy
 
     def summary
       grouped = reported_findings.group_by(&:classification)
-      actionable = reported_findings.count { |finding| ACTIONABLE_CLASSIFICATIONS.include?(finding.classification) }
+      actionable = reported_findings.count(&:actionable?)
       blocked = grouped.fetch(:blocked, []).length
       {
         'nodes' => graph.nodes.length,

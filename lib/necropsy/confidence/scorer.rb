@@ -48,7 +48,10 @@ module Necropsy
             score_components: score_components,
             reasons: reasons,
             evidences: graph.incoming_edges(node.graph_id).flat_map(&:evidences) + graph.alive_evidences(node.graph_id),
-            blockers: blockers
+            blockers: blockers,
+            reachability_state: reachability_state_for(node, classification, blockers),
+            analysis_completeness: blockers.empty? ? :complete : :partial,
+            actionability: actionability_for(classification, blockers)
           )
         end
       end
@@ -116,6 +119,24 @@ module Necropsy
 
       def score_component(name, value, details)
         ScoreComponent.new(name: name, value: value.round(4), details: details)
+      end
+
+      def reachability_state_for(node, classification, blockers)
+        return :unknown if blockers.any?
+        return :externally_reachable if reachability.external_paths.key?(node.graph_id)
+        return :statically_reachable if reachability.runtime_paths.key?(node.graph_id)
+        return :statically_reachable if reachability.test_paths.key?(node.graph_id)
+        return :observed_alive if graph.dynamic_alive?(node.graph_id)
+        return :unreachable_under_model if %i[unreachable unused].include?(classification)
+
+        :unknown
+      end
+
+      def actionability_for(classification, blockers)
+        return :diagnostic if blockers.any?
+        return :review_candidate if %i[unreachable unused].include?(classification)
+
+        :diagnostic
       end
 
       def add_runtime_unobserved_annotation(node, reasons, components)

@@ -19,7 +19,15 @@ module Necropsy
       module_function
 
       def actionable?(finding)
+        return finding.actionable? if finding.respond_to?(:actionable?)
+
         ACTIONABLE_CLASSIFICATIONS.include?(finding.classification.to_sym)
+      end
+
+      def actionability(finding)
+        return finding.actionability.to_s if finding.respond_to?(:actionability)
+
+        actionable?(finding) ? 'review_candidate' : 'diagnostic'
       end
 
       def loc(finding)

@@ -10,6 +10,17 @@ module Necropsy
     high: 2,
     certain: 3
   }.freeze
+  ACTIONABILITY_LEVELS = {
+    diagnostic: 0,
+    investigate: 1,
+    review_candidate: 2,
+    verified_candidate: 3
+  }.freeze
+  REACHABILITY_STATES = %i[
+    observed_alive statically_reachable externally_reachable unreachable_under_model unknown
+  ].freeze
+  ANALYSIS_COMPLETENESS_STATES = %i[complete partial invalid].freeze
+  ACTIONABILITY_STATES = ACTIONABILITY_LEVELS.keys.freeze
 
   UNKNOWN_SCOPE_KINDS = %i[definition symbol message owner namespace file global].freeze
   UNKNOWN_SCOPE_MATCHES = %i[exact glob].freeze
@@ -715,7 +726,7 @@ module Necropsy
   end
 
   VALUE_FACT_KINDS = %i[
-    class_object instance_types symbol_set string_set callable_set container nil boolean unknown
+    class_object instance_types symbol_set string_set integer_set callable_set container nil boolean unknown
   ].freeze
 
   ValueFact = Data.define(:kind, :values, :exact, :nilable, :origin, :summary) do
@@ -766,12 +777,14 @@ module Necropsy
     end
   end
 
-  FlowResult = Data.define(:receiver_facts, :value_facts, :return_fact, :issues, :steps) do
-    def initialize(receiver_facts: {}, value_facts: {}, return_fact: ValueFact.unknown(:no_direct_return), issues: [], steps: 0)
+  FlowResult = Data.define(:receiver_facts, :value_facts, :return_fact, :issues, :steps, :constant_facts) do
+    def initialize(receiver_facts: {}, value_facts: {}, return_fact: ValueFact.unknown(:no_direct_return), issues: [], steps: 0,
+                   constant_facts: {})
       receiver_facts = receiver_facts.dup.compare_by_identity.freeze
       value_facts = value_facts.dup.compare_by_identity.freeze
       issues = Array(issues).map(&:to_s).uniq.sort.freeze
       steps = Integer(steps)
+      constant_facts = constant_facts.transform_keys(&:to_s).freeze
       super
     end
 
@@ -785,7 +798,8 @@ module Necropsy
         'value_fact_count' => value_facts.length,
         'return_fact' => return_fact.to_h,
         'issues' => issues,
-        'steps' => steps
+        'steps' => steps,
+        'constant_fact_count' => constant_facts.length
       }
     end
   end
@@ -999,13 +1013,56 @@ module Necropsy
     end
   end
 
-  Finding = Data.define(:node, :classification, :confidence, :score, :score_components, :reasons, :evidences, :blockers) do
-    def initialize(node:, classification:, confidence:, score:, score_components:, reasons:, evidences:, blockers: [])
+  Finding = Data.define(
+    :node, :classification, :confidence, :score, :score_components, :reasons, :evidences, :blockers,
+    :reachability_state, :analysis_completeness, :actionability
+  ) do
+    def initialize(node:, classification:, confidence:, score:, score_components:, reasons:, evidences:, blockers: [],
+                   reachability_state: nil, analysis_completeness: nil, actionability: nil)
+      classification = classification.to_sym
+      blockers = Array(blockers)
+      reachability_state ||= default_reachability_state(classification)
+      analysis_completeness ||= blockers.empty? ? :complete : :partial
+      actionability ||= default_actionability(classification, blockers, analysis_completeness)
+      validate_state!(reachability_state, analysis_completeness, actionability, blockers)
+      reachability_state = reachability_state.to_sym
+      analysis_completeness = analysis_completeness.to_sym
+      actionability = actionability.to_sym
       super
     end
 
     def at_least?(level)
       CONFIDENCE_LEVELS.fetch(confidence) >= CONFIDENCE_LEVELS.fetch(level)
+    end
+
+    def actionability_at_least?(level)
+      ACTIONABILITY_LEVELS.fetch(actionability) >= ACTIONABILITY_LEVELS.fetch(level)
+    end
+
+    def actionable?
+      actionability_at_least?(:review_candidate)
+    end
+
+    def with(**changes)
+      attributes = {
+        node: node,
+        classification: classification,
+        confidence: confidence,
+        score: score,
+        score_components: score_components,
+        reasons: reasons,
+        evidences: evidences,
+        blockers: blockers,
+        reachability_state: reachability_state,
+        analysis_completeness: analysis_completeness,
+        actionability: actionability
+      }.merge(changes)
+      if changes.key?(:classification) || changes.key?(:blockers)
+        attributes.delete(:reachability_state) unless changes.key?(:reachability_state)
+        attributes.delete(:analysis_completeness) unless changes.key?(:analysis_completeness)
+        attributes.delete(:actionability) unless changes.key?(:actionability)
+      end
+      self.class.new(**attributes)
     end
 
     def fingerprint
@@ -1026,12 +1083,48 @@ module Necropsy
         'classification' => classification.to_s,
         'confidence' => confidence.to_s,
         'score' => score,
+        'priority_score' => score,
         'score_components' => score_components.map(&:to_h),
         'node' => node.to_h,
         'reasons' => reasons,
         'evidences' => evidences.map(&:to_h),
-        'blockers' => blockers.map(&:to_h)
+        'blockers' => blockers.map(&:to_h),
+        'reachability_state' => reachability_state.to_s,
+        'analysis_completeness' => analysis_completeness.to_s,
+        'actionability' => actionability.to_s
       }
+    end
+
+    private
+
+    def default_reachability_state(classification)
+      return :unreachable_under_model if %i[unreachable unused].include?(classification)
+      return :statically_reachable if classification == :test_only_reachable
+
+      :unknown
+    end
+
+    def default_actionability(classification, matching_blockers, completeness)
+      return :diagnostic unless matching_blockers.empty? && completeness == :complete
+      return :review_candidate if %i[unreachable unused].include?(classification)
+
+      :diagnostic
+    end
+
+    def validate_state!(reachability, completeness, candidate_actionability, matching_blockers)
+      reachability = reachability.to_sym
+      completeness = completeness.to_sym
+      candidate_actionability = candidate_actionability.to_sym
+      raise ArgumentError, "invalid finding reachability state: #{reachability}" unless
+        REACHABILITY_STATES.include?(reachability)
+      raise ArgumentError, "invalid finding analysis completeness: #{completeness}" unless
+        ANALYSIS_COMPLETENESS_STATES.include?(completeness)
+      raise ArgumentError, "invalid finding actionability: #{candidate_actionability}" unless
+        ACTIONABILITY_STATES.include?(candidate_actionability)
+      return unless ACTIONABILITY_LEVELS.fetch(candidate_actionability) >= ACTIONABILITY_LEVELS.fetch(:review_candidate)
+
+      raise ArgumentError, 'incomplete findings cannot be actionable' unless completeness == :complete
+      raise ArgumentError, 'blocked findings cannot be actionable' unless matching_blockers.empty?
     end
   end
 end

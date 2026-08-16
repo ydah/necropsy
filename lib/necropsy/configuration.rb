@@ -6,7 +6,8 @@ require 'prism'
 
 module Necropsy
   class Configuration
-    DEFAULT_FAIL_ON = :high
+    DEFAULT_FAIL_ON = :new_review_candidate
+    CI_ACTIONABILITY_THRESHOLDS = %i[new_review_candidate new_verified_candidate].freeze
     DEFAULT_BASELINE = '.necropsy_baseline.yml'
     RTA_PRUNING_MODES = %w[rank_only legacy].freeze
     STATIC_ANALYZER_ORDER = %w[name_resolution cha rta].freeze
@@ -117,9 +118,21 @@ module Necropsy
 
     def fail_on
       level = (fetch('ci', 'fail_on') || DEFAULT_FAIL_ON).to_sym
-      return level if CONFIDENCE_LEVELS.key?(level)
+      return level if CONFIDENCE_LEVELS.key?(level) || CI_ACTIONABILITY_THRESHOLDS.include?(level)
 
-      raise Error, "Invalid ci.fail_on confidence level: #{level}"
+      allowed = (CONFIDENCE_LEVELS.keys + CI_ACTIONABILITY_THRESHOLDS).join(', ')
+      raise Error, "Invalid ci.fail_on threshold: #{level}; expected one of: #{allowed}"
+    end
+
+    def fail_on_actionability?
+      CI_ACTIONABILITY_THRESHOLDS.include?(fail_on)
+    end
+
+    def fail_on_actionability
+      case fail_on
+      when :new_review_candidate then :review_candidate
+      when :new_verified_candidate then :verified_candidate
+      end
     end
 
     def min_observation_days
