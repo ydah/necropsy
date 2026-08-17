@@ -224,8 +224,9 @@ reference files, or configuration values change.
 
 Machine-readable reports use schema v2. The published contract is
 [`schema/necropsy-report-v2.schema.json`](schema/necropsy-report-v2.schema.json).
-The [0.3.0 migration guide](docs/migrations/0.3.0.md) describes the structured
-physical-definition and resolution model.
+The [documentation hub](docs/README.md) indexes migration guides, architecture
+decisions, and frozen review records. The [0.3.0 migration guide](docs/migrations/0.3.0.md)
+describes the structured physical-definition and resolution model.
 
 ## Repository Landing Page
 

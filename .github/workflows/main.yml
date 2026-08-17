@@ -74,6 +74,19 @@ jobs:
           bundler-cache: true
       - run: bundle exec rake rubocop
 
+  docs-links:
+    runs-on: ubuntu-latest
+    name: Documentation links
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - name: Check relative Markdown links
+        run: ruby script/check_documentation_links.rb
+
   package:
     runs-on: ubuntu-latest
     steps:

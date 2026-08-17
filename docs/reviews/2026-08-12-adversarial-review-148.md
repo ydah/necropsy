@@ -1,4 +1,7 @@
-# Implementation matrix
+# Adversarial review record: 148 items (2026-08-12)
+
+> Frozen record. This file captures the review state on 2026-08-12 and is not
+> maintained as a live implementation checklist.
 
 Reviewed against the working implementation on 2026-08-12. “Safe equivalent” means the proposed
 mechanism was not copied literally, but its removal-safety or operability goal is enforced by a
@@ -57,7 +60,7 @@ in the linked ADR; it does not mean silently deferred work.
 | 41 | Implemented | Definition and call-site identity schemas are versioned and reported with Ruby/Prism/tool versions. |
 | 42 | Implemented | `load_graph.rb` adds only literal require/require_relative/autoload evidence and blocks unresolved load targets. |
 | 43 | Implemented | Unrooted load units with side-effectful bodies are emitted as bounded diagnostics. |
-| 44 | No-go | Shadow classification without a closed activation witness is unsafe; duplicates remain physical and blocked. See `necropsy_scope_decisions.md`. |
+| 44 | No-go | Shadow classification without a closed activation witness is unsafe; duplicates remain physical and blocked. See [ADR-0001](../adr/0001-no-shadowed-definition-classification.md). |
 | 45 | Implemented | Runtime/test definition indexes are separate for ambiguity fallback. |
 | 46 | Implemented | Partial/unknown resolutions use the smallest proven owner/namespace/message residual scope. |
 | 47 | Safe equivalent | A flow-budget miss falls back at the affected site; only an unscoped semantic loss can widen a blocker. |
@@ -65,7 +68,7 @@ in the linked ADR; it does not mean silently deferred work.
 | 49 | Implemented | CHA delegates lookup order to the canonical CallGraph APIs. |
 | 50 | Implemented | Singleton lookup does not fall back to the owner's instance surface. |
 | 51 | Implemented | Include/prepend/extend have distinct instance and singleton lookup relations. |
-| 52 | No-go | Default RTA is non-pruning, so a second root-seeded fixed point has no safety benefit absent measured precision gain. See `necropsy_scope_decisions.md`. |
+| 52 | No-go | Default RTA is non-pruning, so a second root-seeded fixed point has no safety benefit absent measured precision gain. See [ADR-0002](../adr/0002-non-pruning-rta-by-default.md). |
 | 53 | Implemented | Legacy RTA pruning adds invalid health; CI cannot allow it as a degraded exception. |
 | 54 | Safe equivalent | Factory-name evidence is rank-only and cannot refute targets; exact construction still requires receiver/core-constructor proof. |
 | 55 | Implemented | Core protocol summaries transform receivers/arguments/elements and encode block-state semantics; user methods with the same name do not trigger them. |
@@ -74,18 +77,18 @@ in the linked ADR; it does not mean silently deferred work.
 | 58 | Safe equivalent | Name-only discounts were narrowed to VM hooks/core protocols; concrete implicit operations produce edges and numeric scores remain ranking only. |
 | 59 | Safe equivalent | Resolution status/scope, health, world policy, blockers, and evidence grade form the actionability claims; confidence numbers cannot override them. |
 | 60 | Implemented | Only analyzers declaring `complete_resolution` capability may emit a complete resolution. |
-| 61 | No-go | An RBS provider lacks a reviewed stale/conflicting-signature target corpus; syntax fixtures are insufficient. See `necropsy_type_facts_adr.md`. |
-| 62 | No-go | Sorbet/RBI ingestion has the same unproven open-world contract and a larger generated-RBI surface. See the type-facts ADR. |
-| 63 | No-go | Demand-driven interprocedural points-to is excluded from removal decisions until the type/alias/load-order gate is met. |
-| 64 | No-go | Interprocedural return summaries are not promoted without a purity/mutation corpus; local return facts stay bounded. |
-| 65 | No-go | Argument-to-parameter propagation is not promoted without dispatch and mutation labels; call arguments remain recorded evidence. |
-| 66 | No-go | Constructor ivar summaries are not promoted without aliasing/reopen coverage. |
+| 61 | No-go | An RBS provider lacks a reviewed stale/conflicting-signature target corpus; syntax fixtures are insufficient. See [ADR-0011](../adr/0011-no-external-type-providers.md). |
+| 62 | No-go | Sorbet/RBI ingestion has the same unproven open-world contract and a larger generated-RBI surface. See [ADR-0011](../adr/0011-no-external-type-providers.md). |
+| 63 | No-go | Demand-driven interprocedural points-to is excluded from removal decisions until the type/alias/load-order gate is met. See [ADR-0011](../adr/0011-no-external-type-providers.md). |
+| 64 | No-go | Interprocedural return summaries are not promoted without a purity/mutation corpus; local return facts stay bounded. See [ADR-0011](../adr/0011-no-external-type-providers.md). |
+| 65 | No-go | Argument-to-parameter propagation is not promoted without dispatch and mutation labels; call arguments remain recorded evidence. See [ADR-0011](../adr/0011-no-external-type-providers.md). |
+| 66 | No-go | Constructor ivar summaries are not promoted without aliasing/reopen coverage. See [ADR-0011](../adr/0011-no-external-type-providers.md). |
 | 67 | Safe equivalent | Literal Proc/lambda/block values flow locally and fail closed at method boundaries; interprocedural promotion follows the type-facts gate. |
-| 68 | No-go | Cross-file constant facts require proven activation/load order; literal local containers and class objects remain available without that claim. |
-| 69 | No-go | Physical definitions remain the removal/review unit; cycle collapsing can hide mixed-risk members. See `necropsy_scope_decisions.md`. |
-| 70 | No-go | Per-definition why-not already exposes boundary sites/blockers; cluster frontier awaits the documented review-time gate. |
+| 68 | No-go | Cross-file constant facts require proven activation/load order; literal local containers and class objects remain available without that claim. See [ADR-0011](../adr/0011-no-external-type-providers.md). |
+| 69 | No-go | Physical definitions remain the removal/review unit; cycle collapsing can hide mixed-risk members. See [ADR-0003](../adr/0003-physical-definition-as-review-unit.md). |
+| 70 | No-go | Per-definition why-not already exposes boundary sites/blockers; cluster frontier awaits the documented review-time gate. See [ADR-0003](../adr/0003-physical-definition-as-review-unit.md). |
 | 71 | Implemented | Why-not emits bounded, structured `suggested_next_evidence` for receiver, route, parser, runtime, and caller gaps. |
-| 72 | Safe equivalent | Typed load evidence and unrooted-load diagnostics keep activation distinct without a second mutable graph; split only at the ADR gate. |
+| 72 | Safe equivalent | Typed load evidence and unrooted-load diagnostics keep activation distinct without a second mutable graph; split only at the ADR gate. See [ADR-0003](../adr/0003-physical-definition-as-review-unit.md). |
 
 ## 73–96: Rails, frameworks, and external references
 
@@ -99,21 +102,21 @@ in the linked ADR; it does not mean silently deferred work.
 | 78 | Safe equivalent | Prism first verifies route DSL calls and static argument shapes; regex is restricted to the verified call slice. Unrelated Ruby strings cannot root routes. |
 | 79 | Implemented | Canonical inflection blocks are parsed structurally for literal irregular/acronym/uncountable declarations; unsupported plural rules globally block pruning. |
 | 80 | Implemented | Only executable ERB regions are parsed with Prism; HTML and ERB comments cannot root/block methods. |
-| 81 | No-go | Pretending generic token extraction is a sound Haml/Slim/Jbuilder/Builder parser is rejected; unparsed inputs remain conservative blockers. See scope decisions. |
+| 81 | No-go | Pretending generic token extraction is a sound Haml/Slim/Jbuilder/Builder parser is rejected; unparsed inputs remain conservative blockers. See [ADR-0004](../adr/0004-no-template-format-parsers.md). |
 | 82 | Implemented | ActionCable hooks plus stream block/callback registrations are owner-scoped roots. |
 | 83 | Implemented | ActiveJob/Sidekiq perform, serialization hooks, retry/discard, retry-in, and exhausted blocks are rooted declaratively. |
 | 84 | Implemented | GraphQL resolver/subscription hooks and static `field` resolver methods are rooted; dynamic field methods block the GraphQL owner. |
-| 85 | Safe equivalent | AMS, Blueprinter, and ViewComponent use the shared rule schema; generic presenter rooting is rejected because it has no runtime contract. |
+| 85 | Safe equivalent | AMS, Blueprinter, and ViewComponent use the shared rule schema; generic presenter rooting is rejected because it has no runtime contract. See [ADR-0005](../adr/0005-no-generic-presenter-convention.md). |
 | 86 | Implemented | Convention rule matching runs for every method family, not only `on_*`. |
 | 87 | Implemented | Rule count is validated before any truncation and excess input is rejected. |
 | 88 | Implemented | Gemfile/gemspec Prism calls and exact lock records enable non-Rails packs; comments/ordinary strings do not. |
 | 89 | Implemented | Gemspec name and require_paths are parsed from the `Gem::Specification.new` block to find primary API files. |
-| 90 | Safe equivalent | Format-aware strong contexts/comments/qualified owners reduce noise, while a generic barrier only adds uncertainty. Dedicated parsers require the ADR conformance gate. |
+| 90 | Safe equivalent | Format-aware strong contexts/comments/qualified owners reduce noise, while a generic barrier only adds uncertainty. Dedicated parsers require the ADR conformance gate. See [ADR-0004](../adr/0004-no-template-format-parsers.md). |
 | 91 | Implemented | Text files up to the bounded streaming limit are scanned line by line. |
 | 92 | Implemented | Global byte, match, and monotonic-time budgets degrade health instead of silently truncating. |
 | 93 | Implemented | Qualified owner references block only the matching physical owner. |
 | 94 | Implemented | Common short names require symbol/string, qualified, ERB, or structured DSL context. |
-| 95 | No-go | A `trusted_generated` bypass would convert provenance into unsafe negative evidence; generated skips instead block globally. See scope decisions. |
+| 95 | No-go | A `trusted_generated` bypass would convert provenance into unsafe negative evidence; generated skips instead block globally. See [ADR-0004](../adr/0004-no-template-format-parsers.md). |
 | 96 | Safe equivalent | Skip reason, file/domain samples, counts, blocker source, and stable config key are report/why-not provenance; YAML source-line retention is not required for safety. |
 
 ## 97–129: contracts, CLI, and performance
@@ -138,9 +141,9 @@ in the linked ADR; it does not mean silently deferred work.
 | 112 | Implemented | `--as-of` and SOURCE_DATE_EPOCH provide reproducible time. |
 | 113 | Implemented | Fractions, days, limits, timeouts, and finite-number constraints are validated. |
 | 114 | Implemented | Static analyzer uniqueness and dependency order are validated. |
-| 115 | Safe equivalent | Model constructors bound enums/numbers/text/metadata; current producers are versioned and legacy is explicitly normalized to stable `unversioned`. See scope decisions. |
+| 115 | Safe equivalent | Model constructors bound enums/numbers/text/metadata; current producers are versioned and legacy is explicitly normalized to stable `unversioned`. See [ADR-0006](../adr/0006-normalize-legacy-analyzer-version.md). |
 | 116 | Implemented | Custom analyzers require `trusted: true`, validate capabilities/results, and apply through the atomic staging contract. |
-| 117 | No-go | A per-file fact cache failed the measured scan-share gate. See `necropsy_performance_adr.md`. |
+| 117 | No-go | A per-file fact cache failed the measured scan-share gate. See [ADR-0008](../adr/0008-no-per-file-fact-cache.md). |
 | 118 | Implemented | Cache identity includes tool, Ruby engine/version, Prism, definition, call-site, config, inventory, and file content digests. |
 | 119 | Implemented | Find-based discovery streams and prunes excluded directories before descent. |
 | 120 | Safe equivalent | Fixed generated/cache directories are pruned at every depth; `paths.exclude` is not pruned because excluded Ruby still belongs to the default reference safety scope. |
@@ -151,8 +154,8 @@ in the linked ADR; it does not mean silently deferred work.
 | 125 | Implemented | Baseline comparison preindexes physical/logical fingerprints, body, symbol, and path. |
 | 126 | Implemented | Benchmark gold labels are preindexed. |
 | 127 | Implemented | NDJSON streams report, nodes, calls, edges, evidence, and metadata without nesting the graph payload. |
-| 128 | No-go | Process-parallel parse is below the scan-share gate and adds worker/parity failure modes. See the performance ADR. |
-| 129 | No-go | Candidate-specific template/reference caching is below its p95 share gate and risks stale blockers. See the performance ADR. |
+| 128 | No-go | Process-parallel parse is below the scan-share gate and adds worker/parity failure modes. See [ADR-0009](../adr/0009-no-process-parallel-parsing.md). |
+| 129 | No-go | Candidate-specific template/reference caching is below its p95 share gate and risks stale blockers. See [ADR-0010](../adr/0010-no-template-reference-cache.md). |
 
 ## 130–148: adversarial tests and evaluation
 
