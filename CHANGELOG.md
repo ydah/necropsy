@@ -4,6 +4,10 @@ All notable changes to Necropsy are documented in this file.
 
 ## Unreleased
 
+No changes yet.
+
+## 0.4.0 - 2026-08-18
+
 - Separate priority confidence from reachability state, analysis completeness, and actionability. Blocked findings are never actionable.
 - Change the default CI gate to `new_review_candidate`; legacy confidence thresholds remain accepted for compatibility and `doctor` reports their weaker safety contract.
 - Add `doctor`, `feedback compare/export-fixtures/verify`, physical-definition causal report diffing, and isolated `plan`/`patch`/`verify` removal workflow commands.
