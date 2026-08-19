@@ -4,6 +4,7 @@ require 'prism'
 require 'forwardable'
 require_relative 'ast_scanner/definition_emitter'
 require_relative 'ast_scanner/file_scanner'
+require_relative 'ast_scanner/call_site_emitter'
 require_relative 'ast_scanner/definition_creation'
 require_relative 'ast_scanner/call_site_creation'
 require_relative 'ast_scanner/traversal'
@@ -138,6 +139,7 @@ module Necropsy
         convention_rules: ConventionRules.new
       )
       @definition_emitter = DefinitionEmitter.new(state: @state)
+      @call_site_emitter = CallSiteEmitter.new(state: @state)
     end
 
     def scan
@@ -252,7 +254,7 @@ module Necropsy
       CallTraversal.new(receiver: receiver, arguments: arguments, block: block)
     end
 
-    attr_reader :project, :files, :state, :definition_emitter
+    attr_reader :project, :files, :state, :definition_emitter, :call_site_emitter
 
     def_delegators :state, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                    :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals,

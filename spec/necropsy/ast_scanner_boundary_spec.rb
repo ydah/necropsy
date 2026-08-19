@@ -44,6 +44,31 @@ RSpec.describe Necropsy::AstScanner::FileScanner do
   end
 end
 
+RSpec.describe Necropsy::AstScanner::CallSiteEmitter do
+  it 'owns deterministic call-site identity allocation and ledger append' do
+    state_class = Struct.new(:call_sites, :call_site_ordinals)
+    state = state_class.new([], Hash.new(0))
+    context = Necropsy::AstScanner::Context.new(relative_file: 'lib/example.rb', test: false)
+    source_node = Prism.parse("run\n").value.statements.body.first
+    emitter = described_class.new(state: state)
+
+    sites = 2.times.map do
+      emitter.emit(
+        source_node: source_node,
+        context: context,
+        role: :call,
+        message: :run,
+        receiver_kind: :implicit,
+        caller_id: 'file:lib/example.rb',
+        append: true
+      )
+    end
+
+    expect(sites.map(&:call_site_id).uniq.length).to eq(2)
+    expect(state.call_sites).to eq(sites)
+  end
+end
+
 RSpec.describe Necropsy::AstScanner::DefinitionEmitter do
   it 'owns deterministic definition identity allocation and ledger append' do
     state_class = Struct.new(:nodes, :definition_ordinals)
