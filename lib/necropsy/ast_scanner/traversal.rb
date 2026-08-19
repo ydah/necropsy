@@ -169,7 +169,7 @@ module Necropsy
         owner: owner,
         method_name: node.name,
         ancestors: convention_ancestors(owner),
-        frameworks: project.config.frameworks
+        frameworks: project.frameworks
       )
       if rule_hit
         entrypoint_hints << EntryPoint.new(

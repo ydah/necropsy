@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
 require 'yaml'
-require 'pathname'
-require 'prism'
 
 module Necropsy
   class Configuration
@@ -14,15 +12,6 @@ module Necropsy
     QUARANTINE_EXPIRY_POLICIES = %w[warn fail ignore].freeze
     WORLD_MODES = %w[application library].freeze
     LOAD_ROOT_POLICIES = %w[known all].freeze
-    FRAMEWORK_GEMS = {
-      'rails' => 'rails',
-      'rubocop' => 'rubocop',
-      'sidekiq' => 'sidekiq',
-      'graphql' => 'graphql',
-      'view_component' => 'view_component',
-      'active_model_serializers' => 'active_model_serializers',
-      'blueprinter' => 'blueprinter'
-    }.freeze
     TOP_LEVEL_KEYS = %w[
       analysis analyzers frameworks entry_points ci quarantine bench cache rta resolution paths report logging
       implicit_callers
@@ -99,17 +88,12 @@ module Necropsy
       Array(fetch('entry_points', 'extra')).compact.map(&:to_s)
     end
 
-    def frameworks(reference_files: nil)
-      return @frameworks if defined?(@frameworks)
-
-      reference_files ||= Project.new(root: root, config: self).reference_files
-      configured = Array(data['frameworks']).map(&:to_s)
-      @frameworks = (configured + detected_frameworks(reference_files)).uniq.sort.freeze
+    def frameworks(detected_frameworks: [])
+      (Array(data['frameworks']).map(&:to_s) + Array(detected_frameworks).map(&:to_s)).uniq.sort.freeze
     end
 
-    def rails_enabled?(reference_files: nil)
-      reference_files ||= Project.new(root: root, config: self).reference_files
-      frameworks(reference_files: reference_files).include?('rails')
+    def rails_enabled?(detected_frameworks: [])
+      frameworks(detected_frameworks: detected_frameworks).include?('rails')
     end
 
     def baseline_path
@@ -257,56 +241,6 @@ module Necropsy
     end
 
     private
-
-    def detected_frameworks(reference_files)
-      dependency_files = reference_files.select do |file|
-        relative = relative_path_from_root(file)
-        %w[Gemfile Gemfile.lock].include?(relative) || relative.end_with?('.gemspec')
-      end
-      dependencies = dependency_files.flat_map { |file| dependency_names(file) }.to_set
-      FRAMEWORK_GEMS.filter_map do |gem_name, framework|
-        framework if dependencies.include?(gem_name)
-      end
-    end
-
-    def dependency_names(file)
-      source = File.read(file)
-      return locked_dependency_names(source) if File.basename(file) == 'Gemfile.lock'
-
-      ruby_dependency_names(source)
-    rescue SystemCallError, EncodingError
-      []
-    end
-
-    def locked_dependency_names(source)
-      source.each_line.filter_map do |line|
-        line[/\A    ([A-Za-z0-9_.-]+) \(/, 1]
-      end
-    end
-
-    def ruby_dependency_names(source)
-      result = Prism.parse(source)
-      return [] if result.failure?
-
-      pending = [result.value]
-      names = []
-      until pending.empty?
-        node = pending.pop
-        if node.is_a?(Prism::CallNode) &&
-           %i[gem add_dependency add_runtime_dependency add_development_dependency].include?(node.name)
-          argument = Array(node.arguments&.arguments).first
-          names << argument.content if argument.is_a?(Prism::StringNode)
-        end
-        pending.concat(node.child_nodes.compact)
-      end
-      names
-    end
-
-    def relative_path_from_root(file)
-      Pathname.new(File.expand_path(file)).relative_path_from(Pathname.new(root)).to_s
-    rescue ArgumentError
-      file.to_s
-    end
 
     def fetch(*keys)
       current = data

@@ -74,6 +74,16 @@ module Necropsy
       false
     end
 
+    def frameworks
+      @frameworks ||= config.frameworks(
+        detected_frameworks: FrameworkDetector.new(root: root).detect(reference_files)
+      )
+    end
+
+    def rails_enabled?
+      frameworks.include?('rails')
+    end
+
     def scan_files
       @scan_files ||= (ruby_files + reference_ruby_files).uniq
     end

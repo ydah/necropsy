@@ -16,7 +16,7 @@ module Necropsy
       RouteContext = Struct.new(:modules, :resource, :controller, keyword_init: true)
 
       def apply(graph, project)
-        return unless project.config.rails_enabled?(reference_files: project.reference_files)
+        return unless project.rails_enabled?
 
         @route_blockers = []
         load_inflections(project)

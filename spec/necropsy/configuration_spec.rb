@@ -5,6 +5,7 @@ RSpec.describe Necropsy::Configuration do
     subject(:configuration) { described_class.load(root: project_root) }
 
     let(:project_root) { create_project(files: files, config: config_data) }
+    let(:project) { Necropsy::Project.new(root: project_root, config: configuration) }
     let(:files) { {} }
     let(:config_data) { nil }
 
@@ -106,15 +107,15 @@ RSpec.describe Necropsy::Configuration do
     context 'with Rails auto-detection' do
       let(:files) { { 'Gemfile.lock' => "    rails (8.0.0)\n", 'lib/example.rb' => '' } }
 
-      it 'detects Rails from a safely inventoried Gemfile by default' do
-        expect(configuration).to be_rails_enabled
+      it 'detects Rails from a safely inventoried Gemfile through the project' do
+        expect(project).to be_rails_enabled
       end
 
       context 'when the Gemfile is outside the reference scope' do
         let(:config_data) { { paths: { reference: ['lib/**'] } } }
 
         it 'does not enable Rails heuristics' do
-          expect(configuration).not_to be_rails_enabled
+          expect(project).not_to be_rails_enabled
         end
       end
     end
@@ -128,7 +129,7 @@ RSpec.describe Necropsy::Configuration do
       end
 
       it 'detects statically supported frameworks from dependency artifacts' do
-        expect(configuration.frameworks).to include('rubocop', 'sidekiq')
+        expect(project.frameworks).to include('rubocop', 'sidekiq')
       end
 
       it 'does not enable a framework from comments or arbitrary strings' do
@@ -141,7 +142,8 @@ RSpec.describe Necropsy::Configuration do
                                 'lib/example.rb' => ''
                               })
 
-        expect(described_class.load(root: root).frameworks).not_to include('rubocop', 'sidekiq')
+        config = described_class.load(root: root)
+        expect(Necropsy::Project.new(root: root, config: config).frameworks).not_to include('rubocop', 'sidekiq')
       end
 
       it 'reads literal gem DSL calls without executing the manifest' do
@@ -150,7 +152,8 @@ RSpec.describe Necropsy::Configuration do
                                 'lib/example.rb' => ''
                               })
 
-        expect(described_class.load(root: root).frameworks).to include('rubocop')
+        config = described_class.load(root: root)
+        expect(Necropsy::Project.new(root: root, config: config).frameworks).to include('rubocop')
       end
     end
 
@@ -161,7 +164,8 @@ RSpec.describe Necropsy::Configuration do
         root = create_project
         File.symlink(outside_gemfile, File.join(root, 'Gemfile.lock'))
 
-        expect(described_class.load(root: root)).not_to be_rails_enabled
+        config = described_class.load(root: root)
+        expect(Necropsy::Project.new(root: root, config: config)).not_to be_rails_enabled
       end
     end
 
@@ -329,7 +333,7 @@ RSpec.describe Necropsy::Configuration do
     context 'when Rails is present in Gemfile.lock' do
       let(:files) { { 'Gemfile.lock' => "    rails (7.1.0)\n" } }
 
-      it { is_expected.to be_rails_enabled }
+      it { expect(project).to be_rails_enabled }
     end
 
     context 'with YAML aliases' do

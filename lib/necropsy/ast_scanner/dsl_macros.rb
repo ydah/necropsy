@@ -177,9 +177,7 @@ module Necropsy
     end
 
     def framework_enabled?(name)
-      project.config.frameworks(reference_files: project.reference_files).include?(name)
-    rescue SystemCallError, EncodingError
-      project.config.frameworks.include?(name)
+      project.frameworks.include?(name)
     end
 
     def callback_condition_names(node)
@@ -382,9 +380,7 @@ module Necropsy
     end
 
     def rails_framework_enabled?
-      project.config.frameworks.include?('rails') || project.config.rails_enabled?(reference_files: project.reference_files)
-    rescue SystemCallError, EncodingError
-      project.config.frameworks.include?('rails')
+      project.rails_enabled?
     end
 
     def add_generated_methods(context, names, source_node, kind: nil)
