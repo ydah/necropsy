@@ -4,7 +4,6 @@ module Necropsy
   class CallGraph
     include DynamicEvidenceTracking
     include BlockerMatching
-    include ResolutionStore
 
     attr_reader :store, :call_sites, :instantiated_classes, :observation, :class_infos,
                 :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors, :source_domains,
@@ -34,6 +33,26 @@ module Necropsy
       evidence_ledger.evidence_collisions
     end
 
+    def resolution_records(call_site_id = nil)
+      resolution_ledger.resolution_records(call_site_id)
+    end
+
+    def resolution_status_counts
+      resolution_ledger.resolution_status_counts
+    end
+
+    def call_sites_resolving_definition(definition_id)
+      resolution_ledger.call_sites_resolving_definition(definition_id)
+    end
+
+    def resolution_conflicts
+      resolution_ledger.resolution_conflicts
+    end
+
+    def resolution_issues
+      resolution_ledger.resolution_issues
+    end
+
     def initialize(scan_result, ambiguity_limit: 4)
       @store = Graph::Store.new(uncertainties: scan_result.uncertainties)
       @call_sites = scan_result.call_sites
@@ -59,7 +78,7 @@ module Necropsy
       initialize_blocker_indexes
       @observation = {}
       record_generated_macro_observation(scan_result.nodes)
-      initialize_resolution_store
+      @resolution_ledger = Graph::ResolutionLedger.new(self)
       @descendants = {}
       @rta_instantiated_owner_cache = {}
       @duplicate_blockers_initialized = false
@@ -681,7 +700,15 @@ module Necropsy
 
     private
 
-    attr_reader :evidence_ledger
+    attr_reader :evidence_ledger, :resolution_ledger
+
+    def register_result_resolutions(result, refresh: true)
+      resolution_ledger.register_result_resolutions(result, refresh: refresh)
+    end
+
+    def refresh_resolution_derived_state
+      resolution_ledger.refresh_resolution_derived_state
+    end
 
     def normalize_projection(projection)
       evidence_ledger.normalize_projection(projection)
