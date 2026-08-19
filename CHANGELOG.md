@@ -4,7 +4,8 @@ All notable changes to Necropsy are documented in this file.
 
 ## Unreleased
 
-No changes yet.
+- Continue the internal analysis-boundary refactor after the 0.4.0 release;
+  behavior and report contracts remain compatible.
 
 ## 0.4.0 - 2026-08-18
 
