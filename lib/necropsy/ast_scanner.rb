@@ -10,7 +10,7 @@ require_relative 'ast_scanner/call_site_creation'
 require_relative 'ast_scanner/traversal'
 require_relative 'ast_scanner/value_definitions'
 require_relative 'ast_scanner/method_definitions'
-require_relative 'ast_scanner/dsl_macros'
+require_relative 'ast_scanner/dsl_rules'
 require_relative 'ast_scanner/call_recording'
 require_relative 'ast_scanner/references'
 require_relative 'ast_scanner/ruby_semantics'
@@ -144,6 +144,7 @@ module Necropsy
         state: @state,
         record_semantic_blocker: method(:record_semantic_blocker)
       )
+      @dsl_rules = DslRules.new(self)
     end
 
     def scan
@@ -258,7 +259,16 @@ module Necropsy
       CallTraversal.new(receiver: receiver, arguments: arguments, block: block)
     end
 
-    attr_reader :project, :files, :state, :definition_emitter, :call_site_emitter, :ruby_semantics
+    attr_reader :project, :files, :state, :definition_emitter, :call_site_emitter, :ruby_semantics, :dsl_rules
+
+    %i[
+      handle_module_relation handle_rails_callback handle_graphql_field handle_generated_rails_methods handle_attr_macro
+      handle_delegate handle_forwardable
+    ].each do |method_name|
+      define_method(method_name) do |*args, **kwargs|
+        dsl_rules.send(method_name, *args, **kwargs)
+      end
+    end
 
     %i[
       classify_receiver first_symbol_argument first_string_argument literal_argument literal_name?
