@@ -24,7 +24,7 @@ module Necropsy
     end
 
     def initialize(scan_result, ambiguity_limit: 4)
-      @store = GraphStore.new(uncertainties: scan_result.uncertainties)
+      @store = Graph::Store.new(uncertainties: scan_result.uncertainties)
       initialize_evidence_store
       @call_sites = scan_result.call_sites
       @instantiated_classes = scan_result.instantiated_classes.dup
@@ -709,7 +709,7 @@ module Necropsy
       return memo.fetch(value) if memo.key?(value)
 
       case value
-      when GraphStore
+      when Graph::Store
         value.duplicate_with(memo) { |item, state| duplicate_transaction_value(item, state) }
       when Hash
         duplicate_transaction_hash(value, memo)
