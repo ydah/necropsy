@@ -89,13 +89,13 @@ module Necropsy
     end
 
     def remove_evidence_references(evidence_id)
-      @edges.each_value do |callees|
+      store.physical_edges.each_value do |callees|
         callees.each_value { |evidence_ids| evidence_ids.delete(evidence_id) }
         callees.delete_if { |_callee_id, evidence_ids| evidence_ids.empty? }
       end
-      @edges.delete_if { |_caller_id, callees| callees.empty? }
-      @dynamic_alive.each_value { |evidence_ids| evidence_ids.delete(evidence_id) }
-      @dynamic_alive.delete_if { |_node_id, evidence_ids| evidence_ids.empty? }
+      store.physical_edges.delete_if { |_caller_id, callees| callees.empty? }
+      store.dynamic_alive.each_value { |evidence_ids| evidence_ids.delete(evidence_id) }
+      store.dynamic_alive.delete_if { |_node_id, evidence_ids| evidence_ids.empty? }
       rebuild_incoming_edges
     end
 

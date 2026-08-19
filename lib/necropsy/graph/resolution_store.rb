@@ -331,7 +331,7 @@ module Necropsy
     # quadratic on repositories with many call sites. Read the physical edge
     # index directly while still ignoring quarantined evidence IDs.
     def resolution_edge_present?(caller_id, callee_id)
-      @edges.dig(caller_id, callee_id)&.any? { |evidence_id| evidence_record(evidence_id) }
+      store.physical_edges.dig(caller_id, callee_id)&.any? { |evidence_id| evidence_record(evidence_id) }
     end
 
     def resolution_issue(kind, record, details)

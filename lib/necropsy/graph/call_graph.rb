@@ -7,14 +7,24 @@ module Necropsy
     include BlockerMatching
     include ResolutionStore
 
-    attr_reader :nodes, :call_sites, :instantiated_classes, :entry_points, :profiles, :observation, :class_infos,
+    attr_reader :store, :call_sites, :instantiated_classes, :observation, :class_infos,
                 :entrypoint_hints, :ambiguity_limit, :file_statuses, :source_errors, :source_domains,
                 :scope_diagnostics, :method_signatures
 
+    def nodes
+      store.nodes
+    end
+
+    def entry_points
+      store.entry_points
+    end
+
+    def profiles
+      store.profiles
+    end
+
     def initialize(scan_result, ambiguity_limit: 4)
-      @nodes = DefinitionIndex.new
-      @edges = {}
-      @incoming_edges = {}
+      @store = GraphStore.new(uncertainties: scan_result.uncertainties)
       initialize_evidence_store
       @call_sites = scan_result.call_sites
       @instantiated_classes = scan_result.instantiated_classes.dup
@@ -37,12 +47,6 @@ module Necropsy
       @ambiguity_limit = ambiguity_limit
       @blockers = []
       initialize_blocker_indexes
-      @entry_points = []
-      @profiles = []
-      @uncertainties = scan_result.uncertainties.to_h do |node_id, messages|
-        [node_id, Array(messages).dup]
-      end
-      @dynamic_alive = {}
       @observation = {}
       record_generated_macro_observation(scan_result.nodes)
       initialize_resolution_store
@@ -145,8 +149,8 @@ module Necropsy
         resolved_ids = resolve_definitions(node_id).map(&:graph_id)
         resolved_ids = [node_id] if resolved_ids.empty?
         resolved_ids.each do |resolved_id|
-          @uncertainties[resolved_id] ||= []
-          @uncertainties[resolved_id].concat(Array(messages))
+          store.uncertainties[resolved_id] ||= []
+          store.uncertainties[resolved_id].concat(Array(messages))
         end
       end
       Array(result.respond_to?(:blockers) ? result.blockers : []).each { |blocker| add_blocker(blocker) }
@@ -194,28 +198,28 @@ module Necropsy
         evidence_id = register_evidence(evidence, domain: definition.test ? :test : :runtime)
         next unless evidence_id
 
-        @dynamic_alive[definition.graph_id] ||= Set.new
-        @dynamic_alive[definition.graph_id] << evidence_id
+        store.dynamic_alive[definition.graph_id] ||= Set.new
+        store.dynamic_alive[definition.graph_id] << evidence_id
       end
       true
     end
 
     def dynamic_alive?(node_id)
       resolve_definitions(node_id).any? do |definition|
-        @dynamic_alive.fetch(definition.graph_id, Set.new).any? { |evidence_id| evidence_record(evidence_id) }
+        store.dynamic_alive.fetch(definition.graph_id, Set.new).any? { |evidence_id| evidence_record(evidence_id) }
       end
     end
 
     def alive_evidences(node_id, projection: :conservative, scope: nil)
       projection = normalize_projection(projection)
       evidence_ids = resolve_definitions(node_id).flat_map do |definition|
-        @dynamic_alive.fetch(definition.graph_id, Set.new).to_a
+        store.dynamic_alive.fetch(definition.graph_id, Set.new).to_a
       end
       projected_evidence_records(evidence_ids.uniq, projection: projection, scope: scope)
     end
 
     def dynamic_enabled?
-      @dynamic_alive.any?
+      store.dynamic_alive.any?
     end
 
     def runtime_feedback(observed_targets:, max_fixtures: RuntimeFeedback::DEFAULT_FIXTURE_LIMIT)
@@ -240,7 +244,7 @@ module Necropsy
     def edges_from(node_id, projection: :conservative, scope: nil)
       projection = normalize_projection(projection)
       evidence_ids_by_callee = resolve_definitions(node_id).each_with_object(Hash.new { |hash, key| hash[key] = Set.new }) do |definition, merged|
-        @edges.fetch(definition.graph_id, {}).each do |callee_id, evidence_ids|
+        store.physical_edges.fetch(definition.graph_id, {}).each do |callee_id, evidence_ids|
           merged[callee_id].merge(evidence_ids)
         end
       end
@@ -251,12 +255,12 @@ module Necropsy
     end
 
     def edge_present?(caller_id, callee_id)
-      @edges.dig(caller_id, callee_id)&.any? { |evidence_id| evidence_record(evidence_id) }
+      store.physical_edges.dig(caller_id, callee_id)&.any? { |evidence_id| evidence_record(evidence_id) }
     end
 
     def edges(projection: :conservative, scope: nil)
       projection = normalize_projection(projection)
-      @edges.flat_map do |caller_id, callees|
+      store.physical_edges.flat_map do |caller_id, callees|
         callees.filter_map do |callee_id, evidence_ids|
           evidences = projected_evidence_records(evidence_ids, projection: projection, scope: scope)
           Edge.new(caller_id: caller_id, callee_id: callee_id, evidences: evidences) unless evidences.empty?
@@ -266,7 +270,7 @@ module Necropsy
 
     def edge_relations(projection: :conservative, scope: nil)
       projection = normalize_projection(projection)
-      @edges.flat_map do |caller_id, callees|
+      store.physical_edges.flat_map do |caller_id, callees|
         callees.filter_map do |callee_id, evidence_ids|
           projected_ids = projected_evidence_ids(evidence_ids, projection: projection, scope: scope)
           next if projected_ids.empty?
@@ -284,7 +288,7 @@ module Necropsy
     def incoming_edges(node_id, projection: :conservative, scope: nil)
       projection = normalize_projection(projection)
       resolve_definitions(node_id).flat_map do |definition|
-        @incoming_edges.fetch(definition.graph_id, {}).filter_map do |caller_id, evidence_ids|
+        store.incoming_edges.fetch(definition.graph_id, {}).filter_map do |caller_id, evidence_ids|
           evidences = projected_evidence_records(evidence_ids, projection: projection, scope: scope)
           Edge.new(caller_id: caller_id, callee_id: definition.graph_id, evidences: evidences) unless evidences.empty?
         end
@@ -292,12 +296,12 @@ module Necropsy
     end
 
     def uncertainties(node_id = nil)
-      return @uncertainties unless node_id
+      return store.uncertainties unless node_id
 
       resolved = resolve_definitions(node_id)
-      return @uncertainties.fetch(node_id, []) if resolved.empty?
+      return store.uncertainties.fetch(node_id, []) if resolved.empty?
 
-      resolved.flat_map { |definition| @uncertainties.fetch(definition.graph_id, []) }.uniq
+      resolved.flat_map { |definition| store.uncertainties.fetch(definition.graph_id, []) }.uniq
     end
 
     def incomplete_files
@@ -615,7 +619,7 @@ module Necropsy
         memo[call_site_key(edge.evidence.metadata)] << edge.callee_id
       end
 
-      @edges.each_value do |callees|
+      store.physical_edges.each_value do |callees|
         callees.each do |callee_id, evidence_ids|
           evidence_ids.delete_if do |evidence_id|
             item = evidence_record(evidence_id)
@@ -630,7 +634,7 @@ module Necropsy
         end
         callees.delete_if { |_callee_id, evidence_ids| evidence_ids.empty? }
       end
-      @edges.delete_if { |_caller_id, callees| callees.empty? }
+      store.physical_edges.delete_if { |_caller_id, callees| callees.empty? }
       rebuild_incoming_edges
       refresh_resolution_derived_state
     end
@@ -705,6 +709,8 @@ module Necropsy
       return memo.fetch(value) if memo.key?(value)
 
       case value
+      when GraphStore
+        value.duplicate_with(memo) { |item, state| duplicate_transaction_value(item, state) }
       when Hash
         duplicate_transaction_hash(value, memo)
       when Array
@@ -828,8 +834,8 @@ module Necropsy
         evidence_id = register_evidence(evidence, domain: definition.test ? :test : :runtime)
         next unless evidence_id
 
-        @dynamic_alive[definition.graph_id] ||= Set.new
-        @dynamic_alive[definition.graph_id] << evidence_id
+        store.dynamic_alive[definition.graph_id] ||= Set.new
+        store.dynamic_alive[definition.graph_id] << evidence_id
       end
     end
 
@@ -1356,11 +1362,11 @@ module Necropsy
     end
 
     def rebuild_incoming_edges
-      @incoming_edges = {}
-      @edges.each do |caller_id, callees|
+      store.incoming_edges.clear
+      store.physical_edges.each do |caller_id, callees|
         callees.each do |callee_id, evidences|
-          @incoming_edges[callee_id] ||= {}
-          @incoming_edges[callee_id][caller_id] = evidences
+          store.incoming_edges[callee_id] ||= {}
+          store.incoming_edges[callee_id][caller_id] = evidences
         end
       end
     end
@@ -1374,11 +1380,11 @@ module Necropsy
       evidence_id = register_evidence(evidence, domain: caller&.test ? :test : :runtime)
       return unless evidence_id
 
-      @edges[caller_id] ||= {}
-      @edges[caller_id][callee_id] ||= Set.new
-      @edges[caller_id][callee_id] << evidence_id
-      @incoming_edges[callee_id] ||= {}
-      @incoming_edges[callee_id][caller_id] = @edges[caller_id][callee_id]
+      store.physical_edges[caller_id] ||= {}
+      store.physical_edges[caller_id][callee_id] ||= Set.new
+      store.physical_edges[caller_id][callee_id] << evidence_id
+      store.incoming_edges[callee_id] ||= {}
+      store.incoming_edges[callee_id][caller_id] = store.physical_edges[caller_id][callee_id]
     end
 
     def record_ambiguous_input(kind, identifier, definitions)
