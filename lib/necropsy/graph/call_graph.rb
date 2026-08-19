@@ -1,5 +1,17 @@
 # frozen_string_literal: true
 
+require_relative '../models'
+require_relative '../runtime_feedback'
+require_relative '../analyzers/dynamic/observation_policy'
+require_relative 'definition_index'
+require_relative 'dynamic_evidence_tracking'
+require_relative 'blocker_matching'
+require_relative 'evidence_store'
+require_relative 'resolution_store'
+require_relative 'store'
+require_relative 'evidence_ledger'
+require_relative 'resolution_ledger'
+require_relative 'transaction'
 require_relative 'ruby_dispatch'
 
 module Necropsy
