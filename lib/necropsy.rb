@@ -12,7 +12,6 @@ require_relative 'necropsy/definition_identity'
 require_relative 'necropsy/configuration'
 require_relative 'necropsy/flow_interpreter'
 require_relative 'necropsy/convention_rules'
-require_relative 'necropsy/type_facts'
 require_relative 'necropsy/runtime_feedback'
 require_relative 'necropsy/artifact_loader'
 require_relative 'necropsy/feedback_workflow'
@@ -76,13 +75,5 @@ module Necropsy
       ignored_reference_paths: ignored_reference_paths,
       as_of: as_of
     ).analyze(profile: profile)
-  end
-
-  def self.default_analyzers
-    [
-      Analyzers::Static::NameResolution.new,
-      Analyzers::Static::CHA.new,
-      Analyzers::Static::RTA.new
-    ]
   end
 end

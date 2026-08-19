@@ -98,6 +98,8 @@ jobs:
           ruby-version: '3.4'
           bundler-cache: true
       - run: gem build necropsy.gemspec
+      - name: Check gem contents
+        run: ruby script/check_gem_contents.rb
 
   safety-contract:
     runs-on: ubuntu-latest

@@ -21,7 +21,6 @@ module Necropsy
       tmp
       vendor
     ].freeze
-    NESTED_EXCLUDED_DIRECTORIES = EXCLUDED_DIRECTORIES.freeze
 
     attr_reader :root, :config
 
@@ -316,7 +315,7 @@ module Necropsy
     def excluded_repository_path?(file)
       relative_parts = relative_path(file).split(File::SEPARATOR)
       EXCLUDED_DIRECTORIES.include?(relative_parts.first) ||
-        relative_parts.drop(1).intersect?(NESTED_EXCLUDED_DIRECTORIES)
+        relative_parts.drop(1).intersect?(EXCLUDED_DIRECTORIES)
     rescue ArgumentError
       true
     end
