@@ -28,58 +28,6 @@ module Necropsy
       call_sites.concat(copies)
     end
 
-    def scan_file(file)
-      relative = project.relative_path(file)
-      test = project.test_file?(file)
-      context = Context.new(
-        namespace: nil,
-        lexical_nesting: [],
-        owner: nil,
-        current_caller_id: nil,
-        current_method_name: nil,
-        current_kind: :block_entry,
-        root_id: nil,
-        file: file,
-        relative_file: relative,
-        test: test,
-        singleton_scope: false,
-        visibility: :public,
-        module_function: false,
-        static_ancestry: true,
-        flow_result: nil
-      )
-      result = Prism.parse(File.read(file))
-      root = add_definition(
-        symbol_id: "file:#{relative}",
-        kind: :block_entry,
-        source_node: result.value,
-        context: context,
-        defined_via: :file,
-        owner: nil,
-        name: relative,
-        visibility: :public
-      )
-      root_id = root.graph_id
-      context.current_caller_id = root_id
-      context.root_id = root_id
-      context.flow_result = FlowInterpreter.new(
-        constant_resolver: ->(constant) { resolve_candidate_group(constant_candidates(constant, context.lexical_nesting)) },
-        constant_facts: constant_facts_for(context.lexical_nesting),
-        allow_constant_writes: false
-      ).analyze(result.value)
-
-      if result.failure?
-        file_statuses[relative] = :recovered
-        record_parse_errors(root_id, relative, result)
-      else
-        file_statuses[relative] = :complete
-      end
-
-      visit(result.value, context)
-    rescue DefinitionIdentity::CanonicalizationError, SystemStackError, SystemCallError, EncodingError => e
-      record_source_failure(root_id || "file:#{relative}", relative, e)
-    end
-
     def visit(node, context)
       return unless node.respond_to?(:child_nodes)
 
