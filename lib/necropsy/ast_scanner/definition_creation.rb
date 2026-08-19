@@ -6,38 +6,16 @@ module Necropsy
 
     def add_definition(symbol_id:, kind:, source_node:, context:, defined_via:, owner:, name:,
                        visibility: context.visibility)
-      body_digest = DefinitionIdentity.body_digest(source_node)
-      ordinal_key = [kind, symbol_id, context.relative_file, body_digest]
-      ordinal = definition_ordinals[ordinal_key] += 1
-      definition_id = if defined_via == :file
-                        DefinitionIdentity.file_root_id(relative_path: context.relative_file)
-                      else
-                        DefinitionIdentity.definition_id(
-                          kind: kind,
-                          symbol_id: symbol_id,
-                          relative_path: context.relative_file,
-                          body_digest: body_digest,
-                          ordinal: ordinal
-                        )
-                      end
-      definition = Node.new(
-        id: symbol_id,
+      definition_emitter.emit(
         symbol_id: symbol_id,
-        definition_id: definition_id,
-        body_digest: body_digest,
-        ordinal: ordinal,
         kind: kind,
-        file: context.relative_file,
-        line: source_node.location.start_line,
-        end_line: source_node.location.end_line,
+        source_node: source_node,
+        context: context,
         defined_via: defined_via,
         owner: owner,
-        name: name.to_s,
-        test: context.test,
+        name: name,
         visibility: visibility
       )
-      nodes << definition
-      definition
     end
   end
 end

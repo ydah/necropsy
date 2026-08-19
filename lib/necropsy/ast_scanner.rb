@@ -2,6 +2,8 @@
 
 require 'prism'
 require 'forwardable'
+require_relative 'ast_scanner/definition_emitter'
+require_relative 'ast_scanner/file_scanner'
 require_relative 'ast_scanner/definition_creation'
 require_relative 'ast_scanner/call_site_creation'
 require_relative 'ast_scanner/traversal'
@@ -135,6 +137,7 @@ module Necropsy
         factory_methods: project.config.factory_methods.to_set(&:to_s),
         convention_rules: ConventionRules.new
       )
+      @definition_emitter = DefinitionEmitter.new(state: @state)
     end
 
     def scan
@@ -178,6 +181,27 @@ module Necropsy
       rescue SystemCallError, EncodingError
         next
       end
+    end
+
+    def flow_result_for(node, context)
+      FlowInterpreter.new(
+        constant_resolver: ->(constant) { resolve_candidate_group(constant_candidates(constant, context.lexical_nesting)) },
+        constant_facts: constant_facts_for(context.lexical_nesting),
+        allow_constant_writes: false
+      ).analyze(node)
+    end
+
+    def scan_file(file)
+      FileScanner.new(
+        project: project,
+        file: file,
+        state: state,
+        definition_emitter: definition_emitter,
+        flow_result: method(:flow_result_for),
+        visit: method(:visit),
+        record_parse_errors: method(:record_parse_errors),
+        record_source_failure: method(:record_source_failure)
+      ).scan
     end
 
     def static_constant_writes(node, namespace = nil)
@@ -228,7 +252,7 @@ module Necropsy
       CallTraversal.new(receiver: receiver, arguments: arguments, block: block)
     end
 
-    attr_reader :project, :files, :state
+    attr_reader :project, :files, :state, :definition_emitter
 
     def_delegators :state, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                    :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals,
