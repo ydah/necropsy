@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require_relative 'reporters/github_annotations'
+require_relative 'reporters/ndjson'
+require_relative 'reporters/sarif'
+require_relative 'reporters/support'
+
 module Necropsy
   class Reporter
     FORMATS = %i[human json ndjson yaml yml sarif github annotations].freeze
@@ -50,9 +55,9 @@ module Necropsy
       when :ndjson
         each_ndjson.to_a.join("\n")
       when :sarif
-        render_sarif(min_confidence)
+        Reporters::Sarif.new(report).render(min_confidence)
       when :github, :annotations
-        render_github_annotations(min_confidence)
+        Reporters::GithubAnnotations.new(report).render(min_confidence)
       when :yaml, :yml
         report.to_yaml(include_graph: include_graph)
       when :human
@@ -60,43 +65,15 @@ module Necropsy
       end
     end
 
-    def each_ndjson
-      return enum_for(__method__) unless block_given?
+    def each_ndjson(&block)
+      return Reporters::Ndjson.new(report).each unless block
 
-      yield ndjson_record('report', report.to_h(include_graph: false))
-      graph = report.graph
-      {
-        'node' => graph.nodes.values,
-        'call_site' => graph.call_sites,
-        'edge' => graph.edges,
-        'edge_relation' => graph.edge_relations,
-        'evidence' => graph.evidence_records,
-        'entry_point' => graph.entry_points,
-        'class_info' => graph.class_infos.values,
-        'profile' => graph.profiles,
-        'resolution' => graph.resolution_records,
-        'blocker' => graph.blockers,
-        'source_error' => graph.source_errors
-      }.each do |record_type, records|
-        records.each { |record| yield ndjson_record(record_type, record.to_h) }
-      end
-      yield ndjson_record('graph_metadata', {
-                            'edge_projection' => 'conservative',
-                            'instantiated_classes' => graph.instantiated_classes.to_a.sort,
-                            'file_statuses' => graph.file_statuses.transform_values(&:to_s),
-                            'source_domains' => graph.source_domains.transform_values(&:to_s),
-                            'scope_diagnostics' => graph.scope_diagnostics,
-                            'observation' => graph.observation
-                          })
+      Reporters::Ndjson.new(report).each(&block)
     end
 
     private
 
     attr_reader :report
-
-    def ndjson_record(record_type, data)
-      JSON.generate('schema' => 'necropsy.graph.ndjson.v1', 'record' => record_type, 'data' => data)
-    end
 
     def render_human(min_confidence)
       findings = (report.dead_methods(min_confidence: min_confidence) + report.blocked_methods).uniq
@@ -309,226 +286,6 @@ module Necropsy
       Integer(value || entries.length)
     rescue ArgumentError, TypeError
       entries.length
-    end
-
-    def render_github_annotations(min_confidence)
-      finding_annotations = report.dead_methods(min_confidence: min_confidence).map do |finding|
-        message = "#{finding.classification} #{finding.node.symbol_id} definition_id=#{finding.node.definition_id} " \
-                  "confidence=#{finding.confidence}"
-        "::warning file=#{finding.node.file},line=#{finding.node.line},title=Necropsy #{finding.confidence}::" \
-          "#{escape_annotation(message)}"
-      end
-      source_annotations = source_diagnostic_entries.map do |entry|
-        message = "Incomplete source (#{entry['status']}, #{entry['type']}): #{entry['message']}"
-        "::warning file=#{entry['file']},line=#{entry['line']},title=Necropsy incomplete source::" \
-          "#{escape_annotation(message)}"
-      end
-      (finding_annotations + source_annotations + health_annotations).join("\n")
-    end
-
-    def render_sarif(min_confidence)
-      findings = report.dead_methods(min_confidence: min_confidence)
-      source_entries = source_diagnostic_entries
-      {
-        'version' => '2.1.0',
-        '$schema' => 'https://json.schemastore.org/sarif-2.1.0.json',
-        'runs' => [
-          {
-            'tool' => {
-              'driver' => {
-                'name' => 'Necropsy',
-                'informationUri' => 'https://github.com/ydah/necropsy',
-                'rules' => sarif_rules(findings, source_entries)
-              }
-            },
-            'results' => findings.map { |finding| sarif_result(finding) } + source_entries.map { |entry| sarif_source_result(entry) },
-            'properties' => {
-              'necropsyFingerprintCompatibility' => Report::FINGERPRINT_COMPATIBILITY,
-              'analysisHealth' => report.analysis_health.to_h
-            }
-          }
-        ]
-      }.to_json
-    end
-
-    def sarif_rules(findings, source_entries)
-      rules = findings.map(&:classification).uniq.map do |classification|
-        {
-          'id' => classification.to_s,
-          'name' => classification.to_s,
-          'shortDescription' => { 'text' => "Necropsy #{classification}" }
-        }
-      end
-      return rules if source_entries.empty?
-
-      rules << {
-        'id' => 'parse_incomplete',
-        'name' => 'parse_incomplete',
-        'shortDescription' => { 'text' => 'Necropsy incomplete source' }
-      }
-    end
-
-    def sarif_result(finding)
-      result = {
-        'ruleId' => finding.classification.to_s,
-        'level' => sarif_level(finding),
-        'message' => { 'text' => "#{finding.node.id} is #{finding.classification} (#{finding.confidence})" },
-        'properties' => {
-          'symbolId' => finding.node.symbol_id,
-          'definitionId' => finding.node.definition_id,
-          'logicalFingerprint' => finding.logical_fingerprint,
-          'physicalFingerprint' => finding.physical_fingerprint
-        },
-        'locations' => [
-          {
-            'physicalLocation' => {
-              'artifactLocation' => { 'uri' => finding.node.file },
-              'region' => { 'startLine' => finding.node.line }
-            }
-          }
-        ],
-        'partialFingerprints' => {
-          'necropsy' => finding.logical_fingerprint,
-          'necropsyPhysicalDefinition' => finding.physical_fingerprint
-        }
-      }
-      related_locations = sarif_related_locations(finding)
-      result['relatedLocations'] = related_locations unless related_locations.empty?
-      code_flows = sarif_code_flows(finding)
-      result['codeFlows'] = code_flows unless code_flows.empty?
-      result
-    end
-
-    def sarif_related_locations(finding)
-      finding.blockers.filter_map do |blocker|
-        metadata = blocker.metadata
-        file = metadata['file'] || metadata[:file]
-        line = positive_line(metadata['line'] || metadata[:line])
-        next if file.to_s.empty? || line.nil?
-
-        {
-          'physicalLocation' => sarif_physical_location(file, line),
-          'message' => { 'text' => "#{blocker.kind}: #{blocker.reason}" },
-          'properties' => {
-            'blockerKind' => blocker.kind.to_s,
-            'blockerSource' => blocker.source.respond_to?(:to_h) ? blocker.source.to_h : blocker.source.to_s
-          }
-        }
-      end.uniq do |location|
-        [
-          location.dig('physicalLocation', 'artifactLocation', 'uri'),
-          location.dig('physicalLocation', 'region', 'startLine'),
-          location.dig('properties', 'blockerKind')
-        ]
-      end
-    end
-
-    def sarif_code_flows(finding)
-      witness = sarif_witness(finding.node.graph_id)
-      return [] unless witness
-
-      domain, path = witness
-      locations = path.each_with_index.filter_map do |definition_id, index|
-        node = report.graph.nodes[definition_id]
-        next unless node
-
-        {
-          'location' => {
-            'physicalLocation' => sarif_physical_location(node.file, node.line),
-            'message' => { 'text' => node.symbol_id }
-          },
-          'executionOrder' => index + 1
-        }
-      end
-      return [] if locations.empty?
-
-      [{
-        'message' => { 'text' => "#{domain} reachability witness" },
-        'threadFlows' => [{ 'locations' => locations }],
-        'properties' => { 'domain' => domain.to_s }
-      }]
-    end
-
-    def sarif_witness(definition_id)
-      return unless report.reachability
-
-      %i[runtime external test].each do |domain|
-        path = report.reachability.witness(definition_id, kind: domain)
-        return [domain, path] if path
-      end
-      nil
-    end
-
-    def sarif_physical_location(file, line)
-      {
-        'artifactLocation' => { 'uri' => file.to_s },
-        'region' => { 'startLine' => line }
-      }
-    end
-
-    def positive_line(value)
-      line = Integer(value)
-      line if line.positive?
-    rescue ArgumentError, TypeError
-      nil
-    end
-
-    def sarif_level(finding)
-      return 'error' if %i[certain high].include?(finding.confidence)
-      return 'warning' if finding.confidence == :medium
-
-      'note'
-    end
-
-    def sarif_source_result(entry)
-      {
-        'ruleId' => 'parse_incomplete',
-        'level' => 'warning',
-        'message' => {
-          'text' => "Incomplete source (#{entry['status']}, #{entry['type']}): #{entry['message']}"
-        },
-        'locations' => [
-          {
-            'physicalLocation' => {
-              'artifactLocation' => { 'uri' => entry['file'] },
-              'region' => { 'startLine' => entry['line'] }
-            }
-          }
-        ]
-      }
-    end
-
-    def source_diagnostic_entries
-      diagnostic = report.diagnostics['source_incompleteness']
-      return [] unless diagnostic
-
-      diagnostic.fetch('files').flat_map do |file|
-        errors = file.fetch('errors')
-        if errors.empty?
-          next [{ 'file' => file['file'], 'line' => 1, 'type' => file['status'],
-                  'message' => 'No source diagnostic was available', 'status' => file['status'] }]
-        end
-
-        errors.map { |error| error.merge('status' => file['status']) }
-      end
-    end
-
-    def health_annotations
-      report.analysis_health.reasons.map do |reason|
-        level = reason.fetch('severity') == 'invalid' ? 'error' : 'warning'
-        title = "Necropsy analysis #{report.analysis_health.status}"
-        message = "#{reason.fetch('code')}: #{reason['message']}"
-        location = if reason['file']
-                     " file=#{reason['file']},line=#{positive_line(reason['line']) || 1},"
-                   else
-                     ' '
-                   end
-        "::#{level}#{location}title=#{title}::#{escape_annotation(message)}"
-      end
-    end
-
-    def escape_annotation(message)
-      message.gsub('%', '%25').gsub("\n", '%0A').gsub("\r", '%0D')
     end
   end
 end
