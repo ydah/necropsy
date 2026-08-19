@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-require 'json'
 require_relative 'analyzer_execution'
 require_relative 'analysis/pipeline'
 
