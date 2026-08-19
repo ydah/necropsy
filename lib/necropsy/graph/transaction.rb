@@ -17,6 +17,7 @@ module Necropsy
         staged.instance_variables.each do |name|
           @graph.instance_variable_set(name, staged.instance_variable_get(name))
         end
+        @graph.instance_variable_get(:@evidence_ledger)&.bind(@graph)
         nil
       end
 
@@ -29,6 +30,7 @@ module Necropsy
           value = @graph.instance_variable_get(name)
           copy.instance_variable_set(name, duplicate_value(value, memo))
         end
+        copy.instance_variable_get(:@evidence_ledger)&.bind(copy)
         copy
       end
 
@@ -36,7 +38,7 @@ module Necropsy
         return memo.fetch(value) if memo.key?(value)
 
         case value
-        when Graph::Store
+        when Graph::Store, Graph::EvidenceLedger
           value.duplicate_with(memo) { |item, state| duplicate_value(item, state) }
         when Hash
           duplicate_hash(value, memo)

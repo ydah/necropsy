@@ -3,7 +3,6 @@
 module Necropsy
   class CallGraph
     include DynamicEvidenceTracking
-    include EvidenceStore
     include BlockerMatching
     include ResolutionStore
 
@@ -23,9 +22,20 @@ module Necropsy
       store.profiles
     end
 
+    def evidence_records
+      evidence_ledger.evidence_records
+    end
+
+    def evidence_record(evidence_id)
+      evidence_ledger.evidence_record(evidence_id)
+    end
+
+    def evidence_collisions
+      evidence_ledger.evidence_collisions
+    end
+
     def initialize(scan_result, ambiguity_limit: 4)
       @store = Graph::Store.new(uncertainties: scan_result.uncertainties)
-      initialize_evidence_store
       @call_sites = scan_result.call_sites
       @instantiated_classes = scan_result.instantiated_classes.dup
       @class_infos = scan_result.class_infos.to_h { |info| [info.id, info] }
@@ -59,6 +69,7 @@ module Necropsy
       register_incomplete_source_blockers
       scan_result.semantic_blockers.each { |blocker| add_blocker(blocker) }
       retain_known_instantiated_classes
+      @evidence_ledger = Graph::EvidenceLedger.new(self)
     end
 
     def add_node(node)
@@ -669,6 +680,32 @@ module Necropsy
     end
 
     private
+
+    attr_reader :evidence_ledger
+
+    def normalize_projection(projection)
+      evidence_ledger.normalize_projection(projection)
+    end
+
+    def projected_evidence_records(evidence_ids, projection:, scope: nil)
+      evidence_ledger.projected_evidence_records(evidence_ids, projection: projection, scope: scope)
+    end
+
+    def projected_evidence_ids(evidence_ids, projection:, scope: nil)
+      evidence_ledger.projected_evidence_ids(evidence_ids, projection: projection, scope: scope)
+    end
+
+    def register_evidence(evidence, domain: :runtime, canonical_payload: nil)
+      evidence_ledger.register(evidence, domain: domain, canonical_payload: canonical_payload)
+    end
+
+    def evidence_with_identity(evidence)
+      evidence_ledger.with_identity(evidence)
+    end
+
+    def evidence_payload_registered?(evidence, canonical_payload: nil)
+      evidence_ledger.payload_registered?(evidence, canonical_payload: canonical_payload)
+    end
 
     def runtime_nodes_by_name
       @runtime_nodes_by_name ||= method_nodes.reject(&:test).group_by(&:name).freeze
