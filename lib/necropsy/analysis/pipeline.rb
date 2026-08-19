@@ -89,9 +89,7 @@ module Necropsy
 
       def reconcile_rta_results(graph, rta_results)
         measure_phase('reachability') do
-          if rta_pruning == :legacy
-            rta_results.each { |result| graph.reconcile_rta_result(result) }
-          end
+          rta_results.each { |result| graph.reconcile_rta_result(result) } if rta_pruning == :legacy
         end
       end
 

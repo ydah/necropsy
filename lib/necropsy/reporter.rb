@@ -10,6 +10,7 @@ module Necropsy
   class Reporter
     FORMATS = %i[human json ndjson yaml yml sarif github annotations].freeze
     DEFAULT_MIN_CONFIDENCE = :medium
+    DEFINITION_RESOLUTION_SAMPLE_LIMIT = Reporters::Human::DEFINITION_RESOLUTION_SAMPLE_LIMIT
 
     def initialize(report)
       @report = report
