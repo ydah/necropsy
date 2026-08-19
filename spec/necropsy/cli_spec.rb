@@ -80,6 +80,61 @@ class CliUnprovenResolutionAnalyzer < Necropsy::Analyzer
 end
 
 RSpec.describe Necropsy::CLI do
+  describe 'command option boundaries' do
+    let(:configuration) { instance_double('Configuration', load: config) }
+    let(:config) { Struct.new(:baseline_path, :fail_on).new('/configured/baseline.yml', :high) }
+    let(:command_options) { Necropsy::CLI::CommandOptions.new(configuration: configuration) }
+
+    def parse_options(command, argv)
+      command_options.parse(argv, command: command)
+    end
+
+    it 'registers command-specific options with their owning parser' do
+      arguments = [
+        '--gold-standard', 'gold.yml', '--ablation', '--check',
+        '--precision-threshold', '0.9', '--recall-threshold', '0.8'
+      ]
+      result = parse_options('bench', arguments)
+
+      expect(result.options).to include(
+        gold_standard: 'gold.yml',
+        ablation: true,
+        bench_check: true,
+        precision_threshold: 0.9,
+        recall_threshold: 0.8
+      )
+      expect do
+        parse_options('analyze', ['--gold-standard', 'gold.yml'])
+      end.to raise_error(OptionParser::InvalidOption, /--gold-standard/)
+    end
+
+    it 'applies configuration defaults only to options declared by a command' do
+      check = parse_options('check', [])
+      analyze = parse_options('analyze', [])
+
+      expect(check.options).to include(baseline: '/configured/baseline.yml', fail_on: :high)
+      expect(analyze.options).not_to have_key(:baseline)
+      expect(analyze.options).not_to have_key(:fail_on)
+    end
+
+    it 'preserves command arguments after the option parser stops' do
+      arguments = ['compare', '--report', 'static.json', '--observed', 'observed.json']
+
+      parse_options('feedback', arguments)
+
+      expect(arguments).to eq(['compare'])
+    end
+
+    it 'does not load configuration while rendering command help' do
+      expect(configuration).not_to receive(:load)
+
+      result = parse_options('bench', ['--help'])
+
+      expect(result.options[:help]).to be(true)
+      expect(result.parser.to_s).to include('--gold-standard')
+    end
+  end
+
   describe 'semantics' do
     it 'emits the generated matrix without requiring a project' do
       payload = nil
