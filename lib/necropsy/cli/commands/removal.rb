@@ -20,7 +20,7 @@ module Necropsy
             report_path: options[:report],
             candidate: options[:candidate],
             root: File.expand_path(options[:root]),
-            timeout_seconds: options[:verify_timeout]
+            timeout_seconds: options[:verify_timeout] || @workflow_class::DEFAULT_TIMEOUT_SECONDS
           )
           case @command
           when 'plan'

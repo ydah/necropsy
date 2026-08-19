@@ -94,7 +94,7 @@ module Necropsy
         fail_on_missing_static_target: false,
         base_report: nil,
         head_report: nil,
-        verify_timeout: default_verify_timeout
+        verify_timeout: nil
       }
     end
 
@@ -179,12 +179,6 @@ module Necropsy
         end
         parser.on('-v', '--version', 'Show version') { options[:version] = true }
       end
-    end
-
-    def default_verify_timeout
-      require_relative 'removal_workflow'
-
-      RemovalWorkflow::DEFAULT_TIMEOUT_SECONDS
     end
 
     def apply_config_defaults(options)

@@ -286,6 +286,21 @@ RSpec.describe Necropsy::CLI do
         expect(allowed_status).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
       end
 
+      it 'emits one parseable machine report when strict health fails' do
+        payload = nil
+        status = nil
+
+        expect do
+          status = described_class.run(['analyze', '--format', 'json', '--strict-health', '--root', project_root])
+        end.to output(satisfy do |text|
+          payload = JSON.parse(text)
+          payload.fetch('analysis_health').fetch('status') == 'invalid'
+        end).to_stdout
+
+        expect(status).to eq(Necropsy::CLI::HEALTH_FAILURE_STATUS)
+        expect(payload.fetch('analysis_health')).to include('status' => 'invalid')
+      end
+
       it 'does not write a baseline from incomplete analysis' do
         result = nil
 

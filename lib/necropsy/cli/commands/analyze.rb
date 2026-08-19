@@ -19,7 +19,7 @@ module Necropsy
           @report_emitter.emit(report: report, options: options, min_confidence: options[:min_confidence])
           return 0 if @health.acceptable?(report: report, options: options, strict: false)
 
-          @health.failure(report: report, options: options)
+          CLI::HEALTH_FAILURE_STATUS
         end
       end
     end

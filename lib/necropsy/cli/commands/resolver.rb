@@ -55,9 +55,6 @@ module Necropsy
 
           case name
           when :baseline then Guardrail::Baseline
-          when :quarantine then Guardrail::Quarantine
-          when :evaluator then Bench::Evaluator
-          when :doctor then Necropsy::Doctor
           when :workflow then FeedbackWorkflow
           when :diff then Guardrail::Diff
           when :removal then RemovalWorkflow
