@@ -59,6 +59,10 @@ module Necropsy
         stored_register_result_resolutions(result, refresh: refresh)
       end
 
+      def register_call_site(site)
+        @call_sites_by_id[site.call_site_id] = [site]
+      end
+
       def refresh_resolution_derived_state
         stored_refresh_resolution_derived_state
       end

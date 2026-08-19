@@ -32,6 +32,7 @@ module Necropsy
           copy.instance_variable_set(name, duplicate_value(value, memo))
         end
         copy.instance_variable_get(:@evidence_ledger)&.bind(copy)
+        copy.instance_variable_get(:@resolution_ledger)&.bind(copy)
         copy
       end
 

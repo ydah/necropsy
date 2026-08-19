@@ -710,6 +710,10 @@ module Necropsy
       resolution_ledger.refresh_resolution_derived_state
     end
 
+    def canonical_payload(value)
+      resolution_ledger.send(:canonical_payload, value)
+    end
+
     def normalize_projection(projection)
       evidence_ledger.normalize_projection(projection)
     end
@@ -772,7 +776,7 @@ module Necropsy
         raise Error, "Conflicting derived call site identity: #{site.call_site_id}" if existing.any?
 
         call_sites << site
-        @call_sites_by_id[site.call_site_id] = [site]
+        resolution_ledger.register_call_site(site)
         @call_sites_by_message = nil
       end
     end
