@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'prism'
+require 'forwardable'
 require_relative 'ast_scanner/definition_creation'
 require_relative 'ast_scanner/call_site_creation'
 require_relative 'ast_scanner/traversal'
@@ -33,7 +34,32 @@ module Necropsy
     end
   end
 
+  ScanState = Data.define(
+    :nodes,
+    :call_sites,
+    :instantiated_classes,
+    :uncertainties,
+    :class_data,
+    :entrypoint_hints,
+    :file_statuses,
+    :source_errors,
+    :definition_ordinals,
+    :call_site_ordinals,
+    :module_function_sources,
+    :deferred_module_functions,
+    :method_signatures,
+    :semantic_blockers,
+    :constant_facts,
+    :ambiguous_constant_facts,
+    :source_domains,
+    :scope_diagnostics,
+    :factory_methods,
+    :convention_rules
+  )
+
   class AstScanner
+    extend Forwardable
+
     CallTraversal = Data.define(:receiver, :arguments, :block)
     ATTR_MACROS = %i[attr_reader attr_writer attr_accessor].freeze
     DYNAMIC_SENDS = %i[send public_send __send__].freeze
@@ -87,26 +113,28 @@ module Necropsy
     def initialize(project:, files:, source_domains: nil, scope_diagnostics: {})
       @project = project
       @files = files
-      @source_domains = source_domains || files.to_h { |file| [project.relative_path(file), :analyze] }
-      @scope_diagnostics = scope_diagnostics
-      @nodes = []
-      @call_sites = []
-      @instantiated_classes = Set.new
-      @uncertainties = Hash.new { |hash, key| hash[key] = [] }
-      @class_data = {}
-      @entrypoint_hints = []
-      @file_statuses = {}
-      @source_errors = []
-      @definition_ordinals = Hash.new(0)
-      @call_site_ordinals = Hash.new(0)
-      @module_function_sources = {}
-      @deferred_module_functions = {}
-      @method_signatures = {}
-      @semantic_blockers = []
-      @constant_facts = {}
-      @ambiguous_constant_facts = Set.new
-      @factory_methods = project.config.factory_methods.to_set(&:to_s)
-      @convention_rules = ConventionRules.new
+      @state = ScanState.new(
+        nodes: [],
+        call_sites: [],
+        instantiated_classes: Set.new,
+        uncertainties: Hash.new { |hash, key| hash[key] = [] },
+        class_data: {},
+        entrypoint_hints: [],
+        file_statuses: {},
+        source_errors: [],
+        definition_ordinals: Hash.new(0),
+        call_site_ordinals: Hash.new(0),
+        module_function_sources: {},
+        deferred_module_functions: {},
+        method_signatures: {},
+        semantic_blockers: [],
+        constant_facts: {},
+        ambiguous_constant_facts: Set.new,
+        source_domains: source_domains || files.to_h { |file| [project.relative_path(file), :analyze] },
+        scope_diagnostics: scope_diagnostics,
+        factory_methods: project.config.factory_methods.to_set(&:to_s),
+        convention_rules: ConventionRules.new
+      )
     end
 
     def scan
@@ -200,9 +228,12 @@ module Necropsy
       CallTraversal.new(receiver: receiver, arguments: arguments, block: block)
     end
 
-    attr_reader :project, :files, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
-                :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals, :module_function_sources,
-                :deferred_module_functions, :call_site_ordinals, :source_domains, :scope_diagnostics,
-                :method_signatures, :semantic_blockers, :constant_facts, :ambiguous_constant_facts, :convention_rules
+    attr_reader :project, :files, :state
+
+    def_delegators :state, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
+                   :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals,
+                   :module_function_sources, :deferred_module_functions, :call_site_ordinals,
+                   :source_domains, :scope_diagnostics, :method_signatures, :semantic_blockers,
+                   :constant_facts, :ambiguous_constant_facts, :factory_methods, :convention_rules
   end
 end

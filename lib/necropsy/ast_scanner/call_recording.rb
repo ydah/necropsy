@@ -148,7 +148,7 @@ module Necropsy
     end
 
     def record_factory_instantiation(node, context)
-      return unless @factory_methods.include?(node.name.to_s)
+      return unless factory_methods.include?(node.name.to_s)
 
       receiver = classify_receiver(node.receiver, context)
       return unless receiver[:kind] == :constant
