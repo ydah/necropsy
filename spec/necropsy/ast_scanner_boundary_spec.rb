@@ -69,6 +69,17 @@ RSpec.describe Necropsy::AstScanner::CallSiteEmitter do
   end
 end
 
+RSpec.describe Necropsy::AstScanner::RubySemantics do
+  it 'owns syntax-level facts independently from the scanner coordinator' do
+    state = Struct.new(:class_data).new({})
+    semantics = described_class.new(state: state, record_semantic_blocker: ->(*) { raise 'unexpected blocker' })
+    node = Prism.parse('Thing').value.statements.body.first
+
+    expect(semantics.constant_name(node)).to eq('Thing')
+    expect(semantics.constant_candidates('Thing', ['Outer'])).to eq(['Outer::Thing', 'Thing'])
+  end
+end
+
 RSpec.describe Necropsy::AstScanner::DefinitionEmitter do
   it 'owns deterministic definition identity allocation and ledger append' do
     state_class = Struct.new(:nodes, :definition_ordinals)

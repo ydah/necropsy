@@ -140,6 +140,10 @@ module Necropsy
       )
       @definition_emitter = DefinitionEmitter.new(state: @state)
       @call_site_emitter = CallSiteEmitter.new(state: @state)
+      @ruby_semantics = RubySemantics.new(
+        state: @state,
+        record_semantic_blocker: method(:record_semantic_blocker)
+      )
     end
 
     def scan
@@ -254,7 +258,18 @@ module Necropsy
       CallTraversal.new(receiver: receiver, arguments: arguments, block: block)
     end
 
-    attr_reader :project, :files, :state, :definition_emitter, :call_site_emitter
+    attr_reader :project, :files, :state, :definition_emitter, :call_site_emitter, :ruby_semantics
+
+    %i[
+      classify_receiver first_symbol_argument first_string_argument literal_argument literal_name?
+      symbol_arguments arguments keyword_value keyword_keys literal_value method_signature call_arguments
+      incomplete_arguments constant_name qualify_constant record_class_info implicit_superclass_candidates
+      class_record class_infos resolve_candidate_groups resolve_candidate_group constant_candidates inherited_namespaces
+    ].each do |method_name|
+      define_method(method_name) do |*args, **kwargs|
+        ruby_semantics.public_send(method_name, *args, **kwargs)
+      end
+    end
 
     def_delegators :state, :nodes, :call_sites, :instantiated_classes, :uncertainties, :class_data,
                    :entrypoint_hints, :file_statuses, :source_errors, :definition_ordinals,
