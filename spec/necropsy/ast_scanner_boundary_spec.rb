@@ -80,6 +80,17 @@ RSpec.describe Necropsy::AstScanner::RubySemantics do
   end
 end
 
+RSpec.describe Necropsy::AstScanner::DslRules do
+  it 'owns framework and DSL macro handling behind the scanner coordinator' do
+    with_project(files: { 'lib/example.rb' => "class Example; end\n" }) do |root|
+      project = project_for(root)
+      scanner = Necropsy::AstScanner.new(project: project, files: [])
+
+      expect(scanner.send(:dsl_rules)).to be_a(described_class)
+    end
+  end
+end
+
 RSpec.describe Necropsy::AstScanner::DefinitionEmitter do
   it 'owns deterministic definition identity allocation and ledger append' do
     state_class = Struct.new(:nodes, :definition_ordinals)
