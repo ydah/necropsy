@@ -47,6 +47,7 @@ require_relative 'necropsy/reachability/engine'
 require_relative 'necropsy/confidence/scorer'
 require_relative 'necropsy/report'
 require_relative 'necropsy/reference_barrier'
+require_relative 'necropsy/analysis_health_builder'
 require_relative 'necropsy/runner'
 
 module Necropsy
