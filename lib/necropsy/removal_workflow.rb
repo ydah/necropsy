@@ -5,6 +5,7 @@ require 'json'
 require 'open3'
 require 'tmpdir'
 require 'timeout'
+require_relative 'artifact_loader'
 
 module Necropsy
   class RemovalWorkflow

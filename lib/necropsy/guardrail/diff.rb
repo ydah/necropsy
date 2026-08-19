@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require 'open3'
+require_relative '../artifact_loader'
+require_relative 'revision_diff'
 module Necropsy
   module Guardrail
     class Diff

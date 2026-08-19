@@ -25,6 +25,8 @@ module Necropsy
     end
 
     def run(argv)
+      require_relative 'reporter'
+
       command = argv.first&.start_with?('-') ? 'analyze' : argv.shift || 'analyze'
       options = default_options
       parser = build_parser(options)
@@ -113,7 +115,7 @@ module Necropsy
         fail_on_missing_static_target: false,
         base_report: nil,
         head_report: nil,
-        verify_timeout: RemovalWorkflow::DEFAULT_TIMEOUT_SECONDS
+        verify_timeout: default_verify_timeout
       }
     end
 
@@ -200,6 +202,12 @@ module Necropsy
       end
     end
 
+    def default_verify_timeout
+      require_relative 'removal_workflow'
+
+      RemovalWorkflow::DEFAULT_TIMEOUT_SECONDS
+    end
+
     def analyze(options, ignored_reference_paths: [])
       report = Necropsy.analyze(
         root: options[:root],
@@ -212,6 +220,8 @@ module Necropsy
     end
 
     def diagnose(command, options, argv)
+      require_relative 'diagnostics'
+
       node_id = argv.shift
       raise Error, "#{command} requires a symbol or definition ID" unless node_id
       raise Error, "Unexpected arguments for #{command}: #{argv.join(' ')}" unless argv.empty?
@@ -236,6 +246,8 @@ module Necropsy
     end
 
     def check(options)
+      require_relative 'guardrail/baseline'
+
       report = analyze(options, ignored_reference_paths: [options[:baseline]])
       return health_failure(report, options) unless health_acceptable?(report, options, strict: true)
 
@@ -386,6 +398,8 @@ module Necropsy
     end
 
     def baseline(options, argv)
+      require_relative 'guardrail/baseline'
+
       migration = argv.first == 'migrate'
       argv.shift if migration
       raise Error, "Unexpected baseline arguments: #{argv.join(' ')}" unless argv.empty?
@@ -407,6 +421,8 @@ module Necropsy
     end
 
     def quarantine(options)
+      require_relative 'guardrail/quarantine'
+
       report = analyze(options)
       return health_failure(report, options) unless health_acceptable?(report, options, strict: options[:write])
 
@@ -428,6 +444,8 @@ module Necropsy
     end
 
     def bench(options)
+      require_relative 'bench/evaluator'
+
       raise Error, '--gold-standard is required for bench' unless options[:gold_standard]
 
       gold_standard_path = File.expand_path(options[:gold_standard])
@@ -450,6 +468,8 @@ module Necropsy
     end
 
     def doctor(options)
+      require_relative 'doctor'
+
       report = analyze(options)
       config = report_config(options)
       doctor = Doctor.new(report: report, config: config)
@@ -461,6 +481,8 @@ module Necropsy
     end
 
     def feedback(options, argv)
+      require_relative 'feedback_workflow'
+
       subcommand = argv.shift || 'compare'
       raise Error, 'feedback requires --report and --observed' unless options[:report] && options[:observed]
       raise Error, "Unexpected feedback arguments: #{argv.join(' ')}" unless argv.empty?
@@ -488,6 +510,8 @@ module Necropsy
     end
 
     def causal_diff(options)
+      require_relative 'guardrail/diff'
+
       raise Error, 'diff requires --base' unless options[:base_report]
 
       base_path = File.expand_path(options[:base_report], options[:root])
@@ -511,6 +535,8 @@ module Necropsy
     end
 
     def removal_workflow(command, options, argv)
+      require_relative 'removal_workflow'
+
       raise Error, "#{command} requires --report and --candidate" unless options[:report] && options[:candidate]
 
       workflow = RemovalWorkflow.new(report_path: options[:report], candidate: options[:candidate],

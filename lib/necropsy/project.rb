@@ -187,6 +187,8 @@ module Necropsy
     end
 
     def changed_files(diff_base)
+      require_relative 'guardrail/diff'
+
       Guardrail::Diff.changed_files(root: root, diff_base: diff_base)
     end
 

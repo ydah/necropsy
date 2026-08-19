@@ -2,6 +2,8 @@
 
 require 'json'
 require 'shellwords'
+require_relative 'why_not_explanation'
+require_relative 'why_not_renderer'
 
 module Necropsy
   class Diagnostics

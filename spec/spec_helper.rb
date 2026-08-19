@@ -3,6 +3,24 @@
 require 'necropsy'
 require 'tmpdir'
 
+# Command-specific files are loaded explicitly in production. The shared spec
+# helper loads them for unit tests that exercise those public classes directly.
+%w[
+  artifact_loader
+  feedback_workflow
+  reporter
+  doctor
+  diagnostics
+  guardrail/baseline
+  guardrail/diff
+  guardrail/quarantine
+  removal_workflow
+  bench/finding_facts
+  bench/evaluator
+  bench/claim_gate
+  bench/review_queue
+].each { |path| require "necropsy/#{path}" }
+
 Dir[File.expand_path('support/**/*.rb', __dir__)].each { |path| require path }
 
 def fixture_path(path)

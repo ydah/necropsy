@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'artifact_loader'
+
 module Necropsy
   class FeedbackWorkflow
     def initialize(static_report:, observed_artifact:, max_fixtures: RuntimeFeedback::DEFAULT_FIXTURE_LIMIT)
