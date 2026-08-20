@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require_relative 'resolution_store'
+
 module Necropsy
   module Graph
     class ResolutionLedger
